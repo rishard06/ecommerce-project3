@@ -1,8 +1,23 @@
 import Image from "next/image";
+import { auth } from "../lib/auth"; // path to your Better Auth server instance
+import { headers } from "next/headers";
+import SignIn from "../component/signIn";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth.api.getSession({
+    headers: await headers(), // you need to pass the headers object.
+  });
+
   return (
     <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
+      <div>
+        {session?.user ? (
+          <h1 className="text-center">{session?.user?.name}</h1>
+        ) : (
+          <h1 className="text-center">Hello!!</h1>
+        )}
+        <SignIn session={session} />
+      </div>
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
         <Image
           className="dark:invert"
