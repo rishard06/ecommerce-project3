@@ -10,11 +10,11 @@ export default function Header({ session }) {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full px-4 py-4">
+    <header className="sticky top-0 z-50 w-full px-4 py-6">
       <div className='bg-white/50 backdrop-blur-xl rounded-3xl shadow-sm max-w-7xl mx-auto px-6 py-3 flex items-center justify-between'>
         <Link href="/">
           <div className="text-4xl font-bold flex items-center">
-            <h1 className="text-primary-800">E</h1>comm
+            <h1 className="text-blue-800 ">v</h1>enn.
           </div>
         </Link>
 
