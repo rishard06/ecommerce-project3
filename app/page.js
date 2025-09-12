@@ -18,12 +18,12 @@ export default async function Home() {
         speed={0.5}
         // colors={["#c7dae1", "#a6c9c1", "#6ea085", "#7dba9ed9"]}
         colors={["#c7dae1", "#61c295ba", "#98cdb1", "#73bfb0e6"]}
-        className="absolute inset-0 w-full h-full mix-blend-normal"
+        className="absolute inset-0 w-full h-screen mix-blend-normal"
         style={{ zIndex: -1 }}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-green-200-900/10 z-[1]"></div>
 
-      <div className="z-10 font-sans font-bold grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
+      <div className="z-20 font-sans font-bold grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
         <div>
           {session?.user ? (
             <h1 className="text-center">{session?.user?.name}</h1>
