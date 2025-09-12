@@ -10,37 +10,38 @@ import { motion } from "motion/react";
 export default function Header({ session }) {
   const [hover, setHover] = useState(false);
   const router = useRouter();
-  
+
   const handleSearch = (e) => {
     e.preventDefault();
   };
 
   return (
     <header className="fixed top-0 z-50 w-full px-4 py-6">
-      <div className="bg-white/50 backdrop-blur-xl rounded-3xl drop-shadow-2xl max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+      <div className="bg-white/30 backdrop-blur-xl rounded-3xl drop-shadow-2xl max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
         <Link href="/">
           <div className="text-4xl font-bold flex items-center">
             <h1 className="text-blue-800 ">v</h1>enn.
           </div>
         </Link>
 
-        <form
-          onSubmit={handleSearch}
-          className="flex-1 max-w-md mx-8 bg-white/30 rounded-full"
-        >
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              placeholder="Search products..."
-              className="input w-full pl-10 rounded-full p-3"
-              // value={searchQuery}
-              // onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <SearchIcon className="absolute left-3 top- h-5 w-5 text-gray-400" />
-          </div>
-        </form>
 
         <div className="flex items-center space-x-4">
+          <form
+            onSubmit={handleSearch}
+            className="flex-1 max-w-md mx-8 bg-white/30 rounded-full"
+          >
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                placeholder="Search products..."
+                className="input w-full pl-10 rounded-full p-3"
+                // value={searchQuery}
+                // onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <SearchIcon className="absolute left-3 top- h-5 w-5 text-gray-400" />
+            </div>
+          </form>
+          
           <Link
             href="/favorites"
             className="p-2 rounded-full hover:bg-surface-dark"
@@ -105,7 +106,7 @@ export default function Header({ session }) {
             >
               {/* Login button - Element 1 */}
               <motion.button
-                className=" px-4 py-2 bg-white rounded-full font-medium flex items-center gap-2 z-10"
+                className="px-4 py-2 bg-white rounded-full font-medium flex items-center gap-2"
                 animate={{
                   scale: hover ? 1.1 : 1,
                 }}
@@ -140,14 +141,14 @@ export default function Header({ session }) {
                 {/* Register button - Element 2 */}
                 {session?.user ? (
                   <motion.button
-                    className="absolute px-4 py-2 bg-white rounded-full"
+                    className="absolute px-4 py-3 bg-white rounded-full -z-10"
                     animate={{
                       // y: hover ? 50 : 50,
-                      x: hover ? -110 : -40,
-                      scale: hover ? 1.1 : 0,
+                      // scale: hover ? 1.1 : 0,
                       opacity: hover ? 1 : 0,
+                      x: hover ? -105 : -50,
                     }}
-                    transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                    transition={{ type: "tween", stiffness: 200, damping: 30 }}
                   >
                     <div
                       onClick={async () => {
@@ -155,9 +156,9 @@ export default function Header({ session }) {
                         await signOut();
                         router.refresh();
                       }}
-                      className="hover:cursor-pointer fon"
+                      className="hover:cursor-pointer  text-red-700"
                     >
-                      sign out
+                        Log Out
                     </div>
                   </motion.button>
                 ) : null}

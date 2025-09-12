@@ -15,13 +15,20 @@ export default async function Home() {
     <>
       <Header session={session} />
       <MeshGradient
-        speed={0.5}
-        // colors={["#c7dae1", "#a6c9c1", "#6ea085", "#7dba9ed9"]}
+        speed={0.7}
         colors={["#c7dae1", "#61c295ba", "#98cdb1", "#73bfb0e6"]}
-        className="absolute inset-0 w-full h-screen mix-blend-normal"
+        className="absolute inset-0 w-full h-screen mix-blend-normal opacity-60"
         style={{ zIndex: -1 }}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-green-200-900/10 z-[1]"></div>
+
+      <MeshGradient
+        speed={0.7}
+        colors={["#c7dae1", "#61c295ba", "#98cdb1", "#73bfb0e6", "#1f6e53"]}
+        distortion={1}
+        className="absolute inset-0 w-full h-screen mix-blend-multiply opacity-35"
+        style={{ zIndex: -1 }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#9ee9dc] via-transparent to-white-200-900/0 z-10"></div>
 
       <div className="z-20 font-sans font-bold grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
         <div>
@@ -33,8 +40,29 @@ export default async function Home() {
           <SignIn session={session} />
         </div>
       </div>
-      <Homee />
-      {/* <Homee /> */}
+          <Homee />
+
+      <div className="z-20 font-sans font-bold grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
+        <div>
+          {session?.user ? (
+            <h1 className="text-center">{session?.user?.name}</h1>
+          ) : (
+            <h1 className="text-center">Hello!!</h1>
+          )}
+          <SignIn session={session} />
+        </div>
+      </div>
+
+      <div className="z-20 font-sans font-bold grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
+        <div>
+          {session?.user ? (
+            <h1 className="text-center">{session?.user?.name}</h1>
+          ) : (
+            <h1 className="text-center">Hello!!</h1>
+          )}
+          <SignIn session={session} />
+        </div>
+      </div>
     </>
   );
 }

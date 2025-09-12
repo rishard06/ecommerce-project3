@@ -3,14 +3,14 @@ import { auth } from "../lib/auth"; // path to your Better Auth server instance
 import { headers } from "next/headers";
 import SignIn from "../component/signIn";
 
-export default async function Home() {
+export default async function Homee() {
   const session = await auth.api.getSession({
     headers: await headers(), // you need to pass the headers object.
   });
 
   return (
     <>
-      <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 z-[3] bg-gradient-to-b from-black/15 via-transparent to-green-200-900/10">
+      <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 z-[3] bg-gradient-to-b from-[#9ee9dc] via-transparent to-green-200-900/10">
         
         
         <div>
