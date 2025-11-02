@@ -20,7 +20,7 @@ const Hero = ({ session }) => {
   return (
     <section className="relative h-screen flex items-center justify-center top-30 lg:top-0">
       <div className="flex w-[80%] container mx-auto">
-        <div className="flex flex-col justify-between lg:flex-row items-center">
+        <div className="flex flex-col justify-between w-full lg:flex-row items-center">
           <div className="w-full lg:w-1/2 text-left mx-auto lg:col-span-7 glass-component px-6 py-4">
             <h1 className="max-w-2xl mb-8 text-4xl font-extrabold tracking-tight leading-none md:text-5xl xl:text-6xl dark:text-gray-800">
               Building digital products & brands.
@@ -40,8 +40,8 @@ const Hero = ({ session }) => {
                 {images.map((src, index) => (
                   <CarouselItem key={index}>
                     <div className="p-1">
-                      <div className="flex aspect-square items-center justify-center">
-                        <Image src={src} alt={`Image ${index + 1}`} width={400} height={400} className='rounded-3xl hover:cursor-grab active:cursor-grabbing' />
+                      <div className="flex aspect-square items-center justify-center relative">
+                        <Image src={src} alt={`Image ${index + 1}`} fill priority={index === 0} fetchPriority={index === 0 ? "high" : "auto"} sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className='rounded-3xl hover:cursor-grab active:cursor-grabbing' style={{ objectFit: "cover" }} />
                       </div>
                     </div>
                   </CarouselItem>
