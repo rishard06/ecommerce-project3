@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Carousel,
   CarouselContent,
@@ -7,7 +7,8 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Button } from "@/components/ui/button";
-import Image from 'next/image';
+import Image from "next/image";
+import { ArrowRight } from "lucide-react";
 
 const Hero = ({ session }) => {
   const images = [
@@ -18,10 +19,10 @@ const Hero = ({ session }) => {
   ];
 
   return (
-    <section className="relative h-screen flex items-center justify-center top-30 lg:top-0">
+    <section className="relative h-[calc(100vh-8.5rem)] flex items-center justify-center xl:top-0">
       <div className="flex w-[80%] container mx-auto">
-        <div className="flex flex-col justify-between w-full lg:flex-row items-center">
-          <div className="w-full lg:w-1/2 text-left mx-auto lg:col-span-7 glass-component px-6 py-4">
+        <div className="flex flex-col justify-between w-full xl:flex-row items-center">
+          <div className="w-full xl:w-1/2 text-left mx-auto xl:col-span-7  py-4">
             <h1 className="max-w-2xl mb-8 text-4xl font-extrabold tracking-tight leading-none md:text-5xl xl:text-6xl dark:text-gray-800">
               Building digital products & brands.
             </h1>
@@ -32,23 +33,42 @@ const Hero = ({ session }) => {
             </p>
             <Button className="bg-blue-500 hover:bg-blue-600 hover:cursor-pointer text-white font-bold py-2 px-4 rounded-full">
               Find Products
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
-          <div className="w-full lg:w-1/2">
-            <Carousel className="w-full max-w-md mx-auto" opts={{ loop: true }}>
+          <div className="w-full mx-auto xl:w-1/2 py-4 glass-component">
+            <Carousel
+              className="max-w-md mx-auto"
+              opts={{ loop: true }}
+            >
               <CarouselContent>
                 {images.map((src, index) => (
                   <CarouselItem key={index}>
                     <div className="p-1">
                       <div className="flex aspect-square items-center justify-center relative">
-                        <Image src={src} alt={`Image ${index + 1}`} fill priority={index === 0} fetchPriority={index === 0 ? "high" : "auto"} sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className='rounded-3xl hover:cursor-grab active:cursor-grabbing' style={{ objectFit: "cover" }} />
+                        <Image
+                          src={src}
+                          alt={`Image ${index + 1}`}
+                          fill
+                          priority={index === 0}
+                          fetchPriority={index === 0 ? "high" : "auto"}
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          className="rounded-3xl hover:cursor-grab active:cursor-grabbing"
+                          style={{ objectFit: "cover" }}
+                        />
                       </div>
                     </div>
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious  variant="default" className="hover:cursor-pointer" />
-              <CarouselNext variant="default" className="hover:cursor-pointer" />
+              <CarouselPrevious
+                variant="default"
+                className="hover:cursor-pointer"
+              />
+              <CarouselNext
+                variant="default"
+                className="hover:cursor-pointer"
+              />
             </Carousel>
           </div>
         </div>
