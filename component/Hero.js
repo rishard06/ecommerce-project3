@@ -19,7 +19,7 @@ const Hero = ({ session }) => {
   ];
 
   return (
-    <section className="relative h-[calc(100vh-8.5rem)] flex items-center justify-center xl:top-0">
+    <section className="h-[calc(100vh-8.5rem)] flex items-center justify-center">
       <div className="flex w-[80%] container mx-auto">
         <div className="flex flex-col justify-between w-full xl:flex-row items-center">
           <div className="w-full xl:w-1/2 text-left mx-auto xl:col-span-7  py-4">
