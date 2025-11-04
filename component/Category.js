@@ -30,8 +30,8 @@ const categories = [
 
 export default function Category() {
   return (
-    <section className="w-full py-16 px-4 backdrop-blur-sm bg-white/30">
-      <div className="max-w-[80%] mx-auto">
+    <section className="h-screen w-full flex items-center  py-16 px-4 backdrop-blur-sm bg-white/30">
+      <div className="w-[80%] mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-3">
             Shop by Category

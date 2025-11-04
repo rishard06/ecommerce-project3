@@ -5,6 +5,8 @@ import MeshGradientBackground from "./MeshGradientBackground";
 import NavBar from "./NavBar";
 import Hero from "./Hero.js";
 import Category from "./Category";
+import Features from "./Features";
+import Testimonies from "./Testimonies";
 
 export default function Header({ session }) {
   return (
@@ -13,6 +15,8 @@ export default function Header({ session }) {
       <NavBar session={session} />
       <Hero session={session} />
       <Category />
+      <Features />
+      <Testimonies />
     </header>
   );
 }
