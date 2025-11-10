@@ -34,7 +34,7 @@ const testimonials = [
 
 export default function Testimonies() {
   return (
-    <section className="h-screen flex items-center w-full py-16 px-4">
+    <section className="min-h-screen flex items-center w-full py-16 px-4">
       <div className="max-w-[80%] mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-3">
