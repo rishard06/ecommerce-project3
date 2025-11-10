@@ -19,10 +19,10 @@ const Hero = ({ session }) => {
   ];
 
   return (
-    <section className="h-[calc(100vh-8.5rem)] flex items-center justify-center">
-      <div className="flex w-[80%] container mx-auto">
-        <div className="flex flex-col justify-between w-full xl:flex-row items-center">
-          <div className="w-full xl:w-1/2 text-left mx-auto xl:col-span-7  py-4">
+    <section className="min-h-[calc(100vh+8rem)] xl:min-h-[calc(100vh-8.5rem)] flex items-start md:items-center justify-center">
+      <div className="flex w-[80%] shrink-0 container mx-auto">
+        <div className="flex flex-col justify-between w-full xl:flex-row gap-4 items-center">
+          <div className="w-full xl:w-1/2 text-left mx-auto xl:col-span-7 py-4">
             <h1 className="max-w-2xl mb-8 text-4xl font-extrabold tracking-tight leading-none md:text-5xl xl:text-6xl dark:text-gray-800">
               Building digital products & brands.
             </h1>
@@ -31,7 +31,7 @@ const Hero = ({ session }) => {
               the utility classes from Tailwind CSS and based on the components
               from the Flowbite Library and the Blocks System.
             </p>
-            <Button className="bg-blue-500 hover:bg-blue-600 hover:cursor-pointer text-white font-bold py-2 px-4 rounded-full">
+            <Button className="bg-primary-600 hover:bg-primary-700 hover:cursor-pointer text-white font-bold py-2 px-4 rounded-full">
               Find Products
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -62,12 +62,12 @@ const Hero = ({ session }) => {
                 ))}
               </CarouselContent>
               <CarouselPrevious
-                variant="default"
-                className="hover:cursor-pointer"
+                variant="outline"
+                className="hover:cursor-pointer left-6 bg-transparent"
               />
               <CarouselNext
-                variant="default"
-                className="hover:cursor-pointer"
+                variant="outline"
+                className="hover:cursor-pointer right-6 bg-transparent shadow-primary-foreground"
               />
             </Carousel>
           </div>

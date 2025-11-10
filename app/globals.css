@@ -3,6 +3,23 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  --primary-50: #e8f4f8;
+  --primary-100: #d1e7dd;
+  --primary-200: #b8dbd9;
+  --primary-300: #9ecfda;
+  --primary-400: #7fc2e2;
+  --primary-500: #5ba4d6;
+  --primary-600: #4682c8;
+  --primary-700: #3561b5;
+  --primary-800: #254294;
+  --primary-900: #172a68;
+
+  --surface-light: rgba(255, 255, 255, 0.7);
+  --surface-dark: rgba(0, 0, 0, 0.05);
+
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  --shadow-hover: 0 10px 40px 0 rgba(31, 38, 135, 0.15);
 }
 
 @theme inline {
@@ -10,6 +27,18 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary-600);
+  --color-primary-foreground: var(--background);
+  --color-primary-50: var(--primary-50);
+  --color-primary-100: var(--primary-100);
+  --color-primary-200: var(--primary-200);
+  --color-primary-300: var(--primary-300);
+  --color-primary-400: var(--primary-400);
+  --color-primary-500: var(--primary-500);
+  --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
+  --color-primary-800: var(--primary-800);
+  --color-primary-900: var(--primary-900);
 }
 
 @media (prefers-color-scheme: light) {
@@ -21,7 +50,7 @@
 
 body {
   /* background: var(--background); */
-  background: linear-gradient(135deg, #e5fdf7, #9ee9dc, #78d3ad);
+  background: linear-gradient(135deg, #e8f4f8, #d1e7dd, #b8dbd9);
   color: var(--foreground);
   font-family: Helvetica, sans-serif;
 }

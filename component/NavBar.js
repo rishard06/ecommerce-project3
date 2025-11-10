@@ -34,16 +34,16 @@ export default function NavBar({ session }) {
       <div className="fixed z-50 w-[80%] mx-auto my-4 px-4 md:px-6 py-3 flex justify-between items-center gap-4 md:gap-10 glass-component">
         <Link href="/">
           <div className="text-3xl md:text-4xl font-bold flex items-center">
-            <h1 className="text-blue-800 ">v</h1>enn.
+            <h1 className="text-primary-800 ">v</h1>enn.
           </div>
         </Link>
 
         {/* Mobile Menu Button */}
-        <div className="md:hidden flex items-center ">
+        <div className="md:hidden flex items-center">
           <Button
             variant="default"
             size="icon"
-            className="hover:cursor-pointer"
+            className="rounded-full hover:bg-primary-700 hover:cursor-pointer"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             <MenuIcon className="h-6 w-6" />
