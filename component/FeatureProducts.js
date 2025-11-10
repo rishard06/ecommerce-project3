@@ -42,7 +42,7 @@ const featuredProducts = [
 
 function ProductCard({ id, name, price, image, isPopular, description }) {
   return (
-    <Card className="glass-component text-center hover:shadow-2xl/45 transition-all duration-300 cursor-pointer group">
+    <Card className="glass-component min-w-max-[300px] text-center hover:shadow-2xl/45 transition-all duration-300 cursor-pointer group">
       <CardHeader>
         <div className="w-full h-48 mx-auto mb-4 overflow-hidden rounded-t-3xl">
           <Image
@@ -68,7 +68,7 @@ function ProductCard({ id, name, price, image, isPopular, description }) {
 
 export default function FeatureProducts() {
   return (
-    <section className="h-screen w-full flex items-center py-16 px-4">
+    <section className="min-h-screen w-full flex items-center py-16 px-4">
       <div className="max-w-[80%] mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-10">
           <div>
@@ -84,7 +84,7 @@ export default function FeatureProducts() {
             View All <ArrowRightIcon className="h-4 w-4" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {featuredProducts.map((product) => (
             <ProductCard
               key={product.id}

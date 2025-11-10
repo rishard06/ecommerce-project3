@@ -35,7 +35,7 @@ const features = [
 
 export default function Features() {
   return (
-    <section className="h-screen w-full flex items-center py-16 px-4 backdrop-blur-sm bg-white/30">
+    <section className="min-h-screen w-full flex items-center py-16 px-4 backdrop-blur-sm bg-white/30">
       <div className="max-w-[80%] mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-3">Why Choose Us</h2>
@@ -52,7 +52,7 @@ export default function Features() {
             >
               <CardHeader>
                 <div
-                  className={`w-16 h-16 rounded-full bg-white/50 mr-auto flex items-center justify-center mb-4 text-blue-700`}
+                  className={`w-16 h-16 rounded-full bg-white/50 mr-auto flex items-center justify-center mb-4 text-primary-700`}
                 >
                   {feature.icon}
                 </div>
