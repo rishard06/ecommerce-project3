@@ -60,7 +60,7 @@ function ProductCard({ id, name, price, image, isPopular, description }) {
       </CardContent>
       <CardFooter className="flex justify-between items-center">
         <span className="font-bold text-lg">{price}</span>
-        <Button>Add to Cart</Button>
+        <Button className="rounded-full cursor-pointer hover:bg-primary-700">Add to Cart</Button>
       </CardFooter>
     </Card>
   );

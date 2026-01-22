@@ -14,6 +14,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'uploadthingy.s3.us-west-1.amazonaws.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'source.unsplash.com',
+      }
     ],
   },
 };

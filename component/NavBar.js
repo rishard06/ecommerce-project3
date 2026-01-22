@@ -30,7 +30,7 @@ export default function NavBar({ session }) {
   };
 
   return (
-    <div className="relative w-full h-34 flex justify-center">
+    <nav className="relative w-full h-34 flex justify-center">
       <div className="fixed z-50 w-[80%] mx-auto my-4 px-4 md:px-6 py-3 flex justify-between items-center gap-4 md:gap-10 glass-component">
         <Link href="/">
           <div className="text-3xl md:text-4xl font-bold flex items-center">
@@ -231,6 +231,6 @@ export default function NavBar({ session }) {
           </div>
         </motion.div>
       )}
-    </div>
+    </nav>
   );
 }
