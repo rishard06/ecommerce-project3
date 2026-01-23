@@ -20,12 +20,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { authClient, signIn, signOut } from "../lib/auth-client";
 import { motion } from "framer-motion";
+import { Session } from "../types";
 
-export default function NavBar({ session }) {
+export default function NavBar({ session }: { session: Session | null }) {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
   };
 
@@ -88,7 +89,7 @@ export default function NavBar({ session }) {
               >
                 {session?.user ? (
                   <img
-                    src={session?.user.image}
+                    src={session?.user.image || ""}
                     alt="User"
                     className="w-6 h-6 rounded-full object-cover"
                   />
@@ -184,7 +185,7 @@ export default function NavBar({ session }) {
                   >
                     {session?.user ? (
                       <img
-                        src={session?.user.image}
+                        src={session?.user.image || ""}
                         alt="User"
                         className="w-6 h-6 rounded-full object-cover"
                       />

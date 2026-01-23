@@ -1,7 +1,14 @@
 import Link from 'next/link';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
-const categories = [
+interface Category {
+  name: string;
+  icon: React.ReactNode;
+  color: string;
+  description: string;
+}
+
+const categories: Category[] = [
   {
     name: 'Headphones',
     icon: <HeadphonesIcon className="h-8 w-8" />,
@@ -67,7 +74,7 @@ export default function Category() {
   );
 }
 
-function HeadphonesIcon(props) {
+function HeadphonesIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
       <svg
         {...props}
@@ -90,7 +97,7 @@ function HeadphonesIcon(props) {
   }
   
   
-  function SpeakerIcon(props) {
+  function SpeakerIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
       <svg
         {...props}
@@ -112,7 +119,7 @@ function HeadphonesIcon(props) {
   }
   
   
-  function MicIcon(props) {
+  function MicIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
       <svg
         {...props}
@@ -134,7 +141,7 @@ function HeadphonesIcon(props) {
   }
   
   
-  function ShoppingBagIcon(props) {
+  function ShoppingBagIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
       <svg
         {...props}
@@ -156,7 +163,7 @@ function HeadphonesIcon(props) {
   }
   
   
-  function ChevronRightIcon(props) {
+  function ChevronRightIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
       <svg
         {...props}

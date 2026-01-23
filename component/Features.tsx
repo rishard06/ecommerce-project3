@@ -2,7 +2,14 @@ import React from "react";
 import { Star, ShoppingBag, Headphones, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const features = [
+interface Feature {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  color: string;
+}
+
+const features: Feature[] = [
   {
     title: "Premium Quality",
     description:

@@ -9,8 +9,9 @@ import {
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
+import { Session } from "@/types";
 
-const Hero = ({ session }) => {
+const Hero = ({ session }: { session: Session | null }) => {
   const images = [
     "https://flowbite.s3.amazonaws.com/blocks/marketing-ui/hero/phone-mockup.png",
     "https://flowbite.s3.amazonaws.com/docs/gallery/featured/image.jpg",

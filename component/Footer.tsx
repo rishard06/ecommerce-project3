@@ -10,11 +10,34 @@ import {
   Phone,
   Mail,
   ArrowRight,
+  LucideProps
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-const socialLinks = [
+interface SocialLink {
+  href: string;
+  "aria-label": string;
+  icon: React.ComponentType<LucideProps>;
+}
+
+interface ContactInfo {
+  icon: React.ComponentType<LucideProps>;
+  text: string;
+}
+
+interface QuickLink {
+  href: string;
+  label: string;
+}
+
+
+interface FooterLink {
+  href: string;
+  label: string;
+}
+
+const socialLinks: SocialLink[] = [
   {
     href: "#",
     "aria-label": "Facebook",
@@ -37,7 +60,7 @@ const socialLinks = [
   },
 ];
 
-const quickLinks = [
+const quickLinks: QuickLink[] = [
   { href: "/", label: "Home" },
   { href: "/products", label: "Products" },
   { href: "/about", label: "About Us" },
@@ -45,7 +68,7 @@ const quickLinks = [
   { href: "/blog", label: "Blog" },
 ];
 
-const contactInfo = [
+const contactInfo: ContactInfo[] = [
   {
     icon: MapPin,
     text: "123 Audio Lane, Soundville, CA 94105, USA",
@@ -60,7 +83,7 @@ const contactInfo = [
   },
 ];
 
-const footerLinks = [
+const footerLinks: FooterLink[] = [
     { href: "/terms", label: "Terms of Service" },
     { href: "/privacy", label: "Privacy Policy" },
     { href: "/faq", label: "FAQ" },
@@ -69,7 +92,7 @@ const footerLinks = [
 export default function Footer() {
   const [email, setEmail] = useState("");
 
-  const handleSubscribe = (e) => {
+  const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
     // Handle subscription logic here
     console.log("Subscribed with:", email);
@@ -127,7 +150,7 @@ export default function Footer() {
                 <li key={index} className="flex items-start">
                   <item.icon
                     size={18}
-                    className="mr-2 text-primary-600 mt-0.5 flex-shrink-0"
+                    className="mr-2 text-primary-600 mt-0.5"
                   />
                   <span className="text-gray-600">{item.text}</span>
                 </li>

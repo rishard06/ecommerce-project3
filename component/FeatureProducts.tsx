@@ -5,7 +5,16 @@ import { ArrowRight as ArrowRightIcon } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-const featuredProducts = [
+interface Product {
+  id: number;
+  name: string;
+  price: string;
+  image: string;
+  isPopular: boolean;
+  description: string;
+};
+
+const featuredProducts: Product[] = [
   {
     id: 1,
     name: 'Wireless Headphones',
@@ -40,7 +49,7 @@ const featuredProducts = [
   },
 ];
 
-function ProductCard({ id, name, price, image, isPopular, description }) {
+function ProductCard({ id, name, price, image, isPopular, description }: Product) {
   return (
     <Card className="glass-component min-w-max-[300px] text-center hover:shadow-2xl/45 transition-all duration-300 cursor-pointer group">
       <CardHeader>
