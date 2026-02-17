@@ -4,6 +4,11 @@
   --background: #ffffff;
   --foreground: #171717;
 
+  --font-color-primary: #1e2939;
+  --font-color-secondary: #364153;
+  --font-color-tertiary: #6a7282;
+  --font-color-quaternary: #99a1af;
+  
   --primary-50: #e8f4f8;
   --primary-100: #d1e7dd;
   --primary-200: #b8dbd9;
@@ -14,6 +19,9 @@
   --primary-700: #3561b5;
   --primary-800: #254294;
   --primary-900: #172a68;
+  --accent-500: #ccf381;
+  --accent-600: #beeb6b;
+  --accent-700: #98c447;
 
   --surface-light: rgba(255, 255, 255, 0.7);
   --surface-dark: rgba(0, 0, 0, 0.05);
@@ -27,6 +35,10 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-gray-primary: var(--font-color-primary);
+  --color-gray-secondary: var(--font-color-secondary);
+  --color-gray-tertiary: var(--font-color-tertiary);
+  --color-gray-quaternary: var(--font-color-quaternary);
   --color-primary: var(--primary-600);
   --color-primary-foreground: var(--background);
   --color-primary-50: var(--primary-50);
@@ -39,6 +51,9 @@
   --color-primary-700: var(--primary-700);
   --color-primary-800: var(--primary-800);
   --color-primary-900: var(--primary-900);
+  --color-accent-500: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-accent-700: var(--accent-700);
 }
 
 @media (prefers-color-scheme: light) {
