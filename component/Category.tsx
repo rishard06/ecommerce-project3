@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ShoppingBagIcon, Watch, Volleyball, Smartphone, ChevronRightIcon } from 'lucide-react';
 
 interface Category {
   name: string;
@@ -10,28 +11,28 @@ interface Category {
 
 const categories: Category[] = [
   {
-    name: 'Headphones',
-    icon: <HeadphonesIcon className="h-8 w-8" />,
-    color: 'text-primary-700',
-    description: '4+ Products',
-  },
-  {
-    name: 'Speakers',
-    icon: <SpeakerIcon className="h-8 w-8" />,
-    color: 'text-orange-700',
-    description: '5+ Products',
-  },
-  {
-    name: 'Microphones',
-    icon: <MicIcon className="h-8 w-8" />,
-    color: 'text-green-700',
-    description: '3+ Products',
-  },
-  {
     name: 'Accessories',
     icon: <ShoppingBagIcon className="h-8 w-8" />,
     color: 'text-purple-700',
     description: '10+ Products',
+  },
+  {
+    name: 'Watches',
+    icon: <Watch className="h-8 w-8" />,
+    color: 'text-primary-700',
+    description: '4+ Products',
+  },
+  {
+    name: 'Sports',
+    icon: <Volleyball className="h-8 w-8" />,
+    color: 'text-orange-700',
+    description: '5+ Products',
+  },
+  {
+    name: 'Smartphones',
+    icon: <Smartphone className="h-8 w-8" />,
+    color: 'text-green-700',
+    description: '3+ Products',
   },
 ];
 
@@ -58,10 +59,10 @@ export default function Category() {
                   <CardTitle className="text-xl">{category.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-600">{category.description}</p>
+                  <p className="text-sm text-gray-tertiary">{category.description}</p>
                 </CardContent>
                 <CardFooter className="justify-center">
-                  <span className="text-primary-600 flex items-center gap-1 text-base">
+                  <span className="text-accent-700 flex items-center gap-1">
                     Shop Now <ChevronRightIcon className="h-4 w-4" />
                   </span>
                 </CardFooter>
@@ -73,111 +74,3 @@ export default function Category() {
     </section>
   );
 }
-
-function HeadphonesIcon(props: React.SVGProps<SVGSVGElement>) {
-    return (
-      <svg
-        {...props}
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 2a5 5 0 0 0-5 5v6a5 5 0 0 0 5 5 5 5 0 0 0 5-5V7a5 5 0 0 0-5-5Z" />
-        <path d="M7 12v3a5 5 0 0 0 5 5 5 5 0 0 0 5-5v-3" />
-        <path d="M17 12h.01" />
-        <path d="M7 12h.01" />
-      </svg>
-    )
-  }
-  
-  
-  function SpeakerIcon(props: React.SVGProps<SVGSVGElement>) {
-    return (
-      <svg
-        {...props}
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
-        <circle cx="12" cy="14" r="4" />
-        <line x1="12" x2="12.01" y1="6" y2="6" />
-      </svg>
-    )
-  }
-  
-  
-  function MicIcon(props: React.SVGProps<SVGSVGElement>) {
-    return (
-      <svg
-        {...props}
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 2a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-        <line x1="12" x2="12" y1="19" y2="22" />
-      </svg>
-    )
-  }
-  
-  
-  function ShoppingBagIcon(props: React.SVGProps<SVGSVGElement>) {
-    return (
-      <svg
-        {...props}
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-        <path d="M3 6h18" />
-        <path d="M16 10a4 4 0 0 1-8 0" />
-      </svg>
-    )
-  }
-  
-  
-  function ChevronRightIcon(props: React.SVGProps<SVGSVGElement>) {
-    return (
-      <svg
-        {...props}
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="m9 18 6-6-6-6" />
-      </svg>
-    )
-  }

@@ -8,12 +8,12 @@ import {
 } from "@/components/ui/carousel";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Session } from "@/types";
 
-const Hero = ({ session }: { session: Session | null }) => {
+export default function Hero() {
   const images = [
-    "https://flowbite.s3.amazonaws.com/blocks/marketing-ui/hero/phone-mockup.png",
+    "https://flowbite.s3.amazonaws.com/docs/gallery/square/image-10.jpg",
     "https://flowbite.s3.amazonaws.com/docs/gallery/featured/image.jpg",
     "https://flowbite.s3.amazonaws.com/docs/gallery/square/image-1.jpg",
     "https://flowbite.s3.amazonaws.com/docs/gallery/square/image-2.jpg",
@@ -24,24 +24,22 @@ const Hero = ({ session }: { session: Session | null }) => {
       <div className="flex w-[80%] shrink-0 container mx-auto">
         <div className="flex flex-col justify-between w-full xl:flex-row gap-4 items-center">
           <div className="w-full xl:w-1/2 text-left mx-auto xl:col-span-7 py-4">
-            <h1 className="max-w-2xl mb-8 text-4xl font-extrabold tracking-tight leading-none md:text-5xl xl:text-6xl dark:text-gray-800">
+            <h1 className="max-w-2xl mb-8 text-4xl font-extrabold tracking-tight leading-none md:text-5xl xl:text-6xl text-gray-primary">
               Building digital products & brands.
             </h1>
-            <p className="max-w-2xl mb-10 font-light text-gray-400 lg:mb-12 md:text-lg lg:text-xl dark:text-gray-700">
-              This free and open-source landing page template was built using
-              the utility classes from Tailwind CSS and based on the components
-              from the Flowbite Library and the Blocks System.
+            <p className="max-w-2xl mb-10 font-light lg:mb-12 md:text-lg lg:text-xl text-gray-secondary">
+              Websites that are both affordable and effective, with a smart
+              choice and a smart price.
             </p>
-            <Button className="bg-primary-600 hover:bg-primary-700 hover:cursor-pointer text-white font-bold py-2 px-4 rounded-full">
-              Find Products
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <Link href="/products">
+              <Button className="bg-accent-500 hover:bg-accent-600 hover:cursor-pointer text-gray-secondary font-bold py-6 px-6 rounded-full">
+                Find Products
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
           </div>
-          <div className="w-full mx-auto xl:w-1/2 py-4 glass-component">
-            <Carousel
-              className="max-w-md mx-auto"
-              opts={{ loop: true }}
-            >
+          <div className="w-full mx-auto xl:w-1/2 py-4">
+            <Carousel className="max-w-md mx-auto" opts={{ loop: true }}>
               <CarouselContent>
                 {images.map((src, index) => (
                   <CarouselItem key={index}>
@@ -77,5 +75,3 @@ const Hero = ({ session }: { session: Session | null }) => {
     </section>
   );
 };
-
-export default Hero;

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -18,11 +20,11 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { authClient, signIn, signOut } from "../lib/auth-client";
+import { authClient, signIn, signOut, useSession } from "../lib/auth-client";
 import { motion } from "framer-motion";
-import { Session } from "../types";
 
-export default function NavBar({ session }: { session: Session | null }) {
+export function NavBar() {
+  const { data: session } = useSession();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -35,7 +37,7 @@ export default function NavBar({ session }: { session: Session | null }) {
       <div className="fixed z-50 w-[80%] mx-auto my-4 px-4 md:px-6 py-3 flex justify-between items-center gap-4 md:gap-10 glass-component">
         <Link href="/">
           <div className="text-3xl md:text-4xl font-bold flex items-center">
-            <h1 className="text-primary-800 ">v</h1>enn.
+            <h1 className="text-accent-500 ">v</h1>enn.
           </div>
         </Link>
 
@@ -44,7 +46,7 @@ export default function NavBar({ session }: { session: Session | null }) {
           <Button
             variant="default"
             size="icon"
-            className="rounded-full hover:bg-primary-700 hover:cursor-pointer"
+            className="rounded-full bg-accent-600 hover:bg-accent-700 hover:cursor-pointer"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             <MenuIcon className="h-6 w-6" />
@@ -61,11 +63,11 @@ export default function NavBar({ session }: { session: Session | null }) {
               <Input
                 type="search"
                 placeholder="Search products..."
-                className="w-full pl-10 rounded-full border-none bg-white/30"
+                className="w-full pl-10 rounded-full border-none focus-visible:ring-1 bg-white/30"
                 // value={searchQuery}
                 // onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-quaternary" />
             </div>
           </form>
 
