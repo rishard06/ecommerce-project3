@@ -87,7 +87,7 @@ export function NavBar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="focus-visible:ring-0 focus-visible:ring-offset-0 hover:cursor-pointer"
+                className="focus-visible:ring-0 focus-visible:ring-offset-0 border-2 border-white rounded-full hover:cursor-pointer"
               >
                 {session?.user ? (
                   <img

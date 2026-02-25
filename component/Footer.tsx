@@ -106,7 +106,7 @@ export default function Footer() {
           {/* Company Info */}
           <div>
             <div className="text-2xl font-bold flex items-center mb-4">
-              <span className="text-primary-800">v</span>enn.
+              <span className="text-accent-600">v</span>enn.
             </div>
             <p className="text-gray-600 mb-4">
               Premium audio equipment for music lovers and professionals.
@@ -150,7 +150,7 @@ export default function Footer() {
                 <li key={index} className="flex items-start">
                   <item.icon
                     size={18}
-                    className="mr-2 text-primary-600 mt-0.5"
+                    className="mr-2 text-accent-700 mt-0.5"
                   />
                   <span className="text-gray-600">{item.text}</span>
                 </li>
@@ -168,24 +168,24 @@ export default function Footer() {
               <Input
                 type="email"
                 placeholder="Your email"
-                className="rounded-full"
+                className="rounded-full focus-visible:ring-1"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
               <Button
                 type="submit"
-                className="ml-2 p-3 rounded-full bg-primary-600 text-white hover:bg-primary-700"
+                className="ml-2 p-3 rounded-full bg-accent-600 text-white hover:bg-accent-700"
                 aria-label="Subscribe"
               >
-                <ArrowRight size={18} />
+                <ArrowRight size={18} className="text-gray-primary" />
               </Button>
             </form>
           </div>
         </div>
         <div className="border-t border-gray-200 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-600 text-sm mb-4 md:mb-0 text-center md:text-left">
-            &copy; {new Date().getFullYear()} nitec. All rights reserved.
+            &copy; {new Date().getFullYear()} nitec. All venn reserved.
           </p>
           <div className="flex flex-wrap justify-center gap-4 md:gap-6">
             {footerLinks.map((link, index) => (

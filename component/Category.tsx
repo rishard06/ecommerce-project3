@@ -41,10 +41,10 @@ export default function Category() {
     <section className="min-h-screen w-full flex items-center  py-16 px-4 backdrop-blur-sm bg-white/30">
       <div className="w-[80%] mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-3">
+          <h2 className="text-3xl font-bold mb-3 text-gray-primary">
             Shop by Category
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
+          <p className="text-gray-secondary max-w-2xl mx-auto">
             Browse our carefully curated collection of premium audio equipment
           </p>
         </div>

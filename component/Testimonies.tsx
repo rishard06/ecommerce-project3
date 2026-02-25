@@ -37,17 +37,17 @@ export default function Testimonies() {
     <section className="min-h-screen flex items-center w-full py-16 px-4">
       <div className="max-w-[80%] mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-3">
+          <h2 className="text-3xl font-bold mb-3 text-gray-primary">
             What Our Customers Say
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
+          <p className="text-gray-secondary max-w-2xl mx-auto">
             Don't just take our word for it - hear from our satisfied
             customers
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {testimonials.map((testimonial) => (
-            <Card key={testimonial.name} className="glass-component text-center hover:scale-110 transition-all duration-300 cursor-pointer">
+            <Card key={testimonial.name} className="glass-component text-center hover:scale-110 transition-all duration-300">
               <CardHeader>
                 <div className="w-24 h-24 rounded-full bg-white/50 mx-auto flex items-center justify-center mb-4 overflow-hidden">
                   <Image
@@ -58,8 +58,8 @@ export default function Testimonies() {
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <CardTitle className="text-xl">{testimonial.name}</CardTitle>
-                <p className="text-sm text-gray-500">{testimonial.role}</p>
+                <CardTitle className="text-xl text-gray-primary">{testimonial.name}</CardTitle>
+                <p className="text-sm text-gray-tertiary">{testimonial.role}</p>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-gray-600">"{testimonial.quote}"</p>
