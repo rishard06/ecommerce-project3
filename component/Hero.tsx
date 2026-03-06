@@ -1,15 +1,10 @@
 import React from "react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import Stack from "@/components/Stack";
+import BlurText from "@/components/BlurText";
 
 export default function Hero() {
   const images = [
@@ -24,9 +19,13 @@ export default function Hero() {
       <div className="flex w-[80%] shrink-0 container mx-auto">
         <div className="flex flex-col justify-between w-full xl:flex-row gap-4 items-center">
           <div className="w-full xl:w-1/2 text-left mx-auto xl:col-span-7 py-4">
-            <h1 className="max-w-2xl mb-8 text-4xl font-extrabold tracking-tight leading-none md:text-5xl xl:text-6xl text-gray-primary">
-              Building digital products & brands.
-            </h1>
+            <BlurText
+              text="Building digital products & brands."
+              delay={200}
+              animateBy="words"
+              direction="top"
+              className="max-w-2xl mb-8 text-4xl font-extrabold tracking-tight leading-none md:text-5xl xl:text-6xl text-gray-primary"
+            />
             <p className="max-w-2xl mb-10 font-light lg:mb-12 md:text-lg lg:text-xl text-gray-secondary">
               Websites that are both affordable and effective, with a smart
               choice and a smart price.
@@ -38,40 +37,35 @@ export default function Hero() {
               </Button>
             </Link>
           </div>
-          <div className="w-full mx-auto xl:w-1/2 py-4">
-            <Carousel className="max-w-md mx-auto" opts={{ loop: true }}>
-              <CarouselContent>
-                {images.map((src, index) => (
-                  <CarouselItem key={index}>
-                    <div className="p-1">
-                      <div className="flex aspect-square items-center justify-center relative">
-                        <Image
-                          src={src}
-                          alt={`Image ${index + 1}`}
-                          fill
-                          priority={index === 0}
-                          fetchPriority={index === 0 ? "high" : "auto"}
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          className="rounded-3xl hover:cursor-grab active:cursor-grabbing"
-                          style={{ objectFit: "cover" }}
-                        />
-                      </div>
-                    </div>
-                  </CarouselItem>
+          <div className="w-full h-full mx-auto xl:w-1/2 py-4 flex items-center justify-center">
+            <div style={{ width: 400, height: 400 }}>
+              <Stack
+                randomRotation={false}
+                sensitivity={100}
+                sendToBackOnClick={true}
+                cards={images.map((src, i) => (
+                  <Image
+                    key={i}
+                    src={src}
+                    alt={`card-${i + 1}`}
+                    width={400}
+                    height={400}
+                    draggable={false}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
                 ))}
-              </CarouselContent>
-              <CarouselPrevious
-                variant="outline"
-                className="hover:cursor-pointer left-6 bg-transparent"
+                autoplay={false}
+                autoplayDelay={3000}
+                pauseOnHover={false}
               />
-              <CarouselNext
-                variant="outline"
-                className="hover:cursor-pointer right-6 bg-transparent shadow-primary-foreground"
-              />
-            </Carousel>
+            </div>
           </div>
         </div>
       </div>
     </section>
   );
-};
+}
