@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { ArrowRight as ArrowRightIcon } from "lucide-react";
-import getFeatureProducts from "@/lib/hooks/getFeatureProducts";
+import { getFeatureProducts } from "@/lib/products";
 import ProductCard from "./ProductCard";
 
 export default async function FeatureProducts() {
@@ -25,13 +25,13 @@ export default async function FeatureProducts() {
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {featureProducts.map((product) => (
+          {featureProducts.map((product, i) => (
             <ProductCard
               key={featureProducts.indexOf(product)}
               id={product.id}
               title={product.title}
               price={product.price}
-              image={product.images[1] || ""}
+              image={i === 3 ? product.images[0] : product.images[1] || ""}
               description={product.description}
               isPopular={true}
             />

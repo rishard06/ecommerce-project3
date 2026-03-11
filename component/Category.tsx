@@ -11,25 +11,29 @@ interface Category {
 
 const categories: Category[] = [
   {
-    name: 'Accessories',
+    name: 'Mobile Accessories',
+    slug: 'mobile-accessories',
     icon: <ShoppingBagIcon className="h-8 w-8" />,
     color: 'text-purple-700',
     description: '10+ Products',
   },
   {
     name: 'Watches',
+    slug: 'mens-watches',
     icon: <Watch className="h-8 w-8" />,
     color: 'text-primary-700',
     description: '4+ Products',
   },
   {
     name: 'Sports',
+    slug: 'sports-accessories',
     icon: <Volleyball className="h-8 w-8" />,
     color: 'text-orange-700',
     description: '5+ Products',
   },
   {
     name: 'Smartphones',
+    slug: 'smartphones',
     icon: <Smartphone className="h-8 w-8" />,
     color: 'text-green-700',
     description: '3+ Products',
@@ -45,12 +49,12 @@ export default function Category() {
             Shop by Category
           </h2>
           <p className="text-gray-secondary max-w-2xl mx-auto">
-            Browse our carefully curated collection of premium audio equipment
+            Browse our carefully curated collection of premium products
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {categories.map((category) => (
-            <Link key={category.name} href={`/products?category=${category.name}`} passHref>
+            <Link key={category.name} href={`/products?category=${category.slug}&skip=0`} passHref>
               <Card className="glass-component text-center hover:scale-110 transition-all duration-300 cursor-pointer">
                 <CardHeader>
                   <div className={`w-16 h-16 rounded-full bg-white/50 mx-auto flex items-center justify-center mb-4 ${category.color}`}>
