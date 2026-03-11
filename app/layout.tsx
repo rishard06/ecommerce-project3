@@ -1,6 +1,7 @@
 import { Inter, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { NavBar } from "@/component/NavBar";
+import NavBar from "@/component/NavBar";
+import Footer from "@/component/Footer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       > 
         <NavBar/>
         {children}
+        <Footer/>
       </body>
     </html>
   );

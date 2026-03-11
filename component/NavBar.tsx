@@ -23,7 +23,7 @@ import {
 import { authClient, signIn, signOut, useSession } from "../lib/auth-client";
 import { motion } from "framer-motion";
 
-export function NavBar() {
+export default function NavBar() {
   const { data: session } = useSession();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
