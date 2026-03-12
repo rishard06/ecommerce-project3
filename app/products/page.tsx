@@ -3,6 +3,7 @@ import Link from "next/link";
 import ProductCard from "@/component/ProductCard";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getCategories, getProducts } from "@/lib/products";
+import { CategorySidebar } from "@/features/products/components/CategorySidebar";
 
 export default async function ProductsPage({
   searchParams,
@@ -24,39 +25,7 @@ export default async function ProductsPage({
 
     return (
       <div className="min-h-[calc(100vh-136px)] mx-4 md:mx-10 flex flex-col lg:flex-row justify-center gap-8 py-8">
-        {/* Categories Sidebar */}
-        <div className="h-min w-full lg:w-1/4 bg-white/60 backdrop-blur-md rounded-3xl shadow-lg p-6 border border-white/20">
-          <h3 className="text-xl font-bold mb-6 text-gray-800 tracking-tight">
-            CATEGORIES
-          </h3>
-
-          <div className="flex flex-col gap-2 w-full overflow-y-auto max-h-[60vh] pr-2 custom-scrollbar">
-            <Link
-              href="/products?skip=0"
-              className={`w-[calc(100%-1rem)] px-6 py-3 ml-1 rounded-full flex justify-between items-center transition-all duration-300 ${
-                !currentCategory 
-                  ? "bg-accent-500 shadow-md scale-[1.02]" 
-                  : "hover:bg-white/40 text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <p className="font-semibold text-sm capitalize">All products</p>
-            </Link>
-
-            {categories.map((category) => (
-              <Link
-                key={category.slug}
-                href={`/products?category=${category.slug}&skip=0`}
-                className={`w-[calc(100%-1rem)] ml-1 px-6 py-3 rounded-full flex justify-between items-center transition-all duration-300 ${
-                  currentCategory === category.slug
-                    ? "bg-accent-500 shadow-md scale-[1.02]"
-                    : "hover:bg-white/40 text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                <p className="font-semibold text-sm capitalize">{category.name}</p>
-              </Link>
-            ))}
-          </div>
-        </div>
+        <CategorySidebar categories={categories} currentCategory={currentCategory} />
 
         {/* Products Content */}
         <div className="w-full lg:w-3/4 bg-white/60 backdrop-blur-md rounded-3xl shadow-lg p-6 md:p-8 border border-white/20 flex flex-col">

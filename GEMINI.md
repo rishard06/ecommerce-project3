@@ -1,8 +1,4 @@
 # Project Overview & Engineering Standards
-- All UI components go in `/src/components`.
-- Business logic goes in `/src/hooks` or `/src/services`.
-- No files larger than 250 lines.
-- Always follow the "Feature-First" structure: `/src/features/[feature-name]`
 
 ## 1. Project Identity
 
@@ -34,17 +30,17 @@ This is a Next.js e-commerce application using the App Router and Turbopack.
 ## 4. Target Folder Structure (Feature-First)
 
 I will prioritize moving toward this structure for all new tasks:
-src/
-├── app/ # Routes & Layouts
-├── components/ # Global Shared UI (Shadcn, etc.)
-├── features/ # Feature-based modules (E.g., Cart, Auth, Products)
-│ └── [feature-name]/
-│ ├── components/ # Feature-specific UI
-│ ├── hooks/ # Logic/Queries/Mutations
-│ ├── actions.ts # Next.js Server Actions
-│ └── types.ts # Type definitions
-├── lib/ # Config (Prisma, Better-Auth)
-└── utils/ # Pure helper functions
+app/          # Routes & Layouts
+component/    # Main UI features (Hero, Stack, etc.)
+components/   # Global Shared UI (Shadcn, etc.)
+features/     # Feature-based modules (E.g., Cart, Auth, Products)
+│   └── [feature-name]/
+│       ├── components/   # Feature-specific UI
+│       ├── hooks/        # Logic/Queries/Mutations
+│       ├── actions.ts    # Next.js Server Actions
+│       └── types.ts      # Type definitions
+lib/          # Config (Prisma, Better-Auth)
+utils/        # Pure helper functions
 
 ## 5. Dev Workflow & Constraints
 
@@ -59,4 +55,4 @@ src/
 - **Typing:** Use `interface` for object shapes and `type` for unions/aliases. Favor `readonly` for props.
 - **Tailwind:** Use the `@tailwind` base, components, and utilities correctly. Avoid inline styles entirely.
 - **Next.js:** Prefer Server Components by default. Use `'use client'` only when Interactivity or Browser APIs are required.
-- **Context7:** use Context7 MCP when necessary and I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
+- **Context7:** use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
