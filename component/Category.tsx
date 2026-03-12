@@ -4,6 +4,7 @@ import { ShoppingBagIcon, Watch, Volleyball, Smartphone, ChevronRightIcon } from
 
 interface Category {
   name: string;
+  slug: string;
   icon: React.ReactNode;
   color: string;
   description: string;

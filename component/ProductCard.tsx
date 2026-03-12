@@ -17,38 +17,47 @@ export default function ProductCard({
   price,
   image,
   description,
+  isPopular,
 }: {
-  id: number;
+  id: string | number;
   title: string;
   price: number;
   image: string;
-  isPopular: boolean;
   description: string;
+  isPopular?: boolean;
 }) {
   return (
-    <Link href={`/products/${id}`} className="block h-full">
-      <Card className="glass-component h-full flex flex-col justify-between text-center hover:shadow-2xl/45 transition-all duration-300 cursor-pointer group">
-        <CardHeader>
-          <div className="w-full h-48 mx-auto mb-4 overflow-hidden rounded-t-3xl">
+    <Link href={`/products/${id}`} className="block h-full group">
+      <Card className="glass-component h-full flex flex-col justify-between text-center hover:shadow-2xl/40 transition-all duration-500 cursor-pointer overflow-hidden border-white/40">
+        <CardHeader className="p-0 overflow-hidden">
+          <div className="w-full h-56 relative overflow-hidden group-hover:scale-105 transition-transform duration-700 ease-out">
             <Image
               src={image}
               alt={title}
-              width={300}
-              height={300}
-              className="w-full h-full object-cover group-hover:scale-120 transition-all duration-300"
+              fill
+              className="object-contain p-6"
             />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none" />
           </div>
-          <CardTitle className="text-xl">{title}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-600 line-clamp-2">{description}</p>
-        </CardContent>
-        <CardFooter className="flex justify-between items-center">
-          <span className="font-medium text-xl">{price} $</span>
-          <Button className="rounded-full h-12 w-12 cursor-pointer bg-accent-500 px-4 hover:bg-accent-600 text-gray-secondary">
-            <Plus className="text-gray-primary size-6" />
-          </Button>
-        </CardFooter>
+        <div className="p-6 pt-2 flex flex-col flex-1">
+          <CardTitle className="text-xl font-black text-gray-primary mb-2 line-clamp-1 tracking-tight">
+            {title}
+          </CardTitle>
+          <CardContent className="p-0 flex-1">
+            <p className="text-sm font-medium text-gray-tertiary line-clamp-2 leading-relaxed">
+              {description}
+            </p>
+          </CardContent>
+          <CardFooter className="p-0 mt-6 flex justify-between items-center">
+            <span className="text-2xl text-gray-secondary tracking-tighter">
+              ${price.toLocaleString()}
+            </span>
+            <Button size="icon" className="size-12 rounded-full cursor-pointer bg-accent-500 hover:bg-accent-600 text-gray-secondary shadow-lg shadow-accent-500/20 active:scale-90 transition-all">
+              <Plus className="size-6 text-gray-primary" />
+            </Button>
+          </CardFooter>
+        </div>
       </Card>
     </Link>
   );

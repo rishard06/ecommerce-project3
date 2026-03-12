@@ -10,14 +10,23 @@ This is a Next.js e-commerce application using the App Router and Turbopack.
 - **Styling:** Tailwind CSS (Utility-first, mobile-first, avoid arbitrary values) .
 - **State Management:** React Server Components (RSC) where possible, `useActionState`/`useFormStatus` for forms, and `Zustand` for complex global client state.
 
-## 2. Core Tech Stack (Standards)
+## 2. Design System & UI Standards (Glassmorphism + Apple Clean)
+
+- **Core Aesthetic:** Modern, airy, and professional. Combine glassmorphism with high-contrast typography.
+- **Glassmorphism Utility:** ALWAYS use the `.glass-component` class for cards and containers (`bg-white/30 backdrop-blur-xl shadow-2xl/20 border-white/40`).
+- **Colors & Contrast:**
+  - **Text:** Use standard `gray-primary` scale (`gray-primary` & `gray-secondary` for headings, `gray-tertiary` & `gray-quaternary` for body) to ensure readability against the gradient background.
+  - **Accent:** Use `accent-500` (#ccf381) for primary actions and highlights.
+  - **Background:** Keep the global multi-step gradient (`#e8f4f8, #d1e7dd, #b8dbd9`).
+
+## 3. Core Tech Stack (Standards)
 
 - **Frontend:** React 19+ (Functional Components), Next.js (App Router), shadcn/ui, tailwindcss.
 - **Language:** TypeScript (Primary standard). _Note: Existing files are .js; new files should be .ts/.tsx._
 - **Database:** Prisma (PostgreSQL) .
 - **Architecture:** Feature-Based Modules (see Folder Structure).
 
-## 3. Senior-Level Coding Standards (SOLID/DRY)
+## 4. Senior-Level Coding Standards (SOLID/DRY)
 
 - **Single Responsibility:** One component = one job. Extract logic into hooks.
 - **Clean Logic:** Use early returns to handle errors/loading. No nested `if/else` hell.
@@ -27,7 +36,7 @@ This is a Next.js e-commerce application using the App Router and Turbopack.
 - **Type Safety:** No `any`. Use strict TypeScript interfaces for Prisma models and component props.
 - **Performance:** Favor Server Components. Use `'use client'` strictly for interactivity.
 
-## 4. Target Folder Structure (Feature-First)
+## 5. Target Folder Structure (Feature-First)
 
 I will prioritize moving toward this structure for all new tasks:
 app/          # Routes & Layouts
@@ -42,14 +51,14 @@ features/     # Feature-based modules (E.g., Cart, Auth, Products)
 lib/          # Config (Prisma, Better-Auth)
 utils/        # Pure helper functions
 
-## 5. Dev Workflow & Constraints
+## 6. Dev Workflow & Constraints
 
 - **File Length:** Keep files under 250 lines. Refactor if they exceed this.
 - **Naming:** Use descriptive, intention-revealing names (e.g., `isCartLoading` vs `loading`).
 - **Review:** Before outputting code, verify it follows DRY and SOLID principles.
 - **Auth:** Always use the existing `better-auth` patterns in `lib/` for protected routes.
 
-## 6. Coding Constraints
+## 7. Coding Constraints
 
 - **File Size:** No single file should exceed 250 lines. If it does, refactor by extracting logic into hooks or sub-components.
 - **Typing:** Use `interface` for object shapes and `type` for unions/aliases. Favor `readonly` for props.
