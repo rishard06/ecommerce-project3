@@ -2,10 +2,16 @@
   "mcpServers": {
     "chrome-devtools": {
       "command": "npx",
-      "args": [
-        "-y",
-        "chrome-devtools-mcp@latest"
-      ]
+      "args": ["-y", "chrome-devtools-mcp@latest"]
+    },
+    "sonarqube": {
+      "command": "npx",
+      "args": ["-y", "@sonarsource/sonarqube-mcp-server@latest"],
+      "env": {
+        "SONARQUBE_TOKEN": "55839226bad6f3df866cfc31a9dbf3dd5ce1656c",
+        "SONARQUBE_URL": "https://sonarcloud.io",
+        "SONARQUBE_ORG": "macabusrichard0506"
+      }
     }
   },
   "security": {

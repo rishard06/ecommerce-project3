@@ -12,6 +12,8 @@ This is a Next.js e-commerce application using the App Router and Turbopack.
 
 ## 2. Design System & UI Standards (Glassmorphism + Apple Clean)
 
+- **Invoke the `frontend-design`/ `ui-ux-pro-max` skill** before writing any frontend code, every session, no exceptions.
+- **Use the `motion` react pakage** to create a animation in system and UI components.
 - **Core Aesthetic:** Modern, airy, and professional. Combine glassmorphism with high-contrast typography.
 - **Glassmorphism Utility:** ALWAYS use the `.glass-component` class for cards and containers (`bg-white/30 backdrop-blur-xl shadow-2xl/20 border-white/40`).
 - **Colors & Contrast:**
