@@ -73,3 +73,21 @@ model Verification {
 
   @@map("verification")
 }
+
+model Order {
+  id          String      @id @default(uuid())
+  createdAt   DateTime    @default(now())
+  totalAmount Float
+  items       OrderItem[]
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String
+
+  productId Int      // from DummyJSON
+  title     String
+  price     Float
+  quantity  Int
+}

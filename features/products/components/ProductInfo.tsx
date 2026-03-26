@@ -6,12 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Product } from '../types';
+import { useCartStore } from '@/lib/store/cart-store';
 
 interface ProductInfoProps {
   product: Product;
 }
 
 export function ProductInfo({ product }: ProductInfoProps) {
+  const addItem = useCartStore((state) => state.addItem);
   const [selectedColor, setSelectedColor] = React.useState(0);
   const [selectedStorage, setSelectedStorage] = React.useState(0);
 
@@ -26,6 +28,15 @@ export function ProductInfo({ product }: ProductInfoProps) {
         currency: 'USD',
       }).format(product.originalPrice)
     : null;
+
+  const handleAddToCart = () => {
+    addItem({
+      id: typeof product.id === "string" ? parseInt(product.id) : product.id,
+      title: product.name,
+      price: product.price,
+      image: product.images[0],
+    });
+  };
 
   const renderStars = (rating: number) => {
     const stars = [];
@@ -122,7 +133,10 @@ export function ProductInfo({ product }: ProductInfoProps) {
       )}
 
       <div className="flex gap-4 pt-4">
-        <Button className="flex-1 bg-accent-500 hover:bg-accent-600 text-gray-secondary font-bold py-4 rounded-2xl shadow-xl shadow-accent-500/20 transition-all gap-2 h-auto text-lg active:scale-95 hover:cursor-pointer group">
+        <Button 
+          className="flex-1 bg-accent-500 hover:bg-accent-600 text-gray-secondary font-bold py-4 rounded-2xl shadow-xl shadow-accent-500/20 transition-all gap-2 h-auto text-lg active:scale-95 hover:cursor-pointer group"
+          onClick={handleAddToCart}
+        >
           <ShoppingCart className="size-5 group-hover:translate-x-1 transition-transform" />
           Add to Cart
         </Button>

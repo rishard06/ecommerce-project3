@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import {
   Card,
@@ -10,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
 import { Plus } from "lucide-react";
+import { useCartStore } from "@/lib/store/cart-store";
 
 export default function ProductCard({
   id,
@@ -26,6 +29,19 @@ export default function ProductCard({
   description: string;
   isPopular?: boolean;
 }) {
+  const addItem = useCartStore((state) => state.addItem);
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addItem({
+      id: typeof id === "string" ? parseInt(id) : id,
+      title,
+      price,
+      image,
+    });
+  };
+
   return (
     <Link href={`/products/${id}`} className="block h-full group">
       <Card className="glass-component h-full flex flex-col justify-between text-center hover:shadow-2xl/40 transition-all duration-500 cursor-pointer overflow-hidden border-white/40">
@@ -40,6 +56,7 @@ export default function ProductCard({
             <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none" />
           </div>
         </CardHeader>
+        
         <div className="p-6 pt-2 flex flex-col flex-1">
           <CardTitle className="text-xl font-black text-gray-primary mb-2 line-clamp-1 tracking-tight">
             {title}
@@ -53,7 +70,11 @@ export default function ProductCard({
             <span className="text-2xl text-gray-secondary tracking-tighter">
               ${price.toLocaleString()}
             </span>
-            <Button size="icon" className="size-12 rounded-full cursor-pointer bg-accent-500 hover:bg-accent-600 text-gray-secondary shadow-lg shadow-accent-500/20 active:scale-90 transition-all">
+            <Button
+              size="icon"
+              className="size-12 rounded-full cursor-pointer bg-accent-500 hover:bg-accent-600 text-gray-secondary shadow-lg shadow-accent-500/20 active:scale-90 transition-all"
+              onClick={handleAddToCart}
+            >
               <Plus className="size-6 text-gray-primary" />
             </Button>
           </CardFooter>
