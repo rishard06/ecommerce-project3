@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import Stack from "@/components/Stack";
-import BlurText from "@/components/BlurText";
+import Stack from "@/components/animations/Stack";
+import BlurText from "@/components/animations/BlurText";
 
 export default function Hero() {
   const images = [

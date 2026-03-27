@@ -72,6 +72,6 @@ body {
 
 @layer utilities {
   .glass-component {
-    @apply bg-white/30 backdrop-blur-xl shadow-2xl/20 rounded-3xl border-1 border-white/40  ;
+    @apply bg-white/30 backdrop-blur-xl shadow-2xl/20 rounded-3xl border border-white/40  ;
   }
 }

@@ -55,12 +55,7 @@ export default function UserAction() {
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem
-            onClick={async () =>
-              await signIn.social({
-                provider: "github",
-                callbackURL: "/",
-              })
-            }
+            onClick={() => router.push("/login")}
             className="hover:cursor-pointer p-0"
           >
             Sign In

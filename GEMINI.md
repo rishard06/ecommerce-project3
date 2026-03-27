@@ -40,18 +40,21 @@ This is a Next.js e-commerce application using the App Router and Turbopack.
 
 ## 5. Target Folder Structure (Feature-First)
 
-I will prioritize moving toward this structure for all new tasks:
+I will prioritize this structure for all tasks:
 app/          # Routes & Layouts
-component/    # Main UI features (Hero, Stack, etc.)
-components/   # Global Shared UI (Shadcn, etc.)
-features/     # Feature-based modules (E.g., Cart, Auth, Products)
+components/   # Global Shared UI
+│   ├── ui/         # Shadcn (Atomic Primitives)
+│   ├── layout/     # Header, Footer, Navigation
+│   ├── marketing/  # One-off landing page sections (Hero, etc.)
+│   └── animations/ # Global animation components (BlurText, etc.)
+features/     # Feature-based modules
 │   └── [feature-name]/
 │       ├── components/   # Feature-specific UI
 │       ├── hooks/        # Logic/Queries/Mutations
 │       ├── actions.ts    # Next.js Server Actions
 │       └── types.ts      # Type definitions
 lib/          # Config (Prisma, Better-Auth)
-utils/        # Pure helper functions
+utils/        # Pure helper functions (formerly lib/utils.ts)
 
 ## 6. Dev Workflow & Constraints
 

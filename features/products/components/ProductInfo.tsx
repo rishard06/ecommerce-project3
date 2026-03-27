@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Product } from '../types';
 import { useCartStore } from '@/lib/store/cart-store';
+import { useFavoritesStore } from '@/lib/store/favorites-store';
+import { useSession } from '@/lib/auth-client';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 
 interface ProductInfoProps {
   product: Product;
@@ -14,8 +18,15 @@ interface ProductInfoProps {
 
 export function ProductInfo({ product }: ProductInfoProps) {
   const addItem = useCartStore((state) => state.addItem);
+  const { toggleFavorite, isFavorite } = useFavoritesStore();
+  const { data: session } = useSession();
+  const router = useRouter();
+
   const [selectedColor, setSelectedColor] = React.useState(0);
   const [selectedStorage, setSelectedStorage] = React.useState(0);
+
+  const numericId = typeof product.id === "string" ? parseInt(product.id) : product.id;
+  const favorited = isFavorite(numericId);
 
   const formattedPrice = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -30,11 +41,31 @@ export function ProductInfo({ product }: ProductInfoProps) {
     : null;
 
   const handleAddToCart = () => {
+    if (!session) {
+      router.push('/login');
+      return;
+    }
+
     addItem({
-      id: typeof product.id === "string" ? parseInt(product.id) : product.id,
+      id: numericId,
       title: product.name,
       price: product.price,
       image: product.images[0],
+    });
+  };
+
+  const handleFavorite = () => {
+    if (!session) {
+      router.push('/login');
+      return;
+    }
+
+    toggleFavorite({
+      id: numericId,
+      title: product.name,
+      price: product.price,
+      image: product.images[0],
+      description: product.description,
     });
   };
 
@@ -140,8 +171,25 @@ export function ProductInfo({ product }: ProductInfoProps) {
           <ShoppingCart className="size-5 group-hover:translate-x-1 transition-transform" />
           Add to Cart
         </Button>
-        <Button variant="outline" className="size-14 rounded-2xl border-slate-200 dark:border-slate-800 text-slate-500 hover:text-red-500 hover:border-red-500 transition-all p-0 hover:bg-red-50 dark:hover:bg-red-950/20 active:scale-95 hover:cursor-pointer">
-          <Heart className="size-6" />
+        <Button 
+          variant="outline" 
+          className={cn(
+            "size-14 rounded-2xl border-slate-200 dark:border-slate-800 transition-all p-0 active:scale-95 hover:cursor-pointer",
+            favorited 
+              ? "text-red-500 border-red-500 bg-red-50 dark:bg-red-950/20" 
+              : "text-slate-500 hover:text-red-500 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
+          )}
+          onClick={handleFavorite}
+        >
+          <motion.div
+            initial={false}
+            animate={{ scale: favorited ? [1, 1.2, 1] : 1 }}
+          >
+            <Heart 
+              className="size-6" 
+              fill={favorited ? "currentColor" : "none"} 
+            />
+          </motion.div>
         </Button>
       </div>
 
@@ -156,7 +204,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 rounded-2xl glass-component border border-white/40 shadow-xl shadow-black/5">
-          <div className="size-10 rounded-xl bg-accent-500/40flex items-center justify-center">
+          <div className="size-10 rounded-xl bg-accent-500/40 flex items-center justify-center">
             <ShieldCheck className="size-5 text-accent-700 dark:text-accent-400" />
           </div>
           <div className="text-xs">
@@ -168,3 +216,4 @@ export function ProductInfo({ product }: ProductInfoProps) {
     </div>
   );
 }
+

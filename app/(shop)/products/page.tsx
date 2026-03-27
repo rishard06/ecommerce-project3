@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import ProductCard from "@/component/ProductCard";
+import ProductCard from "@/features/products/components/ProductCard";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getCategories, getProducts } from "@/lib/products";
 import { CategorySidebar } from "@/features/products/components/CategorySidebar";

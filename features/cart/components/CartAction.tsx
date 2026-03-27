@@ -5,9 +5,9 @@ import { ShoppingBagIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AnimatePresence } from "framer-motion";
 import { useCartStore } from "@/lib/store/cart-store";
-import { CartBadge } from "../CartBadge";
-import { CartHoverCard } from "../CartHoverCard";
-import CartPreview from "../CartPreview";
+import { CartBadge } from "@/features/cart/components/CartBadge";
+import { CartHoverCard } from "@/features/cart/components/CartHoverCard";
+import CartPreview from "@/features/cart/components/CartPreview";
 
 export default function CartAction() {
   const [isCartOpen, setIsCartOpen] = useState(false);

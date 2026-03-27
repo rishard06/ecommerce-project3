@@ -1,5 +1,5 @@
 import * as React from 'react';
-import ProductCard from '@/component/ProductCard';
+import ProductCard from '@/features/products/components/ProductCard';
 import { Product } from '../types';
 
 interface RelatedProductsProps {
