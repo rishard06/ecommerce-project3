@@ -11,11 +11,15 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { authClient, signIn, signOut, useSession } from "../../lib/auth-client";
+import { authClient, signOut, useSession } from "../../lib/auth-client";
+import { useCartStore } from "@/lib/store/cart-store";
+import { useFavoritesStore } from "@/lib/store/favorites-store";
 
 export default function UserAction() {
   const { data: session } = useSession();
   const router = useRouter();
+  const clearCart = useCartStore((state) => state.clearCart);
+  const clearFavorites = useFavoritesStore((state) => state.clearFavorites);
 
   return (
     <DropdownMenu modal={false}>
@@ -47,7 +51,10 @@ export default function UserAction() {
             onClick={async () => {
               await authClient.revokeSessions();
               await signOut();
-              router.refresh();
+              router.push("/");
+              // router.refresh();
+              clearCart();
+              clearFavorites();
             }}
             className="hover:cursor-pointer p-0"
           >

@@ -70,3 +70,15 @@ utils/        # Pure helper functions (formerly lib/utils.ts)
 - **Tailwind:** Use the `@tailwind` base, components, and utilities correctly. Avoid inline styles entirely.
 - **Next.js:** Prefer Server Components by default. Use `'use client'` only when Interactivity or Browser APIs are required.
 - **Context7:** use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
+
+## 8. Additional Notes
+
+- **Plans:** Always create a plan before implementing features. This helps ensure that the implementation is correct and that all edge cases are considered, make the plan extremely conise, sacrifice grammar for the sake of concision.
+<!-- 
+- **Testing:** When implementing features, consider adding unit tests for critical business logic.
+- **Documentation:** Add JSDoc comments for complex functions and components.
+- **Error Handling:** Implement proper error boundaries and user-friendly error messages.
+- **Accessibility:** Ensure all components are accessible (ARIA labels, keyboard navigation, etc.).
+- **Performance:** Optimize images, use lazy loading, and implement proper caching strategies.
+- **Security:** Follow security best practices, especially for authentication and data handling.
+- **Code Quality:** Maintain high code quality by following best practices and conventions. -->
