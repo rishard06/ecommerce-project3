@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { ArrowRight, CreditCard, Wallet, Landmark } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { Button } from "@/components/ui/button";
@@ -45,10 +46,12 @@ export function OrderSummary() {
               Apply
             </Button>
           </div>
-          <Button className="w-full bg-accent-500 text-gray-primary font-bold py-6 rounded-full flex items-center justify-center gap-2 group transition-all hover:opacity-90 active:scale-[0.98] border-none shadow-lg shadow-accent-500/20 cursor-pointer">
-            Proceed to Checkout
-            <ArrowRight className="group-hover:translate-x-1 transition-transform h-5 w-5" />
-          </Button>
+          <Link href="/checkout" className="block w-full">
+            <Button className="w-full bg-accent-500 text-gray-primary font-bold py-6 rounded-full flex items-center justify-center gap-2 group transition-all hover:opacity-90 active:scale-[0.98] border-none shadow-lg shadow-accent-500/20 cursor-pointer">
+              Proceed to Checkout
+              <ArrowRight className="group-hover:translate-x-1 transition-transform h-5 w-5" />
+            </Button>
+          </Link>
         </div>
         
         <div className="mt-8 pt-8 border-t border-white/20">
@@ -70,7 +73,7 @@ export function OrderSummary() {
       {/* Prime Promo Card */}
       <div className="bg-accent-500 p-8 rounded-[32px] relative overflow-hidden group shadow-lg shadow-accent-500/20">
         <div className="relative z-10">
-          <h3 className="text-gray-primary text-2xl font-bold mb-2">Save with Nitec Prime</h3>
+          <h3 className="text-gray-primary text-2xl font-bold mb-2">Save with venn. Prime</h3>
           <p className="text-gray-secondary text-sm mb-6 max-w-[200px] font-medium leading-relaxed">Get free shipping and exclusive early access to new drops.</p>
           <Button className="bg-gray-primary text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-gray-secondary transition-colors border-none cursor-pointer">
             Join Now

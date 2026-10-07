@@ -74,4 +74,13 @@ body {
   .glass-component {
     @apply bg-white/30 backdrop-blur-xl shadow-2xl/20 rounded-3xl border border-white/40  ;
   }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-primary/10 rounded-full hover:bg-gray-primary/20 transition-colors;
+  }
 }
