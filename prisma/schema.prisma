@@ -14,6 +14,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
 model User {
   id            String    @id
   name          String
@@ -22,8 +27,10 @@ model User {
   image         String?
   createdAt     DateTime
   updatedAt     DateTime
+  role          Role      @default(CUSTOMER)
   sessions      Session[]
   accounts      Account[]
+  orders        Order[]
 
   @@unique([email])
   @@map("user")
@@ -78,7 +85,11 @@ model Order {
   id          String      @id @default(uuid())
   createdAt   DateTime    @default(now())
   totalAmount Float
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
   items       OrderItem[]
+
+  @@index([userId])
 }
 
 model OrderItem {

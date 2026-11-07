@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { ShippingAddress, PaymentMethod } from "./types";
 import { validateCartPrices, CartItemInput } from "@/lib/price-validation";
+import { requireUser, UnauthorizedError } from "@/features/identity/server/guards";
 
 const shippingSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
@@ -20,10 +21,14 @@ export async function createOrderAction(
   items: CartItemInput[]
 ) {
   try {
-    // 1. Validate Shipping Info
+    // 1. Resolve the authenticated user (SECURITY: ownership comes from the
+    //    session, never from caller-supplied arguments).
+    const user = await requireUser();
+
+    // 2. Validate Shipping Info
     const validatedShipping = shippingSchema.parse(shippingInfo);
 
-    // 2. Validate Prices Server-Side (SECURITY: Prevent price manipulation)
+    // 3. Validate Prices Server-Side (SECURITY: Prevent price manipulation)
     const priceValidation = await validateCartPrices(items);
 
     if (!priceValidation.success) {
@@ -33,12 +38,13 @@ export async function createOrderAction(
       };
     }
 
-    // 3. Simulate Payment Delay
+    // 4. Simulate Payment Delay
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // 4. Create Order in Prisma with validated prices
+    // 5. Create Order in Prisma with validated prices, owned by the session user
     const order = await prisma.order.create({
       data: {
+        userId: user.id,
         totalAmount: priceValidation.total!,
         items: {
           create: priceValidation.validatedItems!.map((item) => ({
@@ -59,6 +65,9 @@ export async function createOrderAction(
       tax: priceValidation.tax
     };
   } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return { success: false, error: "Unauthorized" };
+    }
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0].message };
     }
