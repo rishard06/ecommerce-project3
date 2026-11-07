@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import Image from 'next/image';
-import { cn } from '@/lib/utils';
+import * as React from "react";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 interface ProductGalleryProps {
   images: string[];
@@ -10,40 +10,62 @@ interface ProductGalleryProps {
 
 export function ProductGallery({ images }: ProductGalleryProps) {
   const [selectedImage, setSelectedImage] = React.useState(0);
+  const gallery = images.filter(Boolean);
+
+  if (gallery.length === 0) {
+    return (
+      <div className="glass-component flex aspect-[4/3] w-full items-center justify-center rounded-[1.75rem] text-sm text-gray-tertiary">
+        No image available
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl glass-component border border-white/40 shadow-2xl shadow-black/5 group">
+    <div className="flex flex-col gap-4">
+      <div className="glass-component group relative aspect-[4/3] w-full overflow-hidden rounded-[1.75rem]">
         <Image
-          src={images[selectedImage]}
-          alt="Product image"
+          src={gallery[selectedImage] ?? gallery[0]}
+          alt="Product photo"
           fill
-          className="object-contain p-8 group-hover:scale-110 transition-transform duration-700"
+          sizes="(min-width: 1024px) 58vw, 100vw"
+          className="object-contain p-8 transition-transform duration-500 ease-out-quart group-hover:scale-[1.02]"
           priority
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none" />
       </div>
-      <div className="grid grid-cols-4 gap-4">
-        {images.slice(0, 4).map((image, index) => (
-          <button
-            key={index}
-            onClick={() => setSelectedImage(index)}
-            className={cn(
-              "relative aspect-square overflow-hidden rounded-2xl border-2 transition-all cursor-pointer glass-component shadow-lg",
-              selectedImage === index
-                ? "border-accent-500 ring-4 ring-accent-500/10 scale-95"
-                : "border-white/40 hover:border-accent-500 hover:scale-105"
-            )}
-          >
-            <Image
-              src={image}
-              alt={`Thumbnail ${index + 1}`}
-              fill
-              className="object-cover p-2"
-            />
-          </button>
-        ))}
-      </div>
+
+      {gallery.length > 1 && (
+        <div className="grid grid-cols-4 gap-3">
+          {gallery.slice(0, 4).map((image, index) => {
+            const isSelected = selectedImage === index;
+            return (
+              <button
+                key={`${image}-${index}`}
+                type="button"
+                onClick={() => setSelectedImage(index)}
+                aria-label={`Show image ${index + 1} of ${Math.min(gallery.length, 4)}`}
+                aria-current={isSelected ? "true" : undefined}
+                className={cn(
+                  "group relative aspect-square overflow-hidden rounded-2xl border transition-[border-color,box-shadow,transform] duration-200 ease-out-quart",
+                  isSelected
+                    ? "border-accent-600 shadow-soft ring-2 ring-accent-500/20"
+                    : "border-white/50 hover:border-accent-500/60 hover:shadow-soft"
+                )}
+              >
+                <Image
+                  src={image}
+                  alt=""
+                  fill
+                  sizes="120px"
+                  className={cn(
+                    "object-cover p-1.5 transition-opacity duration-200",
+                    isSelected ? "opacity-100" : "opacity-70 group-hover:opacity-100"
+                  )}
+                />
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

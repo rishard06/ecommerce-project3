@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import * as React from "react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface Category {
   slug: string;
@@ -19,52 +19,58 @@ export function CategorySidebar({ categories, currentCategory }: CategorySidebar
   const activeLinkRef = React.useRef<HTMLAnchorElement>(null);
 
   React.useEffect(() => {
-    if (activeLinkRef.current && scrollContainerRef.current) {
-      activeLinkRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      });
-    }
+    if (!activeLinkRef.current || !scrollContainerRef.current) return;
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    activeLinkRef.current.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "nearest",
+    });
   }, [currentCategory]);
 
-  return (
-    <div className="h-min w-full lg:w-1/4 bg-white/60 backdrop-blur-md rounded-3xl shadow-lg p-6 border border-white/20">
-      <h3 className="text-xl font-bold mb-6 text-gray-800 tracking-tight">
-        CATEGORIES
-      </h3>
+  const itemClass = (isActive: boolean) =>
+    cn(
+      "flex w-full items-center justify-between rounded-full px-4 py-2.5 text-sm font-medium transition-colors duration-200",
+      isActive
+        ? "bg-accent-500 font-semibold text-gray-primary shadow-soft"
+        : "text-gray-secondary hover:bg-white/60 hover:text-gray-primary"
+    );
 
-      <div 
+  return (
+    <aside className="glass-component h-min w-full rounded-[1.75rem] p-5 lg:w-1/4 lg:p-6">
+      <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-tertiary">
+        Categories
+      </h2>
+
+      <div
         ref={scrollContainerRef}
-        className="flex flex-col gap-2 w-full overflow-y-auto max-h-[60vh] pr-2 custom-scrollbar scroll-smooth"
+        className="custom-scrollbar flex max-h-[60vh] w-full flex-col gap-1 overflow-y-auto pr-1"
       >
         <Link
           href="/products?skip=0"
-          className={cn(
-            "w-[calc(100%-1rem)] px-6 py-3 ml-1 rounded-full flex justify-between items-center transition-all duration-300",
-            !currentCategory 
-              ? "bg-accent-500 shadow-md scale-[1.02]" 
-              : "hover:bg-white/40 text-gray-600 hover:text-gray-900"
-          )}
+          aria-current={!currentCategory ? "page" : undefined}
+          className={itemClass(!currentCategory)}
         >
-          <p className="font-semibold text-sm capitalize">All products</p>
+          <span className="capitalize">All products</span>
         </Link>
 
-        {categories.map((category) => (
-          <Link
-            key={category.slug}
-            ref={currentCategory === category.slug ? activeLinkRef : null}
-            href={`/products?category=${category.slug}&skip=0`}
-            className={cn(
-              "w-[calc(100%-1rem)] ml-1 px-6 py-3 rounded-full flex justify-between items-center transition-all duration-300",
-              currentCategory === category.slug
-                ? "bg-accent-500 shadow-md scale-[1.02]"
-                : "hover:bg-white/40 text-gray-600 hover:text-gray-900"
-            )}
-          >
-            <p className="font-semibold text-sm capitalize">{category.name}</p>
-          </Link>
-        ))}
+        {categories.map((category) => {
+          const isActive = currentCategory === category.slug;
+          return (
+            <Link
+              key={category.slug}
+              ref={isActive ? activeLinkRef : null}
+              href={`/products?category=${category.slug}&skip=0`}
+              aria-current={isActive ? "page" : undefined}
+              className={itemClass(isActive)}
+            >
+              <span className="capitalize">{category.name}</span>
+            </Link>
+          );
+        })}
       </div>
-    </div>
+    </aside>
   );
 }

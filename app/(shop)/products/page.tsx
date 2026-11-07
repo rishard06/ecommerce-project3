@@ -15,6 +15,13 @@ export default async function ProductsPage({
   const skip = parseInt(params.skip || "0", 10);
   const limit = 20;
 
+  const buildHref = (nextSkip: number) => {
+    const query = new URLSearchParams();
+    if (currentCategory) query.set("category", currentCategory);
+    query.set("skip", String(Math.max(0, nextSkip)));
+    return `/products?${query.toString()}`;
+  };
+
   try {
     const [categories, productData] = await Promise.all([
       getCategories(),
@@ -22,24 +29,27 @@ export default async function ProductsPage({
     ]);
 
     const { products, total } = productData;
+    const hasPrevious = skip > 0;
+    const hasNext = skip + limit < total;
 
     return (
-      <div className="min-h-[calc(100vh-136px)] mx-4 md:mx-10 flex flex-col lg:flex-row justify-center gap-8 py-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col justify-center gap-6 px-4 py-8 sm:px-6 lg:flex-row lg:gap-8 lg:px-8">
         <CategorySidebar categories={categories} currentCategory={currentCategory} />
 
-        {/* Products Content */}
-        <div className="w-full lg:w-3/4 bg-white/60 backdrop-blur-md rounded-3xl shadow-lg p-6 md:p-8 border border-white/20 flex flex-col">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 capitalize">
-              {currentCategory ? currentCategory.replace(/-/g, " ") : "All Products"}
+        {/* Products content */}
+        <div className="glass-component flex w-full flex-col p-5 sm:p-6 lg:w-3/4 md:p-8">
+          <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
+            <h1 className="text-2xl font-semibold capitalize tracking-tight text-gray-primary md:text-3xl">
+              {currentCategory ? currentCategory.replace(/-/g, " ") : "All products"}
             </h1>
-            <p className="text-sm text-gray-500 font-medium">
-              Showing {Math.min(skip + 1, total)} - {Math.min(skip + products.length, total)} of {total} results
+            <p className="text-sm font-medium text-gray-tertiary" aria-live="polite">
+              Showing {Math.min(skip + 1, total)}–{Math.min(skip + products.length, total)} of{" "}
+              {total}
             </p>
           </div>
 
           {products.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
+            <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
               {products.map((product) => (
                 <ProductCard
                   key={product.id}
@@ -53,60 +63,81 @@ export default async function ProductsPage({
               ))}
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center py-20">
-              <p className="text-xl text-gray-500 font-medium">No products found in this category.</p>
-              <Link href="/products" className="mt-4 text-accent-600 hover:underline">
+            <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
+              <p className="text-lg font-medium text-gray-secondary">
+                No products in this category yet.
+              </p>
+              <Link
+                href="/products"
+                className="mt-3 rounded-full px-2 py-1 text-sm font-semibold text-accent-700 hover:underline"
+              >
                 View all products
               </Link>
             </div>
           )}
 
-          {/* Pagination */}
-          <div className="mt-auto flex justify-center items-center gap-4">
-            <Link
-              href={skip > 0 ? `/products?${currentCategory ? `category=${currentCategory}&` : ""}skip=${Math.max(0, skip - limit)}` : "#"}
-              className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-all duration-300 ${
-                skip > 0 
-                  ? "bg-white text-gray-800 hover:bg-accent-500 hover:text-white shadow-md" 
-                  : "bg-gray-100 text-gray-300 cursor-not-allowed"
-              }`}
-              aria-disabled={skip === 0}
-            >
-              <ChevronLeft size={20} />
-              Previous
-            </Link>
+          <nav
+            aria-label="Pagination"
+            className="mt-auto flex items-center justify-center gap-3 pt-2"
+          >
+            {hasPrevious ? (
+              <Link
+                href={buildHref(skip - limit)}
+                className="flex items-center gap-1.5 rounded-full bg-white/70 px-5 py-2.5 text-sm font-semibold text-gray-secondary shadow-soft transition-colors hover:bg-white hover:text-gray-primary"
+              >
+                <ChevronLeft className="size-4" aria-hidden="true" />
+                Previous
+              </Link>
+            ) : (
+              <span
+                aria-disabled="true"
+                className="flex cursor-not-allowed items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold text-gray-quaternary/70"
+              >
+                <ChevronLeft className="size-4" aria-hidden="true" />
+                Previous
+              </span>
+            )}
 
-            <div className="text-sm font-bold text-gray-500">
+            <div className="min-w-24 text-center text-sm font-semibold tabular-nums text-gray-tertiary">
               Page {Math.floor(skip / limit) + 1}
             </div>
 
-            <Link
-              href={skip + limit < total ? `/products?${currentCategory ? `category=${currentCategory}&` : ""}skip=${skip + limit}` : "#"}
-              className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-all duration-300 ${
-                skip + limit < total 
-                  ? "bg-white text-gray-800 hover:bg-accent-500 hover:text-white shadow-md" 
-                  : "bg-gray-100 text-gray-300 cursor-not-allowed"
-              }`}
-              aria-disabled={skip + limit >= total}
-            >
-              Next
-              <ChevronRight size={20} />
-            </Link>
-          </div>
+            {hasNext ? (
+              <Link
+                href={buildHref(skip + limit)}
+                className="flex items-center gap-1.5 rounded-full bg-white/70 px-5 py-2.5 text-sm font-semibold text-gray-secondary shadow-soft transition-colors hover:bg-white hover:text-gray-primary"
+              >
+                Next
+                <ChevronRight className="size-4" aria-hidden="true" />
+              </Link>
+            ) : (
+              <span
+                aria-disabled="true"
+                className="flex cursor-not-allowed items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold text-gray-quaternary/70"
+              >
+                Next
+                <ChevronRight className="size-4" aria-hidden="true" />
+              </span>
+            )}
+          </nav>
         </div>
       </div>
     );
   } catch (error) {
     console.error("Error loading products:", error);
     return (
-      <div className="min-h-[calc(100vh-136px)] flex flex-col items-center justify-center">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Something went wrong</h1>
-        <p className="text-gray-600 mb-6">We couldn't load the products at this time.</p>
-        <Link 
-          href="/products" 
-          className="px-6 py-3 bg-accent-500 text-white rounded-full font-bold hover:bg-accent-600 transition-colors"
+      <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
+        <h1 className="mb-3 text-2xl font-semibold text-gray-primary">
+          Something went wrong
+        </h1>
+        <p className="mb-6 text-gray-secondary">
+          We couldn&apos;t load the products right now.
+        </p>
+        <Link
+          href="/products"
+          className="rounded-full bg-accent-500 px-6 py-3 font-semibold text-gray-primary transition-colors hover:bg-accent-600"
         >
-          Try Again
+          Try again
         </Link>
       </div>
     );

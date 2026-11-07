@@ -65,7 +65,7 @@ export default async function Page({
         date: new Date(r.date).toLocaleDateString(),
         title: r.rating >= 4 ? "Great Product" : "Feedback",
         content: r.comment,
-        helpfulCount: Math.floor(Math.random() * 50)
+        helpfulCount: (index * 13) % 47
       }))
     };
 
