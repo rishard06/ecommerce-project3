@@ -1,17 +1,36 @@
 "use client";
-import { motion } from "framer-motion";
-import { ReactNode } from "react";
+
+import { motion, useReducedMotion } from "motion/react";
+import type { ReactNode } from "react";
+import { spring } from "@/lib/motion";
 
 export function CartHoverCard({ children }: { children: ReactNode }) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <motion.div
-      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-      exit={{ opacity: 0, y: 15, scale: 0.95, filter: "blur(10px)" }}
-      transition={{ type: "spring", damping: 20, stiffness: 300 }}
-      className="absolute right-0 top-full mt-4 w-[380px] bg-white/70 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden z-50 origin-top-right border border-white/60 p-2"
+      role="dialog"
+      aria-label="Cart preview"
+      initial={
+        prefersReducedMotion
+          ? { opacity: 0 }
+          : { opacity: 0, y: -8, scale: 0.97 }
+      }
+      animate={
+        prefersReducedMotion
+          ? { opacity: 1 }
+          : { opacity: 1, y: 0, scale: 1 }
+      }
+      exit={
+        prefersReducedMotion
+          ? { opacity: 0 }
+          : { opacity: 0, y: -6, scale: 0.98 }
+      }
+      transition={spring.sheet}
+      style={{ transformOrigin: "top right" }}
+      className="absolute right-0 top-full z-50 mt-3 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-[1.75rem] border border-white/55 bg-white/75 p-2 shadow-panel backdrop-blur-2xl"
     >
-      <div className="bg-white rounded-4xl overflow-hidden border border-white/20">
-      
+      <div className="overflow-hidden rounded-[1.4rem] border border-white/40 bg-white/80">
         {children}
       </div>
     </motion.div>

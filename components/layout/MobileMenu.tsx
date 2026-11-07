@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -21,134 +21,211 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { authClient, signIn, signOut, useSession } from "../../lib/auth-client";
-import { motion, AnimatePresence } from "framer-motion";
+import { authClient, signOut, useSession } from "../../lib/auth-client";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { useFavoritesStore } from "@/lib/store/favorites-store";
 import { CartBadge } from "@/features/cart/components/CartBadge";
-import { CartHoverCard } from "@/features/cart/components/CartHoverCard";
 import CartPreview from "@/features/cart/components/CartPreview";
+import { spring } from "@/lib/motion";
 
 export default function MobileMenu() {
   const { data: session } = useSession();
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
+
+  const [mounted, setMounted] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartPreviewOpen, setIsCartPreviewOpen] = useState(false);
-  const { getTotalItems: getCartTotal } = useCartStore();
-  const { getTotalItems: getFavTotal } = useFavoritesStore();
-  const [cartCount, setCartCount] = useState(0);
-  const [favCount, setFavCount] = useState(0);
+
+  const cartItems = useCartStore((state) => state.items);
+  const favoriteItems = useFavoritesStore((state) => state.items);
+
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  const cartCount = mounted
+    ? cartItems.reduce((total, item) => total + item.quantity, 0)
+    : 0;
+  const favCount = mounted ? favoriteItems.length : 0;
 
   useEffect(() => {
-    setCartCount(getCartTotal());
-    setFavCount(getFavTotal());
-  }, [getCartTotal(), getFavTotal()]);
+    setMounted(true);
+  }, []);
+
+  const closeMenu = useCallback(() => {
+    setIsMenuOpen(false);
+    setIsCartPreviewOpen(false);
+  }, []);
+
+  // Modal semantics: Escape closes the innermost layer, focus returns to the
+  // trigger, and the page underneath does not scroll.
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (isCartPreviewOpen) {
+        setIsCartPreviewOpen(false);
+      } else {
+        closeMenu();
+        triggerRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    sheetRef.current?.focus();
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMenuOpen, isCartPreviewOpen, closeMenu]);
 
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-    setIsCartPreviewOpen(false); // Reset cart preview when menu toggles
+    if (isMenuOpen) {
+      closeMenu();
+    } else {
+      setIsMenuOpen(true);
+      setIsCartPreviewOpen(false);
+    }
   };
 
   return (
     <>
-      <div className="md:hidden flex items-center">
+      <div className="flex items-center md:hidden">
         <Button
+          ref={triggerRef}
           variant="default"
           size="icon"
-          className="rounded-full bg-accent-600 hover:bg-accent-700 hover:cursor-pointer z-50"
+          className="rounded-full bg-accent-500 text-gray-primary hover:bg-accent-600"
           onClick={toggleMenu}
+          aria-expanded={isMenuOpen}
+          aria-controls="mobile-menu"
+          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
         >
-          {isMenuOpen ? <X className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
+          {isMenuOpen ? (
+            <X className="size-5" aria-hidden="true" />
+          ) : (
+            <MenuIcon className="size-5" aria-hidden="true" />
+          )}
         </Button>
       </div>
 
       <AnimatePresence>
         {isMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="flex gap-4 flex-col w-full md:hidden fixed glass-component backdrop-blur-xl py-6 z-50 top-25 left-1/2 -translate-x-1/2 shadow-2xl"
-          >
-            <div className="w-full px-6">
-              <div className="relative flex items-center bg-white/30 rounded-full">
-                <Input
-                  type="search"
-                  placeholder="Search products..."
-                  className="w-full pl-10 rounded-full border-none bg-transparent focus-visible:ring-1"
-                />
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-primary" />
-              </div>
-            </div>
+          <>
+            {/* Dimming layer. Tapping outside dismisses, like a sheet. */}
+            <motion.button
+              type="button"
+              aria-label="Close menu"
+              onClick={() => {
+                closeMenu();
+                triggerRef.current?.focus();
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="fixed inset-0 z-40 bg-gray-primary/25 backdrop-blur-[2px] md:hidden"
+            />
 
-            <div className="flex flex-col items-center gap-6 mt-2">
-              <div className="flex justify-between w-full px-8 space-x-4">
-                <Button asChild variant="ghost" size="icon" className="relative bg-white/10 rounded-full border border-white/20">
-                  <Link href="/favorites" onClick={() => setIsMenuOpen(false)}>
-                    <HeartIcon className="h-6 w-6 text-gray-primary" />
+            <motion.div
+              id="mobile-menu"
+              ref={sheetRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu"
+              tabIndex={-1}
+              initial={
+                prefersReducedMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, y: -18, scale: 0.97 }
+              }
+              animate={
+                prefersReducedMotion
+                  ? { opacity: 1 }
+                  : { opacity: 1, y: 0, scale: 1 }
+              }
+              exit={
+                prefersReducedMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, y: -12, scale: 0.98 }
+              }
+              transition={spring.sheet}
+              className="glass-component fixed inset-x-3 top-[4.75rem] z-50 mx-auto flex max-w-md flex-col gap-5 rounded-[1.75rem] p-5 outline-none md:hidden"
+            >
+              <div>
+                <label htmlFor="mobile-search" className="sr-only">
+                  Search products
+                </label>
+                <div className="relative flex items-center">
+                  <Input
+                    id="mobile-search"
+                    type="search"
+                    placeholder="Search products…"
+                    className="h-11 w-full rounded-full border-transparent bg-white/50 pl-10 pr-4 text-sm placeholder:text-gray-quaternary focus-visible:bg-white/80"
+                  />
+                  <SearchIcon
+                    className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-tertiary"
+                    aria-hidden="true"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full border border-white/40 bg-white/20 text-gray-primary hover:bg-white/40"
+                >
+                  <Link
+                    href="/favorites"
+                    onClick={() => setIsMenuOpen(false)}
+                    aria-label={`Favorites, ${favCount} saved`}
+                  >
+                    <HeartIcon className="size-5" aria-hidden="true" />
                     <CartBadge count={favCount} />
                   </Link>
                 </Button>
 
-                {/* Mobile Cart with "Hover" (Toggle) Preview */}
-                <div 
-                  className="relative"
-                  onMouseEnter={() => setIsCartPreviewOpen(true)}
-                  onMouseLeave={() => setIsCartPreviewOpen(false)}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative rounded-full border border-white/40 bg-white/20 text-gray-primary hover:bg-white/40"
+                  onClick={() => setIsCartPreviewOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-expanded={isCartPreviewOpen}
+                  aria-label={`Cart, ${cartCount} items`}
                 >
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative active:scale-90 transition-transform bg-white/10 rounded-full border border-white/20"
-                    onClick={() => setIsCartPreviewOpen(!isCartPreviewOpen)}
-                  >
-                    <ShoppingBagIcon className="h-6 w-6 text-gray-primary" />
-                    <CartBadge count={cartCount} />
-                  </Button>
-                  
-                  <AnimatePresence>
-                    {isCartPreviewOpen && (
-                      <div className="fixed inset-x-0 bottom--0 top-0 pointer-events-none z-[70] flex items-center justify-center px-4">
-                        <motion.div
-                           initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                           animate={{ opacity: 1, scale: 1, y: 0 }}
-                           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                           className="pointer-events-auto w-full max-w-[350px] bg-white/80 backdrop-blur-3xl shadow-2xl border border-white/60 overflow-hidden rounded-[2.5rem]"
-                        >
-                           <div className="p-2">
-                            <div className="flex justify-end p-2 border-b border-white/20 bg-white/10">
-                                <button onClick={() => setIsCartPreviewOpen(false)} className="p-2 hover:cursor-pointer text-gray-tertiary hover:text-gray-primary transition-colors">
-                                    <X className="size-5" />
-                                </button>
-                            </div>
-                            <CartPreview />
-                           </div>
-                        </motion.div>
-                      </div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                  <ShoppingBagIcon className="size-5" aria-hidden="true" />
+                  <CartBadge count={cartCount} />
+                </Button>
 
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="focus-visible:ring-0 focus-visible:ring-offset-0 hover:cursor-pointer bg-white/10 rounded-full border border-white/20"
+                      className="rounded-full border border-white/40 bg-white/20 text-gray-primary hover:bg-white/40"
+                      aria-label={session?.user ? "Account menu" : "Sign in"}
                     >
                       {session?.user ? (
                         <img
-                          src={session?.user.image || ""}
-                          alt="User"
-                          className="w-6 h-6 rounded-full object-cover"
+                          src={session.user.image || ""}
+                          alt=""
+                          className="size-5 rounded-full object-cover"
                         />
                       ) : (
-                        <UserIcon className="h-6 w-6" />
+                        <UserIcon className="size-5" aria-hidden="true" />
                       )}
                     </Button>
                   </DropdownMenuTrigger>
 
-                  <DropdownMenuContent className="glass-component w-56 px-6 py-2">
+                  <DropdownMenuContent className="glass-component w-56 px-4 py-2">
                     <DropdownMenuLabel className="p-0">
                       {session?.user ? session.user.name : "My Account"}
                     </DropdownMenuLabel>
@@ -159,9 +236,9 @@ export default function MobileMenu() {
                           await authClient.revokeSessions();
                           await signOut();
                           router.refresh();
-                          setIsMenuOpen(false);
+                          closeMenu();
                         }}
-                        className="hover:cursor-pointer p-0"
+                        className="cursor-pointer"
                       >
                         Log Out
                       </DropdownMenuItem>
@@ -169,9 +246,9 @@ export default function MobileMenu() {
                       <DropdownMenuItem
                         onClick={() => {
                           router.push("/login");
-                          setIsMenuOpen(false);
+                          closeMenu();
                         }}
-                        className="hover:cursor-pointer p-0"
+                        className="cursor-pointer"
                       >
                         Sign In
                       </DropdownMenuItem>
@@ -179,8 +256,60 @@ export default function MobileMenu() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+
+            {/* Cart preview as its own layer, above the menu. */}
+            <AnimatePresence>
+              {isCartPreviewOpen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-primary/30 px-4 backdrop-blur-[2px] md:hidden"
+                  onClick={() => setIsCartPreviewOpen(false)}
+                >
+                  <motion.div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Cart preview"
+                    initial={
+                      prefersReducedMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, scale: 0.96, y: 16 }
+                    }
+                    animate={
+                      prefersReducedMotion
+                        ? { opacity: 1 }
+                        : { opacity: 1, scale: 1, y: 0 }
+                    }
+                    exit={
+                      prefersReducedMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, scale: 0.97, y: 12 }
+                    }
+                    transition={spring.sheet}
+                    onClick={(event) => event.stopPropagation()}
+                    className="w-full max-w-[360px] overflow-hidden rounded-[1.75rem] border border-white/50 bg-white/85 shadow-panel backdrop-blur-2xl"
+                  >
+                    <div className="flex justify-end border-b border-white/30 p-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsCartPreviewOpen(false)}
+                        className="rounded-full p-2 text-gray-tertiary transition-colors hover:bg-white/50 hover:text-gray-primary"
+                        aria-label="Close cart preview"
+                      >
+                        <X className="size-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                    <div className="p-2">
+                      <CartPreview />
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
         )}
       </AnimatePresence>
     </>
