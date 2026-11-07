@@ -15,54 +15,58 @@ export default function Hero() {
   ];
 
   return (
-    <section className="min-h-[calc(100vh+8rem)] xl:min-h-[calc(100vh-8.5rem)] flex items-start md:items-center justify-center">
-      <div className="flex w-[80%] shrink-0 container mx-auto">
-        <div className="flex flex-col justify-between w-full xl:flex-row gap-4 items-center">
-          <div className="w-full xl:w-1/2 text-left mx-auto xl:col-span-7 py-4">
-            <BlurText
-              text="Building digital products & brands."
-              delay={200}
-              animateBy="words"
-              direction="top"
-              className="max-w-2xl mb-8 text-4xl font-extrabold tracking-tight leading-none md:text-5xl xl:text-6xl text-gray-primary"
-            />
-            <p className="max-w-2xl mb-10 font-light lg:mb-12 md:text-lg lg:text-xl text-gray-secondary">
-              Websites that are both affordable and effective, with a smart
-              choice and a smart price.
-            </p>
-            <Link href="/products">
-              <Button className="bg-accent-500 hover:bg-accent-600 hover:cursor-pointer text-gray-secondary font-bold py-6 px-6 rounded-full">
-                Find Products
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-          <div className="w-full h-full mx-auto xl:w-1/2 py-4 flex items-center justify-center">
-            <div style={{ width: 400, height: 400 }}>
-              <Stack
-                randomRotation={false}
-                sensitivity={100}
-                sendToBackOnClick={true}
-                cards={images.map((src, i) => (
-                  <Image
-                    key={i}
-                    src={src}
-                    alt={`card-${i + 1}`}
-                    width={400}
-                    height={400}
-                    draggable={false}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
-                  />
-                ))}
-                autoplay={false}
-                autoplayDelay={3000}
-                pauseOnHover={false}
+    <section className="flex items-center px-4 py-16 sm:px-6 md:py-24">
+      <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-12 lg:flex-row lg:gap-16">
+        <div className="w-full text-left lg:w-1/2">
+          <BlurText
+            text="Things worth keeping."
+            delay={45}
+            animateBy="words"
+            direction="top"
+            as="h1"
+            className="mb-5 max-w-xl text-4xl font-semibold leading-[1.05] tracking-tight text-gray-primary sm:text-5xl xl:text-6xl"
+          />
+          <p className="mb-8 max-w-lg text-base leading-relaxed text-gray-secondary md:text-lg">
+            A small shop of well-made everyday objects. Clear prices, fast
+            delivery, no noise between you and the thing you want.
+          </p>
+          <Link href="/products" className="inline-block">
+            <Button
+              size="lg"
+              className="group h-12 rounded-full bg-accent-500 px-6 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
+            >
+              Browse products
+              <ArrowRight
+                className="ml-1 size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5"
+                aria-hidden="true"
               />
-            </div>
+            </Button>
+          </Link>
+        </div>
+
+        <div className="flex w-full items-center justify-center lg:w-1/2">
+          <div className="aspect-square w-full max-w-[420px]">
+            <Stack
+              randomRotation={false}
+              sensitivity={90}
+              sendToBackOnClick
+              cards={images.map((src, index) => (
+                <Image
+                  key={src}
+                  src={src}
+                  alt=""
+                  width={420}
+                  height={420}
+                  sizes="(min-width: 1024px) 420px, 80vw"
+                  draggable={false}
+                  className="size-full object-cover"
+                  priority={index === 0}
+                />
+              ))}
+              autoplay={false}
+              autoplayDelay={3000}
+              pauseOnHover={false}
+            />
           </div>
         </div>
       </div>

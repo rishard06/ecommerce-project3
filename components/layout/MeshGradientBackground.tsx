@@ -1,24 +1,29 @@
+"use client";
+
 import React from "react";
 import { MeshGradient } from "@paper-design/shaders-react";
+import { useReducedMotion } from "motion/react";
 
 export default function MeshGradientBackground() {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
-    <>
+    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
       <MeshGradient
-        speed={0.7}
-        colors={["#c7dae1", "#61c295ba", "#98cdb1", "#73bfb0e6"]}
-        className="absolute inset-0 w-full h-screen mix-blend-normal opacity-60 -z-10"
-        // style={{ zIndex: -1 }}
+        speed={prefersReducedMotion ? 0 : 0.35}
+        colors={["#dbeae6", "#8fcdb3", "#a8d6b8", "#8cc4b6"]}
+        className="absolute inset-0 size-full opacity-55 mix-blend-normal"
       />
 
       <MeshGradient
-        speed={0.7}
-        colors={["#c7dae1", "#61c295ba", "#98cdb1", "#73bfb0e6", "#1f6e53"]}
-        distortion={1}
-        className="absolute inset-0 w-full h-screen mix-blend-multiply opacity-35 -z-10"
-        // style={{ zIndex: -1 }}
+        speed={prefersReducedMotion ? 0 : 0.35}
+        colors={["#cfe3e6", "#7fc3a4", "#a5d2b4", "#7bbcab", "#3f8a6d"]}
+        distortion={0.85}
+        className="absolute inset-0 size-full opacity-30 mix-blend-multiply"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#9ee9dc] via-transparent to-white-200-900/0 -z-1"></div>
-    </>
+
+      {/* A quiet wash at the bottom so the hero dissolves into the page. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+    </div>
   );
 }
