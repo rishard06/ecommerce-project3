@@ -15,6 +15,16 @@ export interface DummyCategory {
   name: string;
 }
 
+/** A review from https://dummyjson.com/products (subset we consume). */
+export interface DummyReview {
+  rating: number;
+  comment: string;
+  date: string;
+  reviewerName: string;
+  /** Present in the source payload; not consumed. */
+  reviewerEmail?: string;
+}
+
 /** A product from https://dummyjson.com/products (subset we consume). */
 export interface DummyProduct {
   id: number;
@@ -26,6 +36,20 @@ export interface DummyProduct {
   price: number;
   brand?: string | null;
   images?: string[];
+  /** Aggregate rating 0–5; defaults to 0 when the source omits it. */
+  rating?: number | null;
+  reviews?: DummyReview[] | null;
+  warrantyInformation?: string | null;
+  shippingInformation?: string | null;
+  returnPolicy?: string | null;
+}
+
+/** Review shape persisted on `Product.reviews` (raw seed values, no parsing). */
+export interface CatalogReviewSeed {
+  rating: number;
+  comment: string;
+  date: string;
+  reviewerName: string;
 }
 
 /** Normalized seed product ready to be upserted into the owned catalog. */
@@ -46,6 +70,12 @@ export interface CatalogSeedProduct {
   reserved: number;
   /** Ordered image URLs, positions are their array indices. */
   images: string[];
+  /** Aggregate rating 0–5 (default 0). */
+  rating: number;
+  /** Raw seed reviews; empty when the source has none. */
+  reviews: CatalogReviewSeed[];
+  /** Non-empty policy strings: warranty, shipping, return policy. */
+  features: string[];
 }
 
 /** Product create/update payloads used through {@link CatalogImportTx}. */
@@ -56,6 +86,9 @@ export interface CatalogProductSeed {
   brand: string | null;
   status: "ACTIVE";
   categoryId: string;
+  rating: number;
+  reviews: CatalogReviewSeed[];
+  features: string[];
 }
 
 export interface CatalogProductUpdate {
@@ -63,6 +96,9 @@ export interface CatalogProductUpdate {
   description: string;
   brand: string | null;
   categoryId: string;
+  rating: number;
+  reviews: CatalogReviewSeed[];
+  features: string[];
 }
 
 export interface CatalogVariantSeed {
@@ -138,13 +174,25 @@ const SEED_PRODUCT_STATUS: "ACTIVE" = "ACTIVE";
 /**
  * Pure mapper from a DummyJSON product to a normalized seed product.
  * Deterministic: no dates, randomness, or environment reads, so repeated
- * mappings are byte-identical.
+ * mappings are byte-identical. Review dates stay raw source strings; the
+ * storefront view layer formats them for display.
  */
 export function mapDummyProduct(input: DummyProduct): CatalogSeedProduct {
   const slug = `dummy-${input.id}`;
   const images = Array.isArray(input.images)
     ? input.images.filter((url): url is string => Boolean(url))
     : [];
+  const reviews = (Array.isArray(input.reviews) ? input.reviews : []).map((review) => ({
+    rating: review.rating,
+    comment: review.comment,
+    date: review.date,
+    reviewerName: review.reviewerName,
+  }));
+  const features = [
+    input.warrantyInformation,
+    input.shippingInformation,
+    input.returnPolicy,
+  ].filter((value): value is string => Boolean(value));
 
   return {
     slug,
@@ -158,6 +206,9 @@ export function mapDummyProduct(input: DummyProduct): CatalogSeedProduct {
     onHand: SEED_ON_HAND,
     reserved: SEED_RESERVED,
     images,
+    rating: input.rating ?? 0,
+    reviews,
+    features,
   };
 }
 
@@ -168,7 +219,8 @@ export function mapDummyProduct(input: DummyProduct): CatalogSeedProduct {
  * - products upserted on `Product.slug`, with status ACTIVE on create only
  *   (existing products keep their DB status);
  * - images replaced on every run (deleteMany, then createMany by position);
- * - the default variant upserted on `ProductVariant.sku`.
+ * - the default variant upserted on `ProductVariant.sku`;
+ * - rating/reviews/features refreshed from the seed payload on every run.
  *
  * Returns the number of categories and products processed.
  */
@@ -215,6 +267,9 @@ export async function importDummyCatalog(
           brand: seed.brand ?? null,
           status: SEED_PRODUCT_STATUS,
           categoryId: category.id,
+          rating: seed.rating,
+          reviews: seed.reviews,
+          features: seed.features,
         },
         // Existing products keep their DB status; only business fields refresh.
         update: {
@@ -222,6 +277,9 @@ export async function importDummyCatalog(
           description: seed.description,
           brand: seed.brand ?? null,
           categoryId: category.id,
+          rating: seed.rating,
+          reviews: seed.reviews,
+          features: seed.features,
         },
       });
 

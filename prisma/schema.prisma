@@ -131,6 +131,12 @@ model Product {
   category    Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   images      ProductImage[]
   variants    ProductVariant[]
+  /// Aggregate DummyJSON rating (0–5) carried into the owned catalog.
+  rating      Float         @default(0)
+  /// Raw seed reviews: [{ rating, comment, date, reviewerName }].
+  reviews     Json?
+  /// Non-empty policy strings: [warrantyInformation, shippingInformation, returnPolicy].
+  features    String[]      @default([])
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

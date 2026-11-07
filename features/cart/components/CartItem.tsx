@@ -5,10 +5,11 @@ import { Trash2 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { CartItem as CartItemType } from "@/lib/store/cart-store";
 import { spring } from "@/lib/motion";
+import { formatCents } from "@/lib/money";
 
 interface CartItemProps {
   item: CartItemType;
-  onRemove: (id: number) => void;
+  onRemove: (variantId: string) => void;
 }
 
 export function CartItem({ item, onRemove }: CartItemProps) {
@@ -40,17 +41,17 @@ export function CartItem({ item, onRemove }: CartItemProps) {
           <p className="mt-0.5 text-xs font-medium text-gray-tertiary">
             {item.quantity} ×{" "}
             <span className="text-gray-secondary">
-              ${item.price.toLocaleString()}
+              {formatCents(item.priceCents)}
             </span>
           </p>
         </div>
         <div className="mt-1 flex items-center justify-between">
           <span className="text-sm font-semibold tracking-tight text-gray-secondary">
-            ${(item.price * item.quantity).toLocaleString()}
+            {formatCents(item.priceCents * item.quantity)}
           </span>
           <button
             type="button"
-            onClick={() => onRemove(item.id)}
+            onClick={() => onRemove(item.variantId)}
             className="rounded-lg p-1.5 text-gray-quaternary opacity-100 transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
             aria-label={`Remove ${item.title} from cart`}
           >

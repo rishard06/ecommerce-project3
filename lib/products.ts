@@ -1,82 +1,62 @@
-import { Product } from "@/types";
+/**
+ * Storefront catalog compatibility adapter.
+ *
+ * The storefront used to read DummyJSON at runtime; these helpers now proxy
+ * the owned PostgreSQL catalog (see `features/catalog/server/storefront-service`).
+ * DummyJSON remains seed input only. All money is integer cents (USD).
+ */
+
+import { prisma } from "@/lib/prisma";
+import {
+  getActiveProduct,
+  getFeatureProducts as queryFeatureProducts,
+  listActiveProducts,
+  type ProductPage,
+} from "@/features/catalog/server/storefront-service";
+import type {
+  StorefrontProduct,
+  StorefrontProductSummary,
+} from "@/features/catalog/server/catalog-view";
 
 export interface Category {
   slug: string;
   name: string;
-  url: string;
 }
 
-export interface ProductResponse {
-  products: Product[];
-  total: number;
-  skip: number;
-  limit: number;
-}
+export type ProductResponse = ProductPage;
 
 /**
- * Fetches all product categories from DummyJSON.
+ * Active catalog categories ordered by name.
  */
 export async function getCategories(): Promise<Category[]> {
-  const res = await fetch("https://dummyjson.com/products/categories");
-  if (!res.ok) throw new Error("Failed to fetch categories");
-  return res.json();
+  return prisma.category.findMany({
+    orderBy: { name: "asc" },
+    select: { slug: true, name: true },
+  });
 }
 
 /**
- * Fetches products with optional category filtering and pagination.
+ * Active products with optional category filtering and pagination.
  */
 export async function getProducts(
   category?: string,
   skip: number = 0,
   limit: number = 20
 ): Promise<ProductResponse> {
-  const baseUrl = category
-    ? `https://dummyjson.com/products/category/${category}`
-    : "https://dummyjson.com/products";
-  
-  const res = await fetch(`${baseUrl}?limit=${limit}&skip=${skip}`, {
-    next: { revalidate: 3600 },
-  });
-  
-  if (!res.ok) throw new Error("Failed to fetch products");
-  return res.json();
+  return listActiveProducts(category, skip, limit);
 }
 
 /**
- * Fetches a single product by ID.
+ * A single active product by slug, or null when it is missing, not ACTIVE,
+ * or has no variant.
  */
-export async function getProduct(id: string): Promise<Product> {
-  const res = await fetch(`https://dummyjson.com/products/${id}`);
-  if (!res.ok) throw new Error(`Failed to fetch product with id: ${id}`);
-  return res.json();
+export async function getProduct(slug: string): Promise<StorefrontProduct | null> {
+  return getActiveProduct(slug);
 }
 
 /**
- * Fetches specific featured products.
+ * Highest-rated active products for the storefront feature section.
  */
-export async function getFeatureProducts(): Promise<Product[]> {
-  const productIds = [78, 99, 94, 123];
-  const urls = productIds.map((id) => `https://dummyjson.com/products/${id}`);
-
-  try {
-    const responses = await Promise.all(
-      urls.map((url) =>
-        fetch(url, {
-          next: { revalidate: 3600 },
-        }),
-      ),
-    );
-
-    const data = await Promise.all(
-      responses.map(async (res) => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      }),
-    );
-
-    return data as Product[];
-  } catch (error) {
-    console.error("Failed to fetch featured products:", error);
-    return [];
-  }
+export async function getFeatureProducts(): Promise<StorefrontProductSummary[]> {
+  return queryFeatureProducts(4);
 }

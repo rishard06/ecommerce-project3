@@ -18,6 +18,26 @@ const baseProduct: DummyProduct = {
     "https://cdn.dummyjson.com/src/product-1.webp",
     "https://cdn.dummyjson.com/src/product-2.webp",
   ],
+  rating: 4.57,
+  reviews: [
+    {
+      rating: 5,
+      comment: "Great sound!",
+      date: "2024-05-20T08:00:00Z",
+      reviewerName: "Alice",
+      reviewerEmail: "alice@example.com",
+    },
+    {
+      rating: 3,
+      comment: "Decent.",
+      date: "2024-06-02T08:00:00Z",
+      reviewerName: "Bob",
+      reviewerEmail: "bob@example.com",
+    },
+  ],
+  warrantyInformation: "1 year warranty",
+  shippingInformation: "Free shipping",
+  returnPolicy: "30 days return policy",
 };
 
 interface FakeCategory extends Record<string, unknown> {
@@ -194,6 +214,52 @@ describe("mapDummyProduct", () => {
     expect(mapDummyProduct({ ...baseProduct, price: 9.99 }).priceCents).toBe(999);
     expect(mapDummyProduct({ ...baseProduct, price: 12.345 }).priceCents).toBe(1235);
   });
+
+  it("carries the rating, normalized reviews, and policy features", () => {
+    const seed = mapDummyProduct(baseProduct);
+
+    expect(seed.rating).toBe(4.57);
+    expect(seed.reviews).toEqual([
+      {
+        rating: 5,
+        comment: "Great sound!",
+        date: "2024-05-20T08:00:00Z",
+        reviewerName: "Alice",
+      },
+      {
+        rating: 3,
+        comment: "Decent.",
+        date: "2024-06-02T08:00:00Z",
+        reviewerName: "Bob",
+      },
+    ]);
+    expect(seed.features).toEqual([
+      "1 year warranty",
+      "Free shipping",
+      "30 days return policy",
+    ]);
+  });
+
+  it("defaults the rating to 0, drops missing reviews, and filters empty policies", () => {
+    const seed = mapDummyProduct({
+      ...baseProduct,
+      rating: undefined,
+      reviews: undefined,
+      warrantyInformation: undefined,
+      shippingInformation: null,
+      returnPolicy: "30 days",
+    });
+
+    expect(seed.rating).toBe(0);
+    expect(seed.reviews).toEqual([]);
+    expect(seed.features).toEqual(["30 days"]);
+  });
+
+  it("keeps review dates as raw source strings so mapping stays deterministic", () => {
+    const seed = mapDummyProduct(baseProduct);
+
+    expect(seed.reviews[0]?.date).toBe("2024-05-20T08:00:00Z");
+  });
 });
 
 describe("importDummyCatalog", () => {
@@ -236,6 +302,65 @@ describe("importDummyCatalog", () => {
         position: 1,
       },
     ]);
+  });
+
+  it("persists rating, reviews, and features, and refreshes them on re-import", async () => {
+    const client = createFakeClient();
+
+    await importDummyCatalog(client, data);
+
+    expect([...client.products.values()][0]).toMatchObject({
+      slug: "dummy-7",
+      rating: 4.57,
+      reviews: [
+        {
+          rating: 5,
+          comment: "Great sound!",
+          date: "2024-05-20T08:00:00Z",
+          reviewerName: "Alice",
+        },
+        {
+          rating: 3,
+          comment: "Decent.",
+          date: "2024-06-02T08:00:00Z",
+          reviewerName: "Bob",
+        },
+      ],
+      features: ["1 year warranty", "Free shipping", "30 days return policy"],
+    });
+
+    await importDummyCatalog(client, {
+      categories: [{ slug: "electronics", name: "Electronics" }],
+      products: [
+        {
+          ...baseProduct,
+          rating: 3.2,
+          reviews: [
+            {
+              rating: 4,
+              comment: "Ok for the price.",
+              date: "2024-07-01T08:00:00Z",
+              reviewerName: "Carol",
+            },
+          ],
+          warrantyInformation: "6 months",
+        },
+      ],
+    });
+
+    expect(client.products.size).toBe(1);
+    expect([...client.products.values()][0]).toMatchObject({
+      rating: 3.2,
+      reviews: [
+        {
+          rating: 4,
+          comment: "Ok for the price.",
+          date: "2024-07-01T08:00:00Z",
+          reviewerName: "Carol",
+        },
+      ],
+      features: ["6 months", "Free shipping", "30 days return policy"],
+    });
   });
 
   it("does not rename or duplicate a pre-existing category when a product's category is missing from the payload", async () => {

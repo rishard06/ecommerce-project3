@@ -2,7 +2,7 @@ import * as React from "react";
 import { Star, ThumbsUp, Reply, StarHalf } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Review } from "../types";
 
@@ -113,7 +113,6 @@ export function CustomerReviews({ reviews, rating, totalReviews }: CustomerRevie
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <Avatar className="size-11 ring-1 ring-white/60">
-                      <AvatarImage src={review.userAvatar} alt="" />
                       <AvatarFallback className="bg-accent-500/25 font-semibold text-accent-700">
                         {review.userName.charAt(0)}
                       </AvatarFallback>
@@ -162,7 +161,7 @@ export function CustomerReviews({ reviews, rating, totalReviews }: CustomerRevie
                     <span className="flex size-8 items-center justify-center rounded-lg bg-accent-500/20">
                       <ThumbsUp className="size-3.5 text-accent-700" aria-hidden="true" />
                     </span>
-                    Helpful ({review.helpfulCount})
+                    Helpful
                   </button>
                   <button
                     type="button"

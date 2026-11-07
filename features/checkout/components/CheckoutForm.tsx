@@ -1,25 +1,22 @@
 "use client";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { CreditCard, Wallet, Coins, Lock, HelpCircle, ChevronRight, Loader2, CheckCircle2, ShieldCheck, QrCode, ExternalLink, ShoppingBag } from "lucide-react";
+import { CreditCard, Wallet, Coins, Lock, HelpCircle, ShieldCheck, QrCode, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PaymentMethod, ShippingAddress, CheckoutStatus } from "../types";
-import { createOrderAction } from "../actions";
+import { PaymentMethod, ShippingAddress } from "../types";
 import { useCartStore } from "@/lib/store/cart-store";
-import { useRouter } from "next/navigation";
 import { getOrderTotals } from "@/lib/pricing";
 
 export function CheckoutForm() {
   const [mounted, setMounted] = useState(false);
-  const router = useRouter();
-  const { items, getTotalPrice, clearCart } = useCartStore();
+  const getTotalPrice = useCartStore((state) => state.getTotalPrice);
 
-  const [status, setStatus] = useState<CheckoutStatus>("idle");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("stripe");
-  const [error, setError] = useState<string | null>(null);
 
-  // The server re-validates prices; this total is only for display.
+  // Display-only total derived from the cart's cent total. Checkout submission
+  // is disabled until the catalog migration completes (a later task rewires
+  // ordering to server-side quotes over catalog variant ids).
   const { total } = getOrderTotals(getTotalPrice());
 
   const [shippingInfo, setShippingInfo] = useState<ShippingAddress>({
@@ -48,74 +45,19 @@ export function CheckoutForm() {
     setShippingInfo(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setStatus("validating");
-
-    // Validate shipping info
-    if (!shippingInfo.address || !shippingInfo.city || !shippingInfo.postalCode) {
-      setError("Please fill in all shipping details.");
-      setStatus("error");
-      return;
-    }
-
-    setStatus("processing");
-
-    // SECURITY: Only send product IDs and quantities to server
-    // Server will fetch and validate prices from DummyJSON API
-    const cartItems = items.map(item => ({
-      id: item.id,
-      quantity: item.quantity
-    }));
-
-    const result = await createOrderAction(shippingInfo, paymentMethod, cartItems);
-
-    if (result.success) {
-      setStatus("success");
-      setTimeout(() => {
-        clearCart();
-        // router.push(`/checkout/success?id=${result.orderId}`);
-        // For now, just show success state in UI
-      }, 2000);
-    } else {
-      setError(result.error || "Payment failed. Please try again.");
-      setStatus("error");
-    }
-  };
-
-  if (status === "success") {
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: "spring", stiffness: 320, damping: 32 }}
-        role="status"
-        aria-live="polite"
-        className="glass-component space-y-6 p-10 text-center shadow-panel md:p-12"
-      >
-        <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-accent-500 shadow-soft">
-          <CheckCircle2 className="size-8 text-gray-primary" aria-hidden="true" />
-        </div>
-        <h2 className="text-2xl font-semibold tracking-tight text-gray-primary md:text-3xl">
-          Order placed
-        </h2>
-        <p className="mx-auto max-w-md leading-relaxed text-gray-tertiary">
-          Thank you for your purchase. Your order is being prepared and you&apos;ll
-          receive a confirmation shortly.
-        </p>
-        <Button
-          onClick={() => router.push("/products")}
-          className="h-12 rounded-full bg-gray-primary px-8 font-semibold text-white hover:bg-gray-secondary"
-        >
-          Continue shopping
-        </Button>
-      </motion.div>
-    );
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={(e) => e.preventDefault()} className="space-y-8">
+      {/* Migration notice: ordering is paused until checkout moves to the
+          PostgreSQL catalog (server-side quotes and variant ids). */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        role="status"
+        className="flex items-center gap-3 rounded-2xl border border-accent-500/25 bg-accent-500/10 p-4 text-sm font-medium text-accent-700"
+      >
+        <ShieldCheck className="size-5 shrink-0" aria-hidden="true" />
+        Checkout will be available once the catalog migration completes.
+      </motion.div>
       {/* Shipping Information */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -351,49 +293,15 @@ export function CheckoutForm() {
         </AnimatePresence>
       </motion.div>
 
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          role="alert"
-          className="flex items-center gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-sm font-medium text-destructive"
-        >
-          <div className="size-1.5 shrink-0 rounded-full bg-destructive" aria-hidden="true"></div>
-          {error}
-        </motion.div>
-      )}
-
       <Button
         type="submit"
-        disabled={status === "processing" || status === "validating"}
-        className="group relative flex h-14 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-gray-primary text-base font-semibold text-white shadow-soft transition-colors hover:bg-gray-secondary"
+        disabled
+        aria-disabled="true"
+        title="Checkout will be available once the catalog migration completes"
+        className="group relative flex h-14 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-gray-primary text-base font-semibold text-white shadow-soft transition-colors hover:bg-gray-secondary disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <AnimatePresence mode="wait">
-          {status === "processing" || status === "validating" ? (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center gap-3"
-            >
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span>{status === "validating" ? "Validating Info..." : "Processing Payment..."}</span>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="idle"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex items-center gap-3"
-            >
-              <Lock className="h-5 w-5 transition-transform" aria-hidden="true" />
-              <span>Complete Order • ${total.toFixed(2)}</span>
-              <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <Lock className="h-5 w-5" aria-hidden="true" />
+        <span>Checkout unavailable • ${total.toFixed(2)}</span>
       </Button>
     </form>
   );

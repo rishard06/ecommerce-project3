@@ -12,18 +12,21 @@ import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { formatCents } from "@/lib/money";
 
 export default function ProductCard({
-  id,
+  slug,
+  variantId,
   title,
-  price,
+  priceCents,
   image,
   description,
   isPopular,
 }: {
-  id: string | number;
+  slug: string;
+  variantId: string;
   title: string;
-  price: number;
+  priceCents: number;
   image: string;
   description: string;
   isPopular?: boolean;
@@ -34,9 +37,8 @@ export default function ProductCard({
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
 
-  const numericId = typeof id === "string" ? parseInt(id) : id;
-  const favorited = isFavorite(numericId);
-  const productHref = `/products/${id}`;
+  const favorited = isFavorite(slug);
+  const productHref = `/products/${slug}`;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -48,9 +50,10 @@ export default function ProductCard({
     }
 
     addItem({
-      id: numericId,
+      variantId,
+      productSlug: slug,
       title,
-      price,
+      priceCents,
       image,
     });
   };
@@ -65,9 +68,10 @@ export default function ProductCard({
     }
 
     toggleFavorite({
-      id: numericId,
+      productSlug: slug,
+      variantId,
       title,
-      price,
+      priceCents,
       image,
       description,
     });
@@ -138,7 +142,7 @@ export default function ProductCard({
 
         <div className="mt-5 flex items-center justify-between gap-3">
           <span className="text-xl font-semibold tabular-nums tracking-tight text-gray-secondary">
-            ${price.toLocaleString()}
+            {formatCents(priceCents)}
           </span>
           <Button
             size="icon"

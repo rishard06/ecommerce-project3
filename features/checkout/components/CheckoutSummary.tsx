@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Lock, ShoppingBag } from "lucide-react";
 import Image from "next/image";
 import { getOrderTotals } from "@/lib/pricing";
+import { formatCents } from "@/lib/money";
 
 export function CheckoutSummary() {
   const [mounted, setMounted] = useState(false);
@@ -57,7 +58,7 @@ export function CheckoutSummary() {
 
         <ul className="custom-scrollbar mb-6 max-h-[360px] space-y-3 overflow-y-auto pr-1">
           {items.map((item) => (
-            <li key={item.id} className="flex items-start gap-3">
+            <li key={item.variantId} className="flex items-start gap-3">
               <div className="flex size-16 shrink-0 items-center justify-center rounded-xl border border-white/50 bg-white/60 p-1.5">
                 <Image
                   src={item.image}
@@ -74,7 +75,7 @@ export function CheckoutSummary() {
                 </h3>
                 <p className="mb-1 text-xs text-gray-tertiary">Qty: {item.quantity}</p>
                 <span className="text-sm font-semibold tabular-nums text-gray-secondary">
-                  ${(item.price * item.quantity).toLocaleString()}
+                  {formatCents(item.priceCents * item.quantity)}
                 </span>
               </div>
             </li>
