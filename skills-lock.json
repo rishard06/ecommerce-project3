@@ -6,6 +6,12 @@
       "sourceType": "github",
       "computedHash": "afdf97aa7adae2b9a42389ddb67e7418611bbd3d23604cad96c0f3ca194ab14a"
     },
+    "apple-design": {
+      "source": "gethamster/skills",
+      "sourceType": "github",
+      "skillPath": "skills/.experimental/apple-design/SKILL.md",
+      "computedHash": "28abdd8556abb66fbca6ea98724cb70e48218b34739c8d21573eaad58a656718"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
