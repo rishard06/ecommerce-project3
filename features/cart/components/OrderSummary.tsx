@@ -1,88 +1,105 @@
 "use client";
+
 import Link from "next/link";
 import { ArrowRight, CreditCard, Wallet, Landmark } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getOrderTotals } from "@/lib/pricing";
 
 export function OrderSummary() {
   const { getTotalPrice } = useCartStore();
-  const subtotal = getTotalPrice();
-  const shipping = 0; // Free shipping in the prompt
-  const tax = subtotal * 0.015; // Roughly 1.5% tax for estimation
-  const total = subtotal + shipping + tax;
+  const { subtotal, tax, total } = getOrderTotals(getTotalPrice());
 
   return (
-    <div className="space-y-6">
-      <div className="glass-component p-8 shadow-sm">
-        <h2 className="text-2xl font-bold mb-6 text-gray-primary">Order Summary</h2>
-        <div className="space-y-4 mb-8">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-tertiary font-medium">Subtotal</span>
-            <span className="font-bold text-gray-secondary">${subtotal.toLocaleString()}</span>
+    <div className="space-y-5">
+      <div className="glass-component p-6 md:p-7">
+        <h2 className="mb-5 text-lg font-semibold tracking-tight text-gray-primary">
+          Order summary
+        </h2>
+        <dl className="mb-7 space-y-3 text-sm">
+          <div className="flex items-center justify-between">
+            <dt className="font-medium text-gray-tertiary">Subtotal</dt>
+            <dd className="font-semibold tabular-nums text-gray-secondary">
+              ${subtotal.toLocaleString()}
+            </dd>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-tertiary font-medium">Shipping</span>
-            <span className="font-bold text-green-500">Free</span>
+          <div className="flex items-center justify-between">
+            <dt className="font-medium text-gray-tertiary">Shipping</dt>
+            <dd className="font-semibold text-green-600">Free</dd>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-tertiary font-medium">Estimated Tax</span>
-            <span className="font-bold text-gray-secondary">${tax.toFixed(2)}</span>
+          <div className="flex items-center justify-between">
+            <dt className="font-medium text-gray-tertiary">Estimated tax</dt>
+            <dd className="font-semibold tabular-nums text-gray-secondary">
+              ${tax.toFixed(2)}
+            </dd>
           </div>
-          <hr className="border-white/20" />
-          <div className="flex justify-between items-center text-xl">
-            <span className="font-bold text-gray-primary">Total</span>
-            <span className="font-bold text-gray-primary">${total.toLocaleString()}</span>
+          <div className="flex items-center justify-between border-t border-gray-primary/10 pt-3 text-base">
+            <dt className="font-semibold text-gray-primary">Total</dt>
+            <dd className="font-semibold tabular-nums text-gray-primary">
+              ${total.toLocaleString()}
+            </dd>
           </div>
-        </div>
-        
-        <div className="space-y-4">
+        </dl>
+
+        <div className="space-y-3">
           <div className="relative">
-            <Input 
-              className="bg-white/40 border-none py-6 px-6 rounded-full focus:ring-2 focus:ring-accent-500/50 text-sm placeholder:text-gray-quaternary" 
-              placeholder="Promo Code" 
+            <label htmlFor="cart-promo" className="sr-only">
+              Promo code
+            </label>
+            <Input
+              id="cart-promo"
+              className="h-11 rounded-full border-transparent bg-white/60 px-5 pr-24 text-sm placeholder:text-gray-quaternary focus-visible:bg-white/90"
+              placeholder="Promo code"
             />
-            <Button className="absolute right-2 top-2 bottom-2 bg-gray-primary text-white px-4 rounded-full text-xs font-bold transition-transform hover:scale-105 cursor-pointer">
+            <Button className="absolute right-1 top-1 h-9 rounded-full bg-gray-primary px-4 text-xs font-semibold text-white hover:bg-gray-secondary">
               Apply
             </Button>
           </div>
           <Link href="/checkout" className="block w-full">
-            <Button className="w-full bg-accent-500 text-gray-primary font-bold py-6 rounded-full flex items-center justify-center gap-2 group transition-all hover:opacity-90 active:scale-[0.98] border-none shadow-lg shadow-accent-500/20 cursor-pointer">
-              Proceed to Checkout
-              <ArrowRight className="group-hover:translate-x-1 transition-transform h-5 w-5" />
+            <Button className="group h-12 w-full rounded-full bg-accent-500 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600">
+              Proceed to checkout
+              <ArrowRight
+                className="size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
             </Button>
           </Link>
         </div>
-        
-        <div className="mt-8 pt-8 border-t border-white/20">
-          <p className="text-sm font-semibold text-gray-quaternary mb-4 uppercase tracking-wider">Accepted Payments</p>
-          <div className="flex gap-3">
-            <div className="w-12 h-8 bg-white/40 rounded-md flex items-center justify-center border border-white/20">
-              <CreditCard className="h-5 w-5 text-gray-tertiary" />
-            </div>
-            <div className="w-12 h-8 bg-white/40 rounded-md flex items-center justify-center border border-white/20">
-              <Wallet className="h-5 w-5 text-gray-tertiary" />
-            </div>
-            <div className="w-12 h-8 bg-white/40 rounded-md flex items-center justify-center border border-white/20">
-              <Landmark className="h-5 w-5 text-gray-tertiary" />
-            </div>
+
+        <div className="mt-7 border-t border-gray-primary/10 pt-6">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-quaternary">
+            Accepted payments
+          </p>
+          <div className="flex gap-2">
+            {[CreditCard, Wallet, Landmark].map((Icon, index) => (
+              <div
+                key={index}
+                className="flex h-8 w-12 items-center justify-center rounded-lg border border-white/50 bg-white/50"
+              >
+                <Icon className="size-4 text-gray-tertiary" aria-hidden="true" />
+              </div>
+            ))}
           </div>
         </div>
       </div>
-      
-      {/* Prime Promo Card */}
-      <div className="bg-accent-500 p-8 rounded-[32px] relative overflow-hidden group shadow-lg shadow-accent-500/20">
+
+      <div className="relative overflow-hidden rounded-[1.75rem] bg-accent-500 p-6 shadow-soft">
         <div className="relative z-10">
-          <h3 className="text-gray-primary text-2xl font-bold mb-2">Save with venn. Prime</h3>
-          <p className="text-gray-secondary text-sm mb-6 max-w-[200px] font-medium leading-relaxed">Get free shipping and exclusive early access to new drops.</p>
-          <Button className="bg-gray-primary text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-gray-secondary transition-colors border-none cursor-pointer">
-            Join Now
+          <h3 className="mb-1.5 text-lg font-semibold tracking-tight text-gray-primary">
+            Save with venn. Prime
+          </h3>
+          <p className="mb-5 max-w-[220px] text-sm font-medium leading-relaxed text-gray-secondary">
+            Free shipping and early access to new drops.
+          </p>
+          <Button className="h-9 rounded-full bg-gray-primary px-5 text-sm font-semibold text-white hover:bg-gray-secondary">
+            Join now
           </Button>
         </div>
-        <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-gray-primary/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
-        <div className="absolute right-6 top-6 text-gray-primary/10 transform -rotate-12 group-hover:rotate-0 transition-transform duration-500">
-           <Landmark className="h-16 w-16" />
-        </div>
+        <Landmark
+          className="absolute -bottom-3 -right-2 size-24 text-gray-primary/10"
+          aria-hidden="true"
+        />
       </div>
     </div>
   );

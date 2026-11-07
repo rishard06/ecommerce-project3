@@ -1,11 +1,12 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Lock, ShoppingBag } from "lucide-react";
+import { Lock, ShoppingBag } from "lucide-react";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { getOrderTotals } from "@/lib/pricing";
 
 export function CheckoutSummary() {
   const [mounted, setMounted] = useState(false);
@@ -17,11 +18,11 @@ export function CheckoutSummary() {
 
   if (!mounted) {
     return (
-      <div className="space-y-6 sticky top-24">
-        <div className="glass-component p-6 md:p-8 shadow-sm h-96 flex items-center justify-center">
-          <div className="animate-pulse flex flex-col items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-full"></div>
-            <div className="h-4 w-32 bg-white/20 rounded"></div>
+      <div className="sticky top-24 space-y-5">
+        <div className="glass-component flex h-80 items-center justify-center p-6 md:p-8">
+          <div className="flex animate-pulse flex-col items-center gap-3">
+            <div className="size-10 rounded-full bg-gray-primary/10" />
+            <div className="h-3 w-32 rounded-full bg-gray-primary/10" />
           </div>
         </div>
       </div>
@@ -29,20 +30,18 @@ export function CheckoutSummary() {
   }
 
   const subtotal = getTotalPrice();
-  const shipping = 0;
-  const tax = subtotal * 0.015;
-  const total = subtotal + shipping + tax;
+  const { tax, total } = getOrderTotals(subtotal);
 
   if (items.length === 0) {
     return (
-      <div className="space-y-6 sticky top-24">
-        <div className="glass-component p-6 md:p-8 shadow-sm">
-          <h2 className="text-xl font-bold mb-6 text-gray-primary">
-            Order Summary
+      <div className="sticky top-24 space-y-5">
+        <div className="glass-component p-6 md:p-8">
+          <h2 className="mb-5 text-lg font-semibold tracking-tight text-gray-primary">
+            Order summary
           </h2>
-          <div className="py-12 text-center space-y-4">
-            <ShoppingBag className="h-12 w-12 text-gray-tertiary mx-auto opacity-20" />
-            <p className="text-gray-tertiary font-medium">Your cart is empty</p>
+          <div className="space-y-3 py-10 text-center">
+            <ShoppingBag className="mx-auto size-10 text-gray-quaternary" aria-hidden="true" />
+            <p className="font-medium text-gray-tertiary">Your cart is empty</p>
           </div>
         </div>
       </div>
@@ -50,86 +49,93 @@ export function CheckoutSummary() {
   }
 
   return (
-    <div className="space-y-6 sticky top-24">
-      <div className="glass-component p-6 md:p-8 shadow-sm">
-        <h2 className="text-xl font-bold mb-6 text-gray-primary">
-          Order Summary
+    <div className="sticky top-24 space-y-5">
+      <div className="glass-component p-6 md:p-7">
+        <h2 className="mb-5 text-lg font-semibold tracking-tight text-gray-primary">
+          Order summary
         </h2>
 
-        <div className="space-y-4 mb-8 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+        <ul className="custom-scrollbar mb-6 max-h-[360px] space-y-3 overflow-y-auto pr-1">
           {items.map((item) => (
-            <div key={item.id} className="flex gap-4 items-start">
-              <div className="w-20 h-20 rounded-xl bg-white/40 flex items-center justify-center p-2 flex-shrink-0 border border-white/20">
+            <li key={item.id} className="flex items-start gap-3">
+              <div className="flex size-16 shrink-0 items-center justify-center rounded-xl border border-white/50 bg-white/60 p-1.5">
                 <Image
                   src={item.image}
-                  alt={item.title}
-                  width={80}
-                  height={80}
-                  className="w-full h-full object-contain"
+                  alt=""
+                  width={64}
+                  height={64}
+                  sizes="64px"
+                  className="size-full object-contain"
                 />
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-gray-primary leading-tight mb-1 truncate">
+              <div className="min-w-0 flex-1">
+                <h3 className="mb-0.5 truncate text-sm font-semibold text-gray-primary">
                   {item.title}
                 </h3>
-                <p className="text-sm text-gray-tertiary mb-2">
-                  Qty: {item.quantity}
-                </p>
-                <span className="font-bold text-gray-secondary">
+                <p className="mb-1 text-xs text-gray-tertiary">Qty: {item.quantity}</p>
+                <span className="text-sm font-semibold tabular-nums text-gray-secondary">
                   ${(item.price * item.quantity).toLocaleString()}
                 </span>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
 
-        <div className="flex gap-2 mb-8">
+        <div className="mb-6 flex gap-2">
+          <label htmlFor="checkout-promo" className="sr-only">
+            Promo code
+          </label>
           <Input
-            className="flex-1 bg-white/40 border-none py-6 px-4 rounded-xl text-sm focus:ring-accent-500/50"
+            id="checkout-promo"
+            className="h-11 flex-1 rounded-xl border-transparent bg-white/60 px-4 text-sm placeholder:text-gray-quaternary focus-visible:bg-white/90"
             placeholder="Promo code"
           />
-          <Button className="bg-gray-primary border-white/20 px-6 py-6 text-white font-bold rounded-xl text-sm hover:opacity-90 transition-all cursor-pointer">
+          <Button className="h-11 rounded-xl bg-gray-primary px-5 text-sm font-semibold text-white hover:bg-gray-secondary">
             Apply
           </Button>
         </div>
 
-        <div className="space-y-3 border-t border-white/20 pt-6 mb-8">
-          <div className="flex justify-between text-gray-tertiary text-sm font-medium">
-            <span>Subtotal</span>
-            <span>${subtotal.toLocaleString()}</span>
+        <dl className="mb-6 space-y-2.5 border-t border-gray-primary/10 pt-5 text-sm">
+          <div className="flex justify-between">
+            <dt className="font-medium text-gray-tertiary">Subtotal</dt>
+            <dd className="font-semibold tabular-nums text-gray-secondary">
+              ${subtotal.toLocaleString()}
+            </dd>
           </div>
-          <div className="flex justify-between text-gray-tertiary text-sm font-medium">
-            <span>Shipping</span>
-            <span className="text-green-500">Free</span>
+          <div className="flex justify-between">
+            <dt className="font-medium text-gray-tertiary">Shipping</dt>
+            <dd className="font-semibold text-green-600">Free</dd>
           </div>
-          <div className="flex justify-between text-gray-tertiary text-sm font-medium">
-            <span>Tax (1.5%)</span>
-            <span>${tax.toFixed(2)}</span>
+          <div className="flex justify-between">
+            <dt className="font-medium text-gray-tertiary">Estimated tax</dt>
+            <dd className="font-semibold tabular-nums text-gray-secondary">
+              ${tax.toFixed(2)}
+            </dd>
           </div>
-          <div className="flex justify-between items-center pt-4">
-            <span className="font-bold text-xl text-gray-primary">Total</span>
-            <span className="font-bold text-3xl text-gray-primary">
+          <div className="flex items-center justify-between border-t border-gray-primary/10 pt-3.5">
+            <dt className="text-base font-semibold text-gray-primary">Total</dt>
+            <dd className="text-xl font-semibold tabular-nums tracking-tight text-gray-primary">
               ${total.toLocaleString()}
-            </span>
+            </dd>
           </div>
-        </div>
+        </dl>
 
-        <p className="text-center text-xs text-gray-quaternary mt-4 leading-relaxed">
+        <p className="mt-4 text-center text-xs leading-relaxed text-gray-quaternary">
           By placing your order, you agree to our{" "}
-          <a href="#" className="underline hover:text-gray-primary">
+          <a href="/terms" className="underline underline-offset-2 hover:text-gray-primary">
             Terms of Service
           </a>{" "}
           and{" "}
-          <a href="#" className="underline hover:text-gray-primary">
+          <a href="/privacy" className="underline underline-offset-2 hover:text-gray-primary">
             Privacy Policy
           </a>
           .
         </p>
       </div>
 
-      <div className="flex items-center gap-2 text-sm font-bold bg-green-500/10 text-green-600 px-4 py-3 rounded-xl border border-green-500/20 justify-center">
-        <Lock className="h-4 w-4" />
-        Encrypted & Secure Checkout
+      <div className="flex items-center justify-center gap-2 rounded-xl border border-green-600/20 bg-green-500/10 px-4 py-3 text-sm font-semibold text-green-700">
+        <Lock className="size-4" aria-hidden="true" />
+        Encrypted &amp; secure checkout
       </div>
     </div>
   );

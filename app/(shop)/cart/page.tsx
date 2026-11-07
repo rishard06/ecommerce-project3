@@ -1,7 +1,7 @@
 import { CartPage } from "@/features/cart/components/CartPage";
 
 export const metadata = {
-  title: "Shopping Cart | Nitec.",
+  title: "Cart | venn.",
   description: "Review your items and proceed to checkout.",
 };
 

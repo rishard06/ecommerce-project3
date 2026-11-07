@@ -1,47 +1,46 @@
 "use client";
+
 import { CheckoutForm } from "@/features/checkout/components/CheckoutForm";
 import { CheckoutSummary } from "@/features/checkout/components/CheckoutSummary";
 import { ChevronRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 
 export default function CheckoutPage() {
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 md:py-16">
-      {/* Header section */}
-      <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="space-y-2"
-        >
-          <nav className="flex items-center gap-2 text-sm font-bold text-gray-tertiary mb-2">
-            <Link href="/cart" className="hover:text-gray-primary transition-colors">Cart</Link>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-gray-primary">Checkout</span>
+    <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 md:py-12 lg:px-8">
+      <div className="mb-10 flex flex-col justify-between gap-5 md:mb-12 md:flex-row md:items-end">
+        <div className="space-y-2">
+          <nav
+            aria-label="Breadcrumb"
+            className="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-tertiary"
+          >
+            <Link href="/cart" className="rounded transition-colors hover:text-gray-primary">
+              Cart
+            </Link>
+            <ChevronRight className="size-4 text-gray-quaternary" aria-hidden="true" />
+            <span aria-current="page" className="text-gray-primary">
+              Checkout
+            </span>
           </nav>
-          <h1 className="text-4xl md:text-5xl font-black text-gray-primary tracking-tight">Secure Checkout</h1>
-        </motion.div>
-        
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="flex items-center gap-3 bg-white/30 backdrop-blur-xl px-6 py-3 rounded-full border border-white/40 shadow-sm"
-        >
-          <div className="bg-green-500 rounded-full p-1">
-            <ShieldCheck className="h-5 w-5 text-white" />
+          <h1 className="text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl">
+            Checkout
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-2.5 rounded-full border border-white/50 bg-white/50 px-4 py-2 shadow-soft backdrop-blur-xl">
+          <div className="rounded-full bg-green-600 p-1">
+            <ShieldCheck className="size-4 text-white" aria-hidden="true" />
           </div>
-          <span className="text-sm font-bold text-gray-primary tracking-wide">Encrypted & Secure</span>
-        </motion.div>
+          <span className="text-sm font-semibold text-gray-primary">
+            Encrypted &amp; secure
+          </span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        {/* Left Column: Forms */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
         <div className="lg:col-span-8">
           <CheckoutForm />
         </div>
-
-        {/* Right Column: Summary */}
         <div className="lg:col-span-4">
           <CheckoutSummary />
         </div>

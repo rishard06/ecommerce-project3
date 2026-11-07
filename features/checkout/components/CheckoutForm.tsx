@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { CreditCard, Wallet, Coins, Lock, HelpCircle, ChevronRight, Loader2, CheckCircle2, ShieldCheck, QrCode, ExternalLink, ShoppingBag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { PaymentMethod, ShippingAddress, CheckoutStatus } from "../types";
 import { createOrderAction } from "../actions";
 import { useCartStore } from "@/lib/store/cart-store";
 import { useRouter } from "next/navigation";
+import { getOrderTotals } from "@/lib/pricing";
 
 export function CheckoutForm() {
   const [mounted, setMounted] = useState(false);
@@ -18,6 +19,9 @@ export function CheckoutForm() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("stripe");
   const [error, setError] = useState<string | null>(null);
 
+  // The server re-validates prices; this total is only for display.
+  const { total } = getOrderTotals(getTotalPrice());
+
   const [shippingInfo, setShippingInfo] = useState<ShippingAddress>({
     firstName: "",
     lastName: "",
@@ -26,7 +30,7 @@ export function CheckoutForm() {
     postalCode: "",
     country: "United States",
   });
-  
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -82,23 +86,29 @@ export function CheckoutForm() {
 
   if (status === "success") {
     return (
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="glass-component p-12 text-center space-y-6 shadow-xl"
+        transition={{ type: "spring", stiffness: 320, damping: 32 }}
+        role="status"
+        aria-live="polite"
+        className="glass-component space-y-6 p-10 text-center shadow-panel md:p-12"
       >
-        <div className="w-20 h-20 bg-accent-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-accent-500/20">
-          <CheckCircle2 className="h-10 w-10 text-white" />
+        <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-accent-500 shadow-soft">
+          <CheckCircle2 className="size-8 text-gray-primary" aria-hidden="true" />
         </div>
-        <h2 className="text-3xl font-bold text-gray-primary">Order Successful!</h2>
-        <p className="text-gray-tertiary max-w-md mx-auto">
-          Thank you for your purchase. Your order has been placed successfully and is being processed.
+        <h2 className="text-2xl font-semibold tracking-tight text-gray-primary md:text-3xl">
+          Order placed
+        </h2>
+        <p className="mx-auto max-w-md leading-relaxed text-gray-tertiary">
+          Thank you for your purchase. Your order is being prepared and you&apos;ll
+          receive a confirmation shortly.
         </p>
-        <Button 
+        <Button
           onClick={() => router.push("/products")}
-          className="bg-gray-primary text-white py-6 px-10 rounded-2xl hover:scale-105 transition-transform"
+          className="h-12 rounded-full bg-gray-primary px-8 font-semibold text-white hover:bg-gray-secondary"
         >
-          Continue Shopping
+          Continue shopping
         </Button>
       </motion.div>
     );
@@ -107,7 +117,7 @@ export function CheckoutForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Shipping Information */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="glass-component p-6 md:p-8 shadow-sm"
@@ -119,59 +129,64 @@ export function CheckoutForm() {
           </h2>
           <ShieldCheck className="text-accent-500 h-6 w-6" />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-secondary">First Name</label>
-            <Input 
+            <label htmlFor="firstName" className="block text-sm font-bold text-gray-secondary">First Name</label>
+            <Input
+              id="firstName"
               name="firstName"
               value={shippingInfo.firstName}
               onChange={handleInputChange}
-              className="bg-white/40 border-none py-6 px-4 rounded-xl focus:ring-2 focus:ring-accent-500/50" 
+              className="h-12 bg-white/60 border-transparent px-4 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40"
               placeholder="Ryman"
               required
             />
           </div>
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-secondary">Last Name</label>
-            <Input 
+            <label htmlFor="lastName" className="block text-sm font-bold text-gray-secondary">Last Name</label>
+            <Input
+              id="lastName"
               name="lastName"
               value={shippingInfo.lastName}
               onChange={handleInputChange}
-              className="bg-white/40 border-none py-6 px-4 rounded-xl focus:ring-2 focus:ring-accent-500/50" 
+              className="h-12 bg-white/60 border-transparent px-4 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40"
               placeholder="Alex"
               required
             />
           </div>
           <div className="md:col-span-2 space-y-2">
-            <label className="block text-sm font-bold text-gray-secondary">Address</label>
-            <Input 
+            <label htmlFor="address" className="block text-sm font-bold text-gray-secondary">Address</label>
+            <Input
+              id="address"
               name="address"
               value={shippingInfo.address}
               onChange={handleInputChange}
-              className="bg-white/40 border-none py-6 px-4 rounded-xl focus:ring-2 focus:ring-accent-500/50" 
+              className="h-12 bg-white/60 border-transparent px-4 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40"
               placeholder="123 Tech Avenue, Silicon Valley"
               required
             />
           </div>
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-secondary">City</label>
-            <Input 
+            <label htmlFor="city" className="block text-sm font-bold text-gray-secondary">City</label>
+            <Input
+              id="city"
               name="city"
               value={shippingInfo.city}
               onChange={handleInputChange}
-              className="bg-white/40 border-none py-6 px-4 rounded-xl focus:ring-2 focus:ring-accent-500/50" 
+              className="h-12 bg-white/60 border-transparent px-4 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40"
               placeholder="San Francisco"
               required
             />
           </div>
           <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-secondary">Postal Code</label>
-            <Input 
+            <label htmlFor="postalCode" className="block text-sm font-bold text-gray-secondary">Postal Code</label>
+            <Input
+              id="postalCode"
               name="postalCode"
               value={shippingInfo.postalCode}
               onChange={handleInputChange}
-              className="bg-white/40 border-none py-6 px-4 rounded-xl focus:ring-2 focus:ring-accent-500/50" 
+              className="h-12 bg-white/60 border-transparent px-4 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40"
               placeholder="94103"
               required
             />
@@ -180,41 +195,57 @@ export function CheckoutForm() {
       </motion.div>
 
       {/* Payment Method */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
         className="glass-component p-6 md:p-8 shadow-sm relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-64 h-64 bg-accent-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-        
+
         <h2 className="text-xl font-bold flex items-center gap-3 mb-8 relative z-10 text-gray-primary">
           <span className="w-8 h-8 rounded-full bg-gray-primary text-white flex items-center justify-center text-sm font-bold">2</span>
           Payment Method
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div
+          role="radiogroup"
+          aria-label="Payment method"
+          className="mb-8 grid grid-cols-1 gap-3 md:grid-cols-3"
+        >
           {[
             { id: "stripe", icon: CreditCard, label: "Stripe" },
             { id: "paypal", icon: Wallet, label: "PayPal" },
             { id: "crypto", icon: Coins, label: "Crypto" },
-          ].map((method) => (
-            <button
-              key={method.id}
-              type="button"
-              onClick={() => setPaymentMethod(method.id as PaymentMethod)}
-              className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-3 cursor-pointer ${
-                paymentMethod === method.id 
-                ? "border-gray-primary bg-white/60 shadow-lg scale-[1.02]" 
-                : "border-white/20 bg-white/20 hover:bg-white/40"
-              }`}
-            >
-              <method.icon className={`h-8 w-8 ${paymentMethod === method.id ? "text-gray-primary" : "text-gray-tertiary"}`} />
-              <span className={`font-bold text-sm ${paymentMethod === method.id ? "text-gray-primary" : "text-gray-tertiary"}`}>
-                {method.label}
-              </span>
-            </button>
-          ))}
+          ].map((method) => {
+            const isSelected = paymentMethod === method.id;
+            return (
+              <button
+                key={method.id}
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
+                onClick={() => setPaymentMethod(method.id as PaymentMethod)}
+                className={`flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border-2 p-4 transition-[background-color,border-color,box-shadow] duration-200 ease-out-quart ${
+                  isSelected
+                    ? "border-accent-600 bg-white/70 shadow-soft"
+                    : "border-gray-primary/10 bg-white/30 hover:border-gray-primary/20 hover:bg-white/50"
+                }`}
+              >
+                <method.icon
+                  className={`size-6 ${isSelected ? "text-accent-700" : "text-gray-tertiary"}`}
+                  aria-hidden="true"
+                />
+                <span
+                  className={`text-sm font-semibold ${
+                    isSelected ? "text-gray-primary" : "text-gray-tertiary"
+                  }`}
+                >
+                  {method.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <AnimatePresence mode="wait">
@@ -233,12 +264,13 @@ export function CheckoutForm() {
                     <span className="text-[10px] bg-accent-500/20 text-accent-700 px-2 py-1 rounded font-bold tracking-wider">TEST MODE</span>
                   </div>
                 </div>
-                
+
                 <div className="relative">
-                  <label className="block text-[10px] uppercase tracking-widest font-bold text-gray-tertiary mb-2">Card Number</label>
+                  <label htmlFor="card-number" className="block text-[10px] uppercase tracking-widest font-bold text-gray-tertiary mb-2">Card Number</label>
                   <div className="relative">
-                    <Input 
-                      className="bg-white/40 border-none py-8 pl-14 pr-6 rounded-xl focus:ring-2 focus:ring-accent-500/50 font-mono tracking-widest text-lg" 
+                    <Input
+                      id="card-number"
+                      className="h-14 bg-white/60 border-transparent pl-14 pr-6 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40 font-mono tracking-widest text-lg"
                       placeholder="4242 4242 4242 4242"
                       required
                     />
@@ -248,18 +280,20 @@ export function CheckoutForm() {
 
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="block text-[10px] uppercase tracking-widest font-bold text-gray-tertiary">Expiry</label>
-                    <Input 
-                      className="bg-white/40 border-none py-6 px-4 rounded-xl focus:ring-2 focus:ring-accent-500/50" 
+                    <label htmlFor="expiry" className="block text-[10px] uppercase tracking-widest font-bold text-gray-tertiary">Expiry</label>
+                    <Input
+                      id="expiry"
+                      className="h-12 bg-white/60 border-transparent px-4 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40"
                       placeholder="12/26"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-[10px] uppercase tracking-widest font-bold text-gray-tertiary">CVC</label>
+                    <label htmlFor="cvc" className="block text-[10px] uppercase tracking-widest font-bold text-gray-tertiary">CVC</label>
                     <div className="relative">
-                      <Input 
-                        className="bg-white/40 border-none py-6 pl-4 pr-12 rounded-xl focus:ring-2 focus:ring-accent-500/50" 
+                      <Input
+                        id="cvc"
+                        className="h-12 bg-white/60 border-transparent pl-4 pr-12 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40"
                         placeholder="123"
                         required
                       />
@@ -293,7 +327,7 @@ export function CheckoutForm() {
                   <h3 className="font-bold text-gray-primary">Crypto Payment (USDT/BTC)</h3>
                   <span className="text-[10px] bg-accent-500/20 text-accent-700 px-2 py-1 rounded font-bold tracking-wider">NETWORK: ETHEREUM</span>
                 </div>
-                
+
                 <div className="flex flex-col md:flex-row gap-8 items-center bg-white/20 p-6 rounded-2xl border border-white/40">
                   <div className="bg-white p-3 rounded-xl shadow-lg">
                     <QrCode className="h-32 w-32 text-gray-primary" />
@@ -318,20 +352,21 @@ export function CheckoutForm() {
       </motion.div>
 
       {error && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-red-500/10 border border-red-500/20 text-red-600 rounded-2xl text-sm font-bold flex items-center gap-3"
+          role="alert"
+          className="flex items-center gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-sm font-medium text-destructive"
         >
-          <div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></div>
+          <div className="size-1.5 shrink-0 rounded-full bg-destructive" aria-hidden="true"></div>
           {error}
         </motion.div>
       )}
 
-      <Button 
+      <Button
         type="submit"
         disabled={status === "processing" || status === "validating"}
-        className="w-full bg-gray-primary text-white py-8 rounded-2xl font-bold text-lg hover:scale-[1.01] transition-all shadow-xl shadow-gray-primary/10 flex items-center justify-center gap-3 group relative overflow-hidden"
+        className="group relative flex h-14 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-gray-primary text-base font-semibold text-white shadow-soft transition-colors hover:bg-gray-secondary"
       >
         <AnimatePresence mode="wait">
           {status === "processing" || status === "validating" ? (
@@ -353,7 +388,7 @@ export function CheckoutForm() {
               exit={{ opacity: 0 }}
               className="flex items-center gap-3"
             >
-              <Lock className="h-5 w-5 group-hover:scale-110 transition-transform" />
+              <Lock className="h-5 w-5 transition-transform" aria-hidden="true" />
               <span>Complete Order • ${total.toFixed(2)}</span>
               <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </motion.div>
