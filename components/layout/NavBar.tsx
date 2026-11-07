@@ -14,28 +14,42 @@ import UserAction from "./UserAction";
 import MobileMenu from "./MobileMenu";
 
 export default function NavBar() {
-  const { getTotalItems } = useFavoritesStore();
+  const items = useFavoritesStore((state) => state.items);
+  const [mounted, setMounted] = useState(false);
   const [favCount, setFavCount] = useState(0);
 
   useEffect(() => {
-    setFavCount(getTotalItems());
-  }, [getTotalItems()]);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted) setFavCount(items.length);
+  }, [items, mounted]);
 
   return (
-    <nav className="relative w-full h-34 flex justify-center">
-      <div className="fixed z-50 w-[80%] mx-auto my-4 px-4 md:px-6 py-3 flex justify-between items-center gap-4 md:gap-10 glass-component border border-white/40">
+    <nav
+      aria-label="Primary"
+      className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-5 md:pt-4"
+    >
+      {/* Floating bar: translucency here separates navigation from content. */}
+      <div className="glass-control mx-auto flex w-full max-w-7xl items-center justify-between gap-2 rounded-full px-3 py-2 sm:gap-4 sm:px-4 md:gap-8 md:py-2.5">
         <Logo />
 
-        {/* Mobile Menu (includes button and overlay) */}
+        {/* Mobile menu (includes trigger, backdrop and sheet) */}
         <MobileMenu />
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-4 justify-end flex-1">
+        {/* Desktop navigation */}
+        <div className="hidden flex-1 items-center justify-end gap-1 md:flex md:gap-2">
           <Search />
 
-          <Button asChild variant="ghost" size="icon" className="relative hover:bg-white/20 transition-all rounded-full">
-            <Link href="/favorites">
-              <HeartIcon className="h-6 w-6" />
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="rounded-full text-gray-secondary hover:bg-gray-primary/5"
+          >
+            <Link href="/favorites" aria-label={`Favorites, ${favCount} saved`}>
+              <HeartIcon className="size-5" aria-hidden="true" />
               <CartBadge count={favCount} />
             </Link>
           </Button>

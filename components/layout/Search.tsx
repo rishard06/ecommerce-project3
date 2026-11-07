@@ -1,4 +1,5 @@
 "use client";
+
 import React from "react";
 import { SearchIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -10,16 +11,25 @@ export default function Search() {
 
   return (
     <form
+      role="search"
       onSubmit={handleSearch}
-      className="flex-1 max-w-md bg-white/30 rounded-full"
+      className="flex-1 max-w-md"
+      aria-label="Product search"
     >
       <div className="relative flex items-center">
-        <Input
-          type="search"
-          placeholder="Search products..."
-          className="w-full pl-10 rounded-full border-none focus-visible:ring-1 bg-white/30"
+        <label htmlFor="site-search" className="sr-only">
+          Search products
+        </label>
+        <SearchIcon
+          className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-tertiary"
+          aria-hidden="true"
         />
-        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-quaternary" />
+        <Input
+          id="site-search"
+          type="search"
+          placeholder="Search products…"
+          className="h-10 w-full rounded-full border-transparent bg-surface-dark/60 pl-10 pr-4 text-sm text-foreground placeholder:text-gray-quaternary transition-colors hover:bg-surface-dark focus-visible:bg-white/70"
+        />
       </div>
     </form>
   );

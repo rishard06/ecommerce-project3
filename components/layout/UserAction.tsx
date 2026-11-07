@@ -1,4 +1,5 @@
 "use client";
+
 import React from "react";
 import { useRouter } from "next/navigation";
 import { UserIcon } from "lucide-react";
@@ -27,21 +28,22 @@ export default function UserAction() {
         <Button
           variant="ghost"
           size="icon"
-          className="focus-visible:ring-0 focus-visible:ring-offset-0 border-2 border-white rounded-full hover:cursor-pointer"
+          className="rounded-full border border-white/40 bg-surface-light text-gray-secondary hover:bg-white/60"
+          aria-label={session?.user ? "Account menu" : "Sign in"}
         >
           {session?.user ? (
             <img
-              src={session?.user.image || ""}
-              alt="User"
-              className="w-6 h-6 rounded-full object-cover"
+              src={session.user.image || ""}
+              alt=""
+              className="size-6 rounded-full object-cover"
             />
           ) : (
-            <UserIcon className="h-6 w-6" />
+            <UserIcon className="size-5" aria-hidden="true" />
           )}
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent className="glass-component w-56 px-6 py-2">
+      <DropdownMenuContent className="glass-component w-56 px-4 py-2">
         <DropdownMenuLabel className="p-0">
           {session?.user ? session.user.name : "My Account"}
         </DropdownMenuLabel>
@@ -52,18 +54,17 @@ export default function UserAction() {
               await authClient.revokeSessions();
               await signOut();
               router.push("/");
-              // router.refresh();
               clearCart();
               clearFavorites();
             }}
-            className="hover:cursor-pointer p-0"
+            className="cursor-pointer"
           >
             Log Out
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem
             onClick={() => router.push("/login")}
-            className="hover:cursor-pointer p-0"
+            className="cursor-pointer"
           >
             Sign In
           </DropdownMenuItem>
