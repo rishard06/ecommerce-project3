@@ -238,6 +238,52 @@ describe("importDummyCatalog", () => {
     ]);
   });
 
+  it("does not rename or duplicate a pre-existing category when a product's category is missing from the payload", async () => {
+    const client = createFakeClient();
+
+    // First import knows the full category list.
+    await importDummyCatalog(client, {
+      categories: [
+        { slug: "electronics", name: "Electronics" },
+        { slug: "beauty", name: "Beauty" },
+      ],
+      products: [baseProduct],
+    });
+
+    // Second import has a partial category payload but still references "beauty".
+    await importDummyCatalog(client, {
+      categories: [{ slug: "electronics", name: "Electronics" }],
+      products: [{ ...baseProduct, id: 8, category: "beauty" }],
+    });
+
+    expect(client.categories.size).toBe(2);
+    expect(client.categories.get("beauty")?.name).toBe("Beauty");
+    const product = [...client.products.values()].find((p) => p.slug === "dummy-8");
+    expect(product?.categoryId).toBe(client.categories.get("beauty")?.id);
+  });
+
+  it("provisionally creates an unknown category on a fresh database, renaming it once the payload provides it", async () => {
+    const client = createFakeClient();
+
+    await importDummyCatalog(client, {
+      categories: [],
+      products: [baseProduct],
+    });
+
+    const provisional = client.categories.get("electronics");
+    expect(provisional).toMatchObject({ slug: "electronics", name: "electronics" });
+    const product = [...client.products.values()][0];
+    expect(product?.categoryId).toBe(provisional?.id);
+
+    // A later import that includes the payload renames it instead of duplicating.
+    await importDummyCatalog(client, {
+      categories: [{ slug: "electronics", name: "Electronics" }],
+      products: [baseProduct],
+    });
+    expect(client.categories.size).toBe(1);
+    expect(client.categories.get("electronics")?.name).toBe("Electronics");
+  });
+
   it("updates existing rows on a second run instead of duplicating them", async () => {
     const client = createFakeClient();
 

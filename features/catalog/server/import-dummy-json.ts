@@ -99,7 +99,7 @@ export interface CatalogImportTx {
     upsert(args: {
       where: { slug: string };
       create: { slug: string; name: string };
-      update: { name: string };
+      update: { name?: string };
     }): Promise<{ id: string; slug: string }>;
   };
   product: {
@@ -198,8 +198,11 @@ export async function importDummyCatalog(
         categoryIds.get(seed.categorySlug) ??
         (await tx.category.upsert({
           where: { slug: seed.categorySlug },
+          // Provisional name on create: a slug can carry no display name on its own.
           create: { slug: seed.categorySlug, name: seed.categorySlug },
-          update: { name: seed.categorySlug },
+          // Non-destructive on update: never overwrite a managed category name
+          // when the import payload does not define this category.
+          update: {},
         }));
       categoryIds.set(seed.categorySlug, category);
 
