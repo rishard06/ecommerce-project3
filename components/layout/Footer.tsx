@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState } from "react";
 import Link from "next/link";
 import {
@@ -10,7 +11,7 @@ import {
   Phone,
   Mail,
   ArrowRight,
-  LucideProps
+  type LucideProps,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,173 +27,156 @@ interface ContactInfo {
   text: string;
 }
 
-interface QuickLink {
-  href: string;
-  label: string;
-}
-
-
 interface FooterLink {
   href: string;
   label: string;
 }
 
 const socialLinks: SocialLink[] = [
-  {
-    href: "#",
-    "aria-label": "Facebook",
-    icon: Facebook,
-  },
-  {
-    href: "#",
-    "aria-label": "Twitter",
-    icon: Twitter,
-  },
-  {
-    href: "#",
-    "aria-label": "Instagram",
-    icon: Instagram,
-  },
-  {
-    href: "#",
-    "aria-label": "YouTube",
-    icon: Youtube,
-  },
+  { href: "#", "aria-label": "Facebook", icon: Facebook },
+  { href: "#", "aria-label": "Twitter", icon: Twitter },
+  { href: "#", "aria-label": "Instagram", icon: Instagram },
+  { href: "#", "aria-label": "YouTube", icon: Youtube },
 ];
 
-const quickLinks: QuickLink[] = [
+const quickLinks: FooterLink[] = [
   { href: "/", label: "Home" },
   { href: "/products", label: "Products" },
-  { href: "/about", label: "About Us" },
+  { href: "/about", label: "About us" },
   { href: "/contact", label: "Contact" },
   { href: "/blog", label: "Blog" },
 ];
 
 const contactInfo: ContactInfo[] = [
-  {
-    icon: MapPin,
-    text: "123 Audio Lane, Soundville, CA 94105, USA",
-  },
-  {
-    icon: Phone,
-    text: "+1 (555) 123-4567",
-  },
-  {
-    icon: Mail,
-    text: "support@nitec.com",
-  },
+  { icon: MapPin, text: "123 Audio Lane, Soundville, CA 94105" },
+  { icon: Phone, text: "+1 (555) 123-4567" },
+  { icon: Mail, text: "support@venn.shop" },
 ];
 
 const footerLinks: FooterLink[] = [
-    { href: "/terms", label: "Terms of Service" },
-    { href: "/privacy", label: "Privacy Policy" },
-    { href: "/faq", label: "FAQ" },
-  ];
+  { href: "/terms", label: "Terms of Service" },
+  { href: "/privacy", label: "Privacy Policy" },
+  { href: "/faq", label: "FAQ" },
+];
 
 export default function Footer() {
   const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle subscription logic here
-    console.log("Subscribed with:", email);
+    setSubscribed(true);
     setEmail("");
   };
 
   return (
-    <footer className="min-h-screen/2 mt-16 px-4 py-8 relative flex items-center">
-      <div className="p-4 sm:p-8 w-full mx-auto rounded-3xl bg-primary-50">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* Company Info */}
+    <footer className="mt-16 px-4 pb-10 sm:px-6">
+      <div className="mx-auto w-full max-w-7xl rounded-[2rem] border border-white/50 bg-card p-6 backdrop-blur-xl sm:p-8">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
+          {/* Brand */}
           <div>
-            <div className="text-2xl font-bold flex items-center mb-4">
+            <div className="mb-3 text-2xl font-semibold tracking-tight text-gray-primary">
               <span className="text-accent-600">v</span>enn.
             </div>
-            <p className="text-gray-600 mb-4">
-              Premium audio equipment for music lovers and professionals.
-              Experience crystal clear sound with our range of headphones,
-              earbuds, and speakers.
+            <p className="mb-4 text-sm leading-relaxed text-gray-tertiary">
+              Considered everyday objects, chosen for how they wear in — not how
+              they look on day one.
             </p>
-            <div className="flex space-x-3">
-              {socialLinks.map((link, index) => (
+            <div className="flex gap-2">
+              {socialLinks.map((link) => (
                 <a
-                  key={index}
+                  key={link["aria-label"]}
                   href={link.href}
-                  className="p-2 rounded-full bg-surface-dark hover:bg-primary-100 hover:text-primary-700 transition-colors"
+                  className="flex size-9 items-center justify-center rounded-full bg-surface-dark text-gray-secondary transition-colors hover:bg-accent-500/25 hover:text-gray-primary"
                   aria-label={link["aria-label"]}
                 >
-                  <link.icon size={18} />
+                  <link.icon size={16} aria-hidden="true" />
                 </a>
               ))}
             </div>
           </div>
-          {/* Quick Links */}
-          <div>
-            <h3 className="font-semibold text-lg mb-4">Quick Links</h3>
+
+          {/* Quick links */}
+          <nav aria-label="Footer">
+            <h2 className="mb-3 text-sm font-semibold text-gray-primary">Quick links</h2>
             <ul className="space-y-2">
-              {quickLinks.map((link, index) => (
-                <li key={index}>
+              {quickLinks.map((link) => (
+                <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-gray-600 hover:text-primary-700 transition-colors"
+                    className="text-sm text-gray-tertiary transition-colors hover:text-primary"
                   >
                     {link.label}
                   </Link>
                 </li>
               ))}
             </ul>
-          </div>
-          {/* Contact Info */}
+          </nav>
+
+          {/* Contact */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Contact Us</h3>
-            <ul className="space-y-3">
-              {contactInfo.map((item, index) => (
-                <li key={index} className="flex items-start">
+            <h2 className="mb-3 text-sm font-semibold text-gray-primary">Contact us</h2>
+            <ul className="space-y-2.5">
+              {contactInfo.map((item) => (
+                <li key={item.text} className="flex items-start gap-2 text-sm text-gray-tertiary">
                   <item.icon
-                    size={18}
-                    className="mr-2 text-accent-700 mt-0.5"
+                    size={16}
+                    className="mt-0.5 shrink-0 text-accent-700"
+                    aria-hidden="true"
                   />
-                  <span className="text-gray-600">{item.text}</span>
+                  <span className="leading-snug">{item.text}</span>
                 </li>
               ))}
             </ul>
           </div>
+
           {/* Newsletter */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Newsletter</h3>
-            <p className="text-gray-600 mb-4">
-              Subscribe to our newsletter for the latest products and exclusive
-              offers.
+            <h2 className="mb-3 text-sm font-semibold text-gray-primary">Newsletter</h2>
+            <p className="mb-3 text-sm leading-relaxed text-gray-tertiary">
+              Occasional notes on new arrivals and restocks. No noise.
             </p>
-            <form onSubmit={handleSubscribe} className="flex">
-              <Input
-                type="email"
-                placeholder="Your email"
-                className="rounded-full focus-visible:ring-1"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <Button
-                type="submit"
-                className="ml-2 p-3 rounded-full bg-accent-600 text-white hover:bg-accent-700"
-                aria-label="Subscribe"
-              >
-                <ArrowRight size={18} className="text-gray-primary" />
-              </Button>
-            </form>
+            {subscribed ? (
+              <p role="status" className="text-sm font-medium text-accent-700">
+                You&apos;re on the list. Thank you.
+              </p>
+            ) : (
+              <form onSubmit={handleSubscribe} className="flex gap-2">
+                <label htmlFor="newsletter-email" className="sr-only">
+                  Email address
+                </label>
+                <Input
+                  id="newsletter-email"
+                  type="email"
+                  placeholder="Your email"
+                  className="h-10 rounded-full border-transparent bg-white/60 text-sm placeholder:text-gray-quaternary focus-visible:bg-white/90"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="size-10 shrink-0 rounded-full bg-accent-500 text-gray-primary hover:bg-accent-600"
+                  aria-label="Subscribe to newsletter"
+                >
+                  <ArrowRight size={16} aria-hidden="true" />
+                </Button>
+              </form>
+            )}
           </div>
         </div>
-        <div className="border-t border-gray-200 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-gray-600 text-sm mb-4 md:mb-0 text-center md:text-left">
-            &copy; {new Date().getFullYear()} nitec. All venn reserved.
+
+        <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-gray-primary/10 pt-6 md:flex-row">
+          <p className="text-center text-sm text-gray-tertiary md:text-left">
+            © {new Date().getFullYear()} venn. All rights reserved.
           </p>
-          <div className="flex flex-wrap justify-center gap-4 md:gap-6">
-            {footerLinks.map((link, index) => (
+          <div className="flex flex-wrap justify-center gap-4 md:gap-5">
+            {footerLinks.map((link) => (
               <Link
-                key={index}
+                key={link.label}
                 href={link.href}
-                className="text-sm text-gray-600 hover:text-primary-700 transition-colors"
+                className="text-sm text-gray-tertiary transition-colors hover:text-primary"
               >
                 {link.label}
               </Link>

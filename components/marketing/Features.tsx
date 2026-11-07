@@ -6,67 +6,62 @@ interface Feature {
   title: string;
   description: string;
   icon: React.ReactNode;
-  color: string;
 }
 
 const features: Feature[] = [
   {
-    title: "Premium Quality",
+    title: "Premium quality",
     description:
-      "All our products are made with high-quality materials for durability and superior sound",
-    icon: <Star className="h-8 w-8" />,
-    color: "text-primary-700",
+      "Made with materials chosen to last, not to hit a price point.",
+    icon: <Star className="size-7" aria-hidden="true" />,
   },
   {
-    title: "Fast Shipping",
+    title: "Fast shipping",
     description:
-      "Get your order delivered quickly with our expedited shipping options",
-    icon: <ShoppingBag className="h-8 w-8" />,
-    color: "text-orange-700",
+      "Orders leave the same day and arrive while the excitement is still fresh.",
+    icon: <ShoppingBag className="size-7" aria-hidden="true" />,
   },
   {
-    title: "24/7 Support",
+    title: "24/7 support",
     description:
-      "Our customer support team is available around the clock to assist you",
-    icon: <Headphones className="h-8 w-8" />,
-    color: "text-green-700",
+      "A real person, around the clock, who can actually solve the problem.",
+    icon: <Headphones className="size-7" aria-hidden="true" />,
   },
   {
-    title: "30-Day Returns",
+    title: "30-day returns",
     description:
-      "Not satisfied? Return your purchase within 30 days for a full refund",
-    icon: <CheckCircle className="h-8 w-8" />,
-    color: "text-purple-700",
+      "Change your mind within a month — no forms, no interrogation.",
+    icon: <CheckCircle className="size-7" aria-hidden="true" />,
   },
 ];
 
 export default function Features() {
   return (
-    <section className="min-h-screen w-full flex items-center py-16 px-4 backdrop-blur-sm bg-white/30">
-      <div className="max-w-[80%] mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl text-gray-primary font-bold mb-3">Why Choose Us</h2>
-          <p className="text-gray-secondary max-w-2xl mx-auto">
-            We provide the best audio experience with premium quality products
-            and exceptional service
+    <section className="w-full px-4 py-20 sm:px-6 md:py-28">
+      <div className="mx-auto w-full max-w-7xl">
+        <div className="mb-10 text-center md:mb-14">
+          <h2 className="mb-3 text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl">
+            Why shop with us
+          </h2>
+          <p className="mx-auto max-w-2xl text-gray-secondary">
+            The boring parts — quality, delivery, support — done properly.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
           {features.map((feature) => (
-            <Card
-              key={feature.title}
-              className="glass-component text-start hover:scale-110 transition-all duration-300 cursor-pointer"
-            >
-              <CardHeader>
-                <div
-                  className={`w-16 h-16 rounded-full bg-white/50 mr-auto flex items-center justify-center mb-4 text-accent-600`}
-                >
+            <Card key={feature.title} className="glass-component h-full">
+              <CardHeader className="pt-6">
+                <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-500/30 text-accent-700">
                   {feature.icon}
                 </div>
-                <CardTitle className="text-xl">{feature.title}</CardTitle>
+                <CardTitle className="text-lg font-semibold tracking-tight text-gray-primary">
+                  {feature.title}
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600">{feature.description}</p>
+              <CardContent className="pb-6">
+                <p className="text-sm leading-relaxed text-gray-tertiary">
+                  {feature.description}
+                </p>
               </CardContent>
             </Card>
           ))}

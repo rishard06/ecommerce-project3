@@ -12,11 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Github, Loader2, ArrowLeft } from "lucide-react";
 import { signIn } from "@/lib/auth-client";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "motion/react";
+import { spring } from "@/lib/motion";
 import Link from "next/link";
 
 export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   const handleGithubSignIn = async () => {
     setIsLoading(true);
@@ -34,49 +36,57 @@ export default function LoginForm() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={spring.gentle}
       className="w-full max-w-md"
     >
-      <Card className="glass-component border-white/40 shadow-2xl/40">
-        <CardHeader className="text-center space-y-4">
+      <Card className="glass-component border-white/40 p-2 shadow-panel">
+        <CardHeader className="space-y-3 pt-6 text-center">
           <div className="flex justify-center">
-            <Link 
-              href="/" 
-              className="inline-flex items-center gap-2 text-gray-tertiary hover:text-gray-primary transition-colors group mb-2"
+            <Link
+              href="/"
+              className="group mb-1 inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-medium text-gray-tertiary transition-colors hover:text-gray-primary"
             >
-              <ArrowLeft className="size-4 group-hover:-translate-x-1 transition-transform" />
-              <span className="font-medium text-sm">Back to Home</span>
+              <ArrowLeft
+                className="size-4 transition-transform duration-200 ease-out-quart group-hover:-translate-x-0.5"
+                aria-hidden="true"
+              />
+              Back to home
             </Link>
           </div>
-          <CardTitle className="text-3xl font-black text-gray-primary tracking-tighter">
-            WELCOME BACK
+          <CardTitle className="text-2xl font-semibold tracking-tight text-gray-primary md:text-3xl">
+            <h1>Welcome back</h1>
           </CardTitle>
-          <CardDescription className="text-gray-tertiary font-medium">
-            Sign in to your account to continue
+          <CardDescription className="font-medium text-gray-tertiary">
+            Sign in to continue where you left off.
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-6">
+
+        <CardContent className="px-5 pt-5">
           <Button
             size="lg"
-            className="w-full bg-accent-500 hover:bg-accent-600 hover:cursor-pointer text-gray-primary font-black py-7 rounded-2xl shadow-xl shadow-accent-500/20 active:scale-95 transition-all text-lg group"
+            className="h-12 w-full gap-2.5 rounded-2xl bg-accent-500 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
             onClick={handleGithubSignIn}
             disabled={isLoading}
           >
             {isLoading ? (
-              <Loader2 className="size-5 animate-spin" />
+              <>
+                <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+                <span>Signing in…</span>
+              </>
             ) : (
               <>
-                <Github className="size-6 mr-3 group-hover:scale-110 transition-transform" />
+                <Github className="size-5" aria-hidden="true" />
                 Sign in with GitHub
               </>
             )}
           </Button>
         </CardContent>
-        <CardFooter className="flex flex-col gap-4 text-center">
-          <p className="text-xs text-gray-quaternary font-medium px-6">
-            By signing in, you agree to our Terms of Service and Privacy Policy.
+
+        <CardFooter className="flex flex-col gap-3 pb-6 text-center">
+          <p className="px-6 text-xs font-medium leading-relaxed text-gray-quaternary">
+            By signing in you agree to our Terms of Service and Privacy Policy.
           </p>
         </CardFooter>
       </Card>
