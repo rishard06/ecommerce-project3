@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(lib/**)",
+            "command": "npm test"
+          },
+          {
+            "type": "command",
+            "if": "Edit(features/**/actions.ts)",
+            "command": "npm test"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(.env*)",
+            "command": "node -e \"console.error('Direct modification of .env files requires explicit review'); process.exit(2);\""
+          },
+          {
+            "type": "command",
+            "if": "Write(.env*)",
+            "command": "node -e \"console.error('Direct modification of .env files requires explicit review'); process.exit(2);\""
+          }
+        ]
+      }
+    ]
+  }
+}
