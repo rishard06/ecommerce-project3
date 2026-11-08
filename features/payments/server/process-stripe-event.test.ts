@@ -50,9 +50,16 @@ const testPrisma = new PrismaClient({
   datasourceUrl: `${testDatabaseUrl}${testDatabaseUrl.includes("?") ? "&" : "?"}connection_limit=1`,
 });
 
+// A separate pooled client lets the race regression open two real concurrent
+// transactions instead of serializing them through the lock-holding client.
+const racePrisma = new PrismaClient({ datasourceUrl: testDatabaseUrl });
+
 const TEST_DATABASE_LOCK_KEY = 728674001;
 
 const { processStripeEvent } = await import("./process-stripe-event");
+const { markCheckoutPaid, releaseCheckout } = await import(
+  "./payment-transitions"
+);
 
 let sequence = 0;
 function nextToken(prefix: string): string {
@@ -66,6 +73,8 @@ interface OrderFixtureOptions {
   onHand?: number;
   reserved?: number;
   paymentSessionId?: string | null;
+  paymentStatus?: "PENDING" | "SUCCEEDED" | "CANCELLED" | "FAILED";
+  reservationStatus?: "ACTIVE" | "COMMITTED" | "RELEASED";
 }
 
 /**
@@ -143,7 +152,7 @@ async function createOrderFixture(options: OrderFixtureOptions = {}) {
         create: {
           provider: "stripe",
           providerSessionId: options.paymentSessionId ?? null,
-          status: "PENDING",
+          status: options.paymentStatus ?? "PENDING",
           amountCents: totalCents,
           currency: "USD",
         },
@@ -152,7 +161,7 @@ async function createOrderFixture(options: OrderFixtureOptions = {}) {
         create: {
           variantId: variant.id,
           quantity,
-          status: "ACTIVE",
+          status: options.reservationStatus ?? "ACTIVE",
           expiresAt: new Date(Date.now() + 30 * 60 * 1000),
         },
       },
@@ -243,6 +252,7 @@ afterAll(async () => {
     `SELECT pg_advisory_unlock(${TEST_DATABASE_LOCK_KEY}) AS unlocked`,
   );
   await testPrisma.$disconnect();
+  await racePrisma.$disconnect();
 });
 
 describe("processStripeEvent checkout completion", () => {
@@ -491,6 +501,74 @@ describe("processStripeEvent ignored events", () => {
     expect(state.events).toHaveLength(1);
     expect(state.events[0].type).toBe("payment_intent.succeeded");
     expect(state.events[0].processedAt).not.toBeNull();
+  });
+});
+
+describe("payment transition cleanup races", () => {
+  it("does not pay an order whose hold was already released by cleanup", async () => {
+    const { order, variant } = await createOrderFixture({
+      onHand: 10,
+      reserved: 0,
+      reservationStatus: "RELEASED",
+    });
+
+    await markCheckoutPaid(order.id, "cs_test_late_payment", testPrisma);
+
+    const state = await loadState(order.id, variant.id);
+    expect(state.order.status).toBe("PENDING");
+    expect(state.payment.status).toBe("PENDING");
+    expect(state.reservations[0].status).toBe("RELEASED");
+    expect(state.variant.onHand).toBe(10);
+    expect(state.variant.reserved).toBe(0);
+  });
+
+  it("keeps stock consistent when payment and release race on one order", async () => {
+    const { order, variant } = await createOrderFixture();
+
+    const results = await Promise.allSettled([
+      racePrisma.$transaction((tx) =>
+        markCheckoutPaid(order.id, "cs_test_race", tx),
+      ),
+      racePrisma.$transaction((tx) => releaseCheckout(order.id, tx)),
+    ]);
+
+    expect(results.some((result) => result.status === "fulfilled")).toBe(true);
+
+    const state = await loadState(order.id, variant.id);
+    expect(state.variant.onHand).toBeGreaterThanOrEqual(0);
+    expect(state.variant.reserved).toBeGreaterThanOrEqual(0);
+    expect(state.reservations).toHaveLength(1);
+
+    if (state.order.status === "PAID") {
+      expect(state.payment.status).toBe("SUCCEEDED");
+      expect(state.reservations[0].status).toBe("COMMITTED");
+      expect(state.variant.onHand).toBe(8);
+      expect(state.variant.reserved).toBe(0);
+    } else {
+      expect(state.order.status).toBe("CANCELLED");
+      expect(state.payment.status).toBe("CANCELLED");
+      expect(state.reservations[0].status).toBe("RELEASED");
+      expect(state.variant.onHand).toBe(10);
+      expect(state.variant.reserved).toBe(0);
+    }
+  });
+
+  it("never resurrects a cancelled payment", async () => {
+    const { order, variant } = await createOrderFixture({
+      paymentStatus: "CANCELLED",
+    });
+
+    await expect(
+      processStripeEvent(checkoutSessionEvent({ orderId: order.id })),
+    ).rejects.toThrow();
+
+    const state = await loadState(order.id, variant.id);
+    expect(state.order.status).toBe("PENDING");
+    expect(state.payment.status).toBe("CANCELLED");
+    expect(state.reservations[0].status).toBe("ACTIVE");
+    expect(state.variant.onHand).toBe(10);
+    expect(state.variant.reserved).toBe(2);
+    expect(state.events).toHaveLength(0);
   });
 });
 

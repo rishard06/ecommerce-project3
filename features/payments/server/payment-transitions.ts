@@ -18,13 +18,15 @@ type TransitionClient = Prisma.TransactionClient;
 /**
  * Converts an active stock hold into a sale.
  *
- * For every `ACTIVE` reservation the guarded update decrements both `onHand`
- * and `reserved`; the row lock makes committing the same stock twice
- * impossible. The order remains `UNFULFILLED` — fulfillment is a separate
- * concern that a payment webhook must never advance.
+ * Each reservation is claimed with a conditional `ACTIVE → COMMITTED` update
+ * before any stock moves. The row lock makes a concurrent cleanup (which claims
+ * `ACTIVE → RELEASED`) lose deterministically: only the winner mutates stock.
+ * The order and payment updates are likewise status-guarded, so a payment can
+ * never be recorded on a cancelled order or resurrect a cancelled payment.
  *
- * Repeated calls are safe: an already-paid order, or an order whose
- * reservations are all committed, is left unchanged.
+ * The order remains `UNFULFILLED` — fulfillment is a separate concern that a
+ * payment webhook must never advance. Repeated calls for an already-paid order
+ * remain successful no-ops.
  */
 export async function markCheckoutPaid(
   orderId: string,
@@ -48,9 +50,30 @@ export async function markCheckoutPaid(
     return;
   }
 
+  // Cleanup already reclaimed this hold. Payment arrived too late for the
+  // reservation; leave the order for cleanup/manual refund rather than paying
+  // stock that is gone.
+  if (reservations.some((reservation) => reservation.status === "RELEASED")) {
+    return;
+  }
+
   for (const reservation of reservations) {
     if (reservation.status !== "ACTIVE") {
       continue;
+    }
+
+    // Claim first. If another worker transitioned the reservation after it was
+    // read, this returns 0 and the caller's transaction rolls back; Stripe then
+    // retries and observes the winner's committed state.
+    const claimed = await db.reservation.updateMany({
+      where: { id: reservation.id, status: "ACTIVE" },
+      data: { status: "COMMITTED" },
+    });
+
+    if (claimed.count !== 1) {
+      throw new PaymentTransitionError(
+        "Unable to claim reservation for payment",
+      );
     }
 
     const affected = await db.$executeRaw`
@@ -65,11 +88,6 @@ export async function markCheckoutPaid(
     if (affected !== 1) {
       throw new PaymentTransitionError("Unable to commit reserved stock");
     }
-
-    await db.reservation.update({
-      where: { id: reservation.id },
-      data: { status: "COMMITTED" },
-    });
   }
 
   const payment = await db.payment.findUnique({
@@ -77,26 +95,45 @@ export async function markCheckoutPaid(
     select: { providerSessionId: true },
   });
 
-  await db.payment.updateMany({
-    where: { orderId },
+  const paymentUpdated = await db.payment.updateMany({
+    where: { orderId, status: "PENDING" },
     data: {
       status: "SUCCEEDED",
       ...(payment?.providerSessionId ? {} : { providerSessionId: sessionId }),
     },
   });
 
-  await db.order.update({
-    where: { id: orderId },
+  if (paymentUpdated.count === 0) {
+    const currentPayment = await db.payment.findUnique({
+      where: { orderId },
+      select: { status: true },
+    });
+
+    // An already-succeeded payment is an idempotent no-op; any other status
+    // (notably CANCELLED) must never be overwritten with success.
+    if (currentPayment?.status !== "SUCCEEDED") {
+      throw new PaymentTransitionError("Unable to mark payment succeeded");
+    }
+  }
+
+  const orderUpdated = await db.order.updateMany({
+    where: { id: orderId, status: "PENDING" },
     data: { status: "PAID" },
   });
+
+  if (orderUpdated.count !== 1) {
+    throw new PaymentTransitionError("Unable to mark order paid");
+  }
 }
 
 /**
  * Returns every active stock hold without touching physical stock.
  *
- * Only `reserved` is decremented; `onHand` is unchanged because nothing was
- * sold. Already-paid or already-cancelled orders are left alone, so repeated
- * expiry deliveries cannot release the same hold twice.
+ * Each reservation is claimed with a conditional `ACTIVE → RELEASED` update
+ * before `reserved` is decremented, so a concurrent payment wins or loses
+ * cleanly instead of both decrementing the same hold. Only `reserved` changes;
+ * `onHand` is untouched because nothing was sold. Already-paid or
+ * already-cancelled orders remain successful no-ops.
  */
 export async function releaseCheckout(
   orderId: string,
@@ -116,6 +153,17 @@ export async function releaseCheckout(
       continue;
     }
 
+    const claimed = await db.reservation.updateMany({
+      where: { id: reservation.id, status: "ACTIVE" },
+      data: { status: "RELEASED" },
+    });
+
+    if (claimed.count !== 1) {
+      throw new PaymentTransitionError(
+        "Unable to claim reservation for release",
+      );
+    }
+
     const affected = await db.$executeRaw`
       UPDATE "product_variant"
       SET "reserved" = "reserved" - ${reservation.quantity}
@@ -126,20 +174,19 @@ export async function releaseCheckout(
     if (affected !== 1) {
       throw new PaymentTransitionError("Unable to release reserved stock");
     }
-
-    await db.reservation.update({
-      where: { id: reservation.id },
-      data: { status: "RELEASED" },
-    });
   }
 
   await db.payment.updateMany({
-    where: { orderId },
+    where: { orderId, status: "PENDING" },
     data: { status: "CANCELLED" },
   });
 
-  await db.order.update({
-    where: { id: orderId },
+  const orderUpdated = await db.order.updateMany({
+    where: { id: orderId, status: "PENDING" },
     data: { status: "CANCELLED" },
   });
+
+  if (orderUpdated.count !== 1) {
+    throw new PaymentTransitionError("Unable to cancel order");
+  }
 }
