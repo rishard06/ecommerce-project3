@@ -14,6 +14,7 @@ const VALID_SERVER_ENV = {
   GITHUB_CLIENT_SECRET: "test-github-client-secret",
   STRIPE_SECRET_KEY: "sk_test_example_secret_key",
   STRIPE_WEBHOOK_SECRET: "whsec_test_example_secret",
+  CRON_SECRET: "cron_test_example_secret",
 };
 
 describe("parseServerEnv", () => {
@@ -35,16 +36,13 @@ describe("parseServerEnv", () => {
     );
   });
 
-  it("accepts_webhook_and_optional_cron_secrets", () => {
-    const env = parseServerEnv({
-      ...VALID_SERVER_ENV,
-      CRON_SECRET: "cron_example",
-    });
+  it("accepts_webhook_and_cron_secrets", () => {
+    const env = parseServerEnv(VALID_SERVER_ENV);
 
     expect(env.STRIPE_WEBHOOK_SECRET).toBe(
       VALID_SERVER_ENV.STRIPE_WEBHOOK_SECRET,
     );
-    expect(env.CRON_SECRET).toBe("cron_example");
+    expect(env.CRON_SECRET).toBe(VALID_SERVER_ENV.CRON_SECRET);
   });
 
   it("server_env_rejects_missing_webhook_secret", () => {
@@ -54,6 +52,12 @@ describe("parseServerEnv", () => {
     expect(() => parseServerEnv(withoutWebhook)).toThrowError(
       /STRIPE_WEBHOOK_SECRET/,
     );
+  });
+
+  it("server_env_rejects_missing_cron_secret", () => {
+    const { CRON_SECRET: _omitted, ...withoutCron } = VALID_SERVER_ENV;
+
+    expect(() => parseServerEnv(withoutCron)).toThrowError(/CRON_SECRET/);
   });
 
   it("server_env_rejects_missing_stripe_secret", () => {
@@ -86,6 +90,9 @@ describe("parseServerEnv", () => {
     expect(() =>
       parseServerEnv({ ...VALID_SERVER_ENV, STRIPE_WEBHOOK_SECRET: "" }),
     ).toThrowError(/STRIPE_WEBHOOK_SECRET/);
+    expect(() =>
+      parseServerEnv({ ...VALID_SERVER_ENV, CRON_SECRET: "" }),
+    ).toThrowError(/CRON_SECRET/);
   });
 
   it("rejects_invalid_urls", () => {
@@ -151,11 +158,13 @@ describe("getServerEnv", () => {
       "STRIPE_WEBHOOK_SECRET",
       VALID_SERVER_ENV.STRIPE_WEBHOOK_SECRET,
     );
+    vi.stubEnv("CRON_SECRET", VALID_SERVER_ENV.CRON_SECRET);
 
     expect(getServerEnv().STRIPE_SECRET_KEY).toBe(VALID_SERVER_ENV.STRIPE_SECRET_KEY);
     expect(getServerEnv().STRIPE_WEBHOOK_SECRET).toBe(
       VALID_SERVER_ENV.STRIPE_WEBHOOK_SECRET,
     );
+    expect(getServerEnv().CRON_SECRET).toBe(VALID_SERVER_ENV.CRON_SECRET);
   });
 });
 

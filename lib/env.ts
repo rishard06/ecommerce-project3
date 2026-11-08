@@ -14,10 +14,8 @@ export interface ServerEnv {
   GITHUB_CLIENT_SECRET: string;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
-  /**
-   * Optional in this task. Task 12 (cron) makes it required.
-   */
-  CRON_SECRET?: string;
+  /** Shared bearer secret that authenticates Vercel Cron requests. */
+  CRON_SECRET: string;
 }
 
 /**
@@ -42,7 +40,7 @@ const serverEnvSchema: z.ZodType<ServerEnv> = z.object({
   GITHUB_CLIENT_SECRET: requiredString,
   STRIPE_SECRET_KEY: requiredString,
   STRIPE_WEBHOOK_SECRET: requiredString,
-  CRON_SECRET: optionalString,
+  CRON_SECRET: requiredString,
 });
 
 const publicEnvSchema: z.ZodType<PublicEnv> = z.object({
