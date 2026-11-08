@@ -7,17 +7,17 @@ import { Button } from "@/components/ui/button";
 import { PaymentMethod, ShippingAddress } from "../types";
 import { useCartStore } from "@/lib/store/cart-store";
 import { getOrderTotals } from "@/lib/pricing";
+import { formatCents } from "@/lib/money";
 
 export function CheckoutForm() {
   const [mounted, setMounted] = useState(false);
-  const getTotalPrice = useCartStore((state) => state.getTotalPrice);
+  const getTotalPriceCents = useCartStore((state) => state.getTotalPriceCents);
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("stripe");
 
-  // Display-only total derived from the cart's cent total. Checkout submission
-  // is disabled until the catalog migration completes (a later task rewires
-  // ordering to server-side quotes over catalog variant ids).
-  const { total } = getOrderTotals(getTotalPrice());
+  // Display-only total derived from the cart's integer-cent total. Checkout
+  // submission is re-enabled once hosted Stripe checkout is wired up.
+  const { totalCents } = getOrderTotals(getTotalPriceCents());
 
   const [shippingInfo, setShippingInfo] = useState<ShippingAddress>({
     firstName: "",
@@ -301,7 +301,7 @@ export function CheckoutForm() {
         className="group relative flex h-14 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-gray-primary text-base font-semibold text-white shadow-soft transition-colors hover:bg-gray-secondary disabled:cursor-not-allowed disabled:opacity-60"
       >
         <Lock className="h-5 w-5" aria-hidden="true" />
-        <span>Checkout unavailable • ${total.toFixed(2)}</span>
+        <span>Checkout unavailable • {formatCents(totalCents)}</span>
       </Button>
     </form>
   );

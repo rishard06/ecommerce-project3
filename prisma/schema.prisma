@@ -81,26 +81,136 @@ model Verification {
   @@map("verification")
 }
 
-model Order {
-  id          String      @id @default(uuid())
-  createdAt   DateTime    @default(now())
-  totalAmount Float
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
-  items       OrderItem[]
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
 
-  @@index([userId])
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum ReservationStatus {
+  ACTIVE
+  COMMITTED
+  RELEASED
+}
+
+model Order {
+  id                String            @id @default(uuid())
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status            OrderStatus       @default(PENDING)
+  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
+  currency          String            @default("USD")
+
+  // Integer-cent money snapshot. Never floats.
+  subtotalCents Int
+  shippingCents Int @default(0)
+  taxCents      Int
+  totalCents    Int
+
+  // Scalar shipping snapshot captured at order creation.
+  shippingFullName   String
+  shippingLine1      String
+  shippingLine2      String?
+  shippingCity       String
+  shippingRegion     String
+  shippingPostalCode String
+  shippingCountry    String
+
+  idempotencyKey String?
+
+  items        OrderItem[]
+  payment      Payment?
+  reservations Reservation[]
+  auditLogs    OrderAuditLog[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
 }
 
 model OrderItem {
-  id        String   @id @default(uuid())
-  order     Order    @relation(fields: [orderId], references: [id])
-  orderId   String
+  id             String          @id @default(uuid())
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId        String
+  variantId      String?
+  variant        ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  productSlug    String
+  sku            String
+  title          String
+  unitPriceCents Int
+  quantity       Int
+  lineTotalCents Int
 
-  productId Int      // from DummyJSON
-  title     String
-  price     Float
+  @@index([orderId])
+}
+
+model Payment {
+  id                      String        @id @default(uuid())
+  orderId                 String        @unique
+  order                   Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider                String        @default("stripe")
+  providerSessionId       String?       @unique
+  providerPaymentIntentId String?       @unique
+  status                  PaymentStatus @default(PENDING)
+  amountCents             Int
+  currency                String        @default("USD")
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+}
+
+model Reservation {
+  id        String            @id @default(uuid())
+  orderId   String
+  order     Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Restrict)
   quantity  Int
+  status    ReservationStatus @default(ACTIVE)
+  expiresAt DateTime
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([orderId])
+  @@index([status, expiresAt])
+}
+
+model WebhookEvent {
+  id              String    @id @default(uuid())
+  provider        String    @default("stripe")
+  providerEventId String    @unique
+  type            String
+  payload         Json
+  processedAt     DateTime?
+  createdAt       DateTime  @default(now())
+}
+
+model OrderAuditLog {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actorId    String?
+  action     String
+  fromStatus String?
+  toStatus   String?
+  createdAt  DateTime @default(now())
+
+  @@index([orderId, createdAt])
 }
 
 enum ProductStatus {
@@ -121,24 +231,24 @@ model Category {
 }
 
 model Product {
-  id          String        @id @default(uuid())
-  slug        String        @unique
+  id          String           @id @default(uuid())
+  slug        String           @unique
   title       String
   description String
   brand       String?
-  status      ProductStatus @default(DRAFT)
+  status      ProductStatus    @default(DRAFT)
   categoryId  String
-  category    Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category    Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   images      ProductImage[]
   variants    ProductVariant[]
   /// Aggregate DummyJSON rating (0–5) carried into the owned catalog.
-  rating      Float         @default(0)
+  rating      Float            @default(0)
   /// Raw seed reviews: [{ rating, comment, date, reviewerName }].
   reviews     Json?
   /// Non-empty policy strings: [warrantyInformation, shippingInformation, returnPolicy].
-  features    String[]      @default([])
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  features    String[]         @default([])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([categoryId, status])
   @@map("product")
@@ -156,16 +266,18 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id        String  @id @default(uuid())
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId String
-  sku       String  @unique
-  name      String  @default("Default")
-  priceCents Int
-  currency  String  @default("USD")
-  onHand    Int     @default(0)
-  reserved  Int     @default(0)
-  isDefault Boolean @default(true)
+  id           String        @id @default(uuid())
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId    String
+  sku          String        @unique
+  name         String        @default("Default")
+  priceCents   Int
+  currency     String        @default("USD")
+  onHand       Int           @default(0)
+  reserved     Int           @default(0)
+  isDefault    Boolean       @default(true)
+  orderItems   OrderItem[]
+  reservations Reservation[]
 
   @@index([productId])
   @@map("product_variant")

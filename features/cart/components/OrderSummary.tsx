@@ -5,16 +5,15 @@ import { ArrowRight, CreditCard, Wallet, Landmark } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TAX_RATE } from "@/lib/pricing";
+import { getOrderTotals } from "@/lib/pricing";
 import { formatCents } from "@/lib/money";
 
 export function OrderSummary() {
   const getTotalPriceCents = useCartStore((state) => state.getTotalPriceCents);
 
-  // Integer-cent order math for display; server-side quotes replace it next.
+  // Integer-cent order math for display; the server re-quotes at checkout.
   const subtotalCents = getTotalPriceCents();
-  const taxCents = Math.round(subtotalCents * TAX_RATE);
-  const totalCents = subtotalCents + taxCents;
+  const { taxCents, totalCents } = getOrderTotals(subtotalCents);
 
   return (
     <div className="space-y-5">

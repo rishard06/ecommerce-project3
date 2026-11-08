@@ -1,7 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { validateCartPrices, type CartItemInput } from "@/lib/price-validation";
+import { z } from "zod";
+import { CartQuoteError, quoteCart } from "@/features/cart/server/quote-cart";
 import { requireUser, UnauthorizedError, ForbiddenError } from "@/features/identity/server/guards";
+
+// Mirrors the checkout action's shipping schema. The route is a legacy entry
+// point; the storefront now submits through the server action.
+const shippingSchema = z.object({
+  firstName: z.string().min(2, "First name must be at least 2 characters"),
+  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  address: z.string().min(5, "Address must be at least 5 characters"),
+  city: z.string().min(2, "City is required"),
+  postalCode: z.string().min(5, "Postal code is required"),
+  country: z.string().min(2, "Country is required"),
+});
 
 export async function POST(req: Request) {
   try {
@@ -9,54 +21,75 @@ export async function POST(req: Request) {
     const user = await requireUser();
 
     const body = await req.json();
-    const { items } = body;
+    const { items, shipping } = body ?? {};
 
-    if (!items || items.length === 0) {
+    if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
-    // Convert items to CartItemInput format (only id and quantity)
-    const cartItems: CartItemInput[] = items.map((item: { id: number | string; quantity: number }) => ({
-      id: typeof item.id === 'string' ? parseInt(item.id) : item.id,
-      quantity: item.quantity
-    }));
+    const validShipping = shippingSchema.parse(shipping ?? {});
 
-    // Validate prices server-side (SECURITY: Prevent price manipulation)
-    const priceValidation = await validateCartPrices(cartItems);
+    // SECURITY: prices come only from the owned catalog, never the request.
+    const quote = await quoteCart(items);
 
-    if (!priceValidation.success) {
-      return NextResponse.json(
-        { error: priceValidation.error || "Failed to validate product prices" },
-        { status: 400 }
-      );
-    }
-
-    // Create order for the authenticated user with validated prices and totals
     const order = await prisma.order.create({
       data: {
         userId: user.id,
-        totalAmount: priceValidation.total!,
+        status: "PENDING",
+        currency: quote.currency,
+        subtotalCents: quote.subtotalCents,
+        shippingCents: quote.shippingCents,
+        taxCents: quote.taxCents,
+        totalCents: quote.totalCents,
+        shippingFullName: `${validShipping.firstName} ${validShipping.lastName}`,
+        shippingLine1: validShipping.address,
+        shippingCity: validShipping.city,
+        shippingRegion: "",
+        shippingPostalCode: validShipping.postalCode,
+        shippingCountry: validShipping.country,
         items: {
-          create: priceValidation.validatedItems!.map((item) => ({
-            productId: item.id,
+          create: quote.items.map((item) => ({
+            variantId: item.variantId,
+            productSlug: item.productSlug,
+            sku: item.sku,
             title: item.title,
-            price: item.price,
-            quantity: item.quantity
-          }))
-        }
+            unitPriceCents: item.unitPriceCents,
+            quantity: item.quantity,
+            lineTotalCents: item.lineTotalCents,
+          })),
+        },
       },
       include: {
-        items: true
-      }
+        items: true,
+      },
     });
 
-    return NextResponse.json(order);
+    return NextResponse.json(
+      {
+        orderId: order.id,
+        subtotalCents: quote.subtotalCents,
+        shippingCents: quote.shippingCents,
+        taxCents: quote.taxCents,
+        totalCents: quote.totalCents,
+        currency: quote.currency,
+      },
+      { status: 201 },
+    );
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     if (error instanceof ForbiddenError) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (error instanceof CartQuoteError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors[0]?.message ?? "Invalid request" },
+        { status: 400 },
+      );
     }
     console.error("ORDER_CREATION_ERROR", error);
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });

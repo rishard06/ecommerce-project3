@@ -3,7 +3,11 @@
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { ShippingAddress, PaymentMethod } from "./types";
-import { validateCartPrices, CartItemInput } from "@/lib/price-validation";
+import {
+  CartQuoteError,
+  quoteCart,
+} from "@/features/cart/server/quote-cart";
+import type { CartItemInput } from "@/features/cart/types";
 import { requireUser, UnauthorizedError } from "@/features/identity/server/guards";
 
 const shippingSchema = z.object({
@@ -28,30 +32,37 @@ export async function createOrderAction(
     // 2. Validate Shipping Info
     const validatedShipping = shippingSchema.parse(shippingInfo);
 
-    // 3. Validate Prices Server-Side (SECURITY: Prevent price manipulation)
-    const priceValidation = await validateCartPrices(items);
+    // 3. Price the cart from the database. The browser only supplies variant
+    //    ids and quantities; any smuggled price/title/userId is stripped.
+    const quote = await quoteCart(items);
 
-    if (!priceValidation.success) {
-      return {
-        success: false,
-        error: priceValidation.error || "Failed to validate product prices"
-      };
-    }
-
-    // 4. Simulate Payment Delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // 5. Create Order in Prisma with validated prices, owned by the session user
+    // 4. Create the order and its immutable line snapshots. Reservation and
+    //    payment orchestration are added by the checkout transaction task.
     const order = await prisma.order.create({
       data: {
         userId: user.id,
-        totalAmount: priceValidation.total!,
+        status: "PENDING",
+        currency: quote.currency,
+        subtotalCents: quote.subtotalCents,
+        shippingCents: quote.shippingCents,
+        taxCents: quote.taxCents,
+        totalCents: quote.totalCents,
+        shippingFullName: `${validatedShipping.firstName} ${validatedShipping.lastName}`,
+        shippingLine1: validatedShipping.address,
+        shippingCity: validatedShipping.city,
+        // The current checkout form does not collect a state/region yet.
+        shippingRegion: "",
+        shippingPostalCode: validatedShipping.postalCode,
+        shippingCountry: validatedShipping.country,
         items: {
-          create: priceValidation.validatedItems!.map((item) => ({
-            productId: item.id,
+          create: quote.items.map((item) => ({
+            variantId: item.variantId,
+            productSlug: item.productSlug,
+            sku: item.sku,
             title: item.title,
-            price: item.price,
+            unitPriceCents: item.unitPriceCents,
             quantity: item.quantity,
+            lineTotalCents: item.lineTotalCents,
           })),
         },
       },
@@ -60,13 +71,16 @@ export async function createOrderAction(
     return {
       success: true,
       orderId: order.id,
-      total: priceValidation.total,
-      subtotal: priceValidation.subtotal,
-      tax: priceValidation.tax
+      subtotalCents: quote.subtotalCents,
+      taxCents: quote.taxCents,
+      totalCents: quote.totalCents,
     };
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return { success: false, error: "Unauthorized" };
+    }
+    if (error instanceof CartQuoteError) {
+      return { success: false, error: error.message };
     }
     if (error instanceof z.ZodError) {
       return { success: false, error: error.errors[0].message };

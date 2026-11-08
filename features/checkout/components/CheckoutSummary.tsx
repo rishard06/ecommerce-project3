@@ -11,7 +11,7 @@ import { formatCents } from "@/lib/money";
 
 export function CheckoutSummary() {
   const [mounted, setMounted] = useState(false);
-  const { items, getTotalPrice } = useCartStore();
+  const { items, getTotalPriceCents } = useCartStore();
 
   useEffect(() => {
     setMounted(true);
@@ -30,8 +30,8 @@ export function CheckoutSummary() {
     );
   }
 
-  const subtotal = getTotalPrice();
-  const { tax, total } = getOrderTotals(subtotal);
+  const subtotalCents = getTotalPriceCents();
+  const { taxCents, totalCents } = getOrderTotals(subtotalCents);
 
   if (items.length === 0) {
     return (
@@ -100,7 +100,7 @@ export function CheckoutSummary() {
           <div className="flex justify-between">
             <dt className="font-medium text-gray-tertiary">Subtotal</dt>
             <dd className="font-semibold tabular-nums text-gray-secondary">
-              ${subtotal.toLocaleString()}
+              {formatCents(subtotalCents)}
             </dd>
           </div>
           <div className="flex justify-between">
@@ -110,13 +110,13 @@ export function CheckoutSummary() {
           <div className="flex justify-between">
             <dt className="font-medium text-gray-tertiary">Estimated tax</dt>
             <dd className="font-semibold tabular-nums text-gray-secondary">
-              ${tax.toFixed(2)}
+              {formatCents(taxCents)}
             </dd>
           </div>
           <div className="flex items-center justify-between border-t border-gray-primary/10 pt-3.5">
             <dt className="text-base font-semibold text-gray-primary">Total</dt>
             <dd className="text-xl font-semibold tabular-nums tracking-tight text-gray-primary">
-              ${total.toLocaleString()}
+              {formatCents(totalCents)}
             </dd>
           </div>
         </dl>
