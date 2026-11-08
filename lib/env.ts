@@ -13,10 +13,7 @@ export interface ServerEnv {
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   STRIPE_SECRET_KEY: string;
-  /**
-   * Optional in this task. Task 9 (webhooks) makes it required.
-   */
-  STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_WEBHOOK_SECRET: string;
   /**
    * Optional in this task. Task 12 (cron) makes it required.
    */
@@ -44,7 +41,7 @@ const serverEnvSchema: z.ZodType<ServerEnv> = z.object({
   GITHUB_CLIENT_ID: requiredString,
   GITHUB_CLIENT_SECRET: requiredString,
   STRIPE_SECRET_KEY: requiredString,
-  STRIPE_WEBHOOK_SECRET: optionalString,
+  STRIPE_WEBHOOK_SECRET: requiredString,
   CRON_SECRET: optionalString,
 });
 

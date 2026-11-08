@@ -13,6 +13,7 @@ const VALID_SERVER_ENV = {
   GITHUB_CLIENT_ID: "test-github-client-id",
   GITHUB_CLIENT_SECRET: "test-github-client-secret",
   STRIPE_SECRET_KEY: "sk_test_example_secret_key",
+  STRIPE_WEBHOOK_SECRET: "whsec_test_example_secret",
 };
 
 describe("parseServerEnv", () => {
@@ -29,17 +30,30 @@ describe("parseServerEnv", () => {
     expect(env.GITHUB_CLIENT_ID).toBe(VALID_SERVER_ENV.GITHUB_CLIENT_ID);
     expect(env.GITHUB_CLIENT_SECRET).toBe(VALID_SERVER_ENV.GITHUB_CLIENT_SECRET);
     expect(env.STRIPE_SECRET_KEY).toBe(VALID_SERVER_ENV.STRIPE_SECRET_KEY);
+    expect(env.STRIPE_WEBHOOK_SECRET).toBe(
+      VALID_SERVER_ENV.STRIPE_WEBHOOK_SECRET,
+    );
   });
 
-  it("accepts_optional_webhook_and_cron_secrets", () => {
+  it("accepts_webhook_and_optional_cron_secrets", () => {
     const env = parseServerEnv({
       ...VALID_SERVER_ENV,
-      STRIPE_WEBHOOK_SECRET: "whsec_example",
       CRON_SECRET: "cron_example",
     });
 
-    expect(env.STRIPE_WEBHOOK_SECRET).toBe("whsec_example");
+    expect(env.STRIPE_WEBHOOK_SECRET).toBe(
+      VALID_SERVER_ENV.STRIPE_WEBHOOK_SECRET,
+    );
     expect(env.CRON_SECRET).toBe("cron_example");
+  });
+
+  it("server_env_rejects_missing_webhook_secret", () => {
+    const { STRIPE_WEBHOOK_SECRET: _omitted, ...withoutWebhook } =
+      VALID_SERVER_ENV;
+
+    expect(() => parseServerEnv(withoutWebhook)).toThrowError(
+      /STRIPE_WEBHOOK_SECRET/,
+    );
   });
 
   it("server_env_rejects_missing_stripe_secret", () => {
@@ -69,6 +83,9 @@ describe("parseServerEnv", () => {
     expect(() => parseServerEnv({ ...VALID_SERVER_ENV, STRIPE_SECRET_KEY: "" })).toThrowError(
       /STRIPE_SECRET_KEY/,
     );
+    expect(() =>
+      parseServerEnv({ ...VALID_SERVER_ENV, STRIPE_WEBHOOK_SECRET: "" }),
+    ).toThrowError(/STRIPE_WEBHOOK_SECRET/);
   });
 
   it("rejects_invalid_urls", () => {
@@ -130,8 +147,15 @@ describe("getServerEnv", () => {
     vi.stubEnv("GITHUB_CLIENT_ID", VALID_SERVER_ENV.GITHUB_CLIENT_ID);
     vi.stubEnv("GITHUB_CLIENT_SECRET", VALID_SERVER_ENV.GITHUB_CLIENT_SECRET);
     vi.stubEnv("STRIPE_SECRET_KEY", VALID_SERVER_ENV.STRIPE_SECRET_KEY);
+    vi.stubEnv(
+      "STRIPE_WEBHOOK_SECRET",
+      VALID_SERVER_ENV.STRIPE_WEBHOOK_SECRET,
+    );
 
     expect(getServerEnv().STRIPE_SECRET_KEY).toBe(VALID_SERVER_ENV.STRIPE_SECRET_KEY);
+    expect(getServerEnv().STRIPE_WEBHOOK_SECRET).toBe(
+      VALID_SERVER_ENV.STRIPE_WEBHOOK_SECRET,
+    );
   });
 });
 
