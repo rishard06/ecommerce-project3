@@ -19,6 +19,13 @@ const MAX_QUANTITY_PER_LINE = 10;
 const MAX_CART_LINES = 50;
 
 /**
+ * The narrow slice of the Prisma client the quote needs. Both the root client
+ * and a `Prisma.TransactionClient` satisfy it, so checkout can price a cart
+ * using the same transaction that reserves stock.
+ */
+export type CartQuoteClient = Pick<typeof prisma, "productVariant">;
+
+/**
  * Prices a cart exclusively from the owned PostgreSQL catalog.
  *
  * The browser supplies only `{ variantId, quantity }`; every amount returned
@@ -26,7 +33,10 @@ const MAX_CART_LINES = 50;
  * before the per-line cap is re-checked. No writes occur here — stock
  * reservation belongs to the transactional order-creation service.
  */
-export async function quoteCart(items: CartItemInput[]): Promise<CartQuote> {
+export async function quoteCart(
+  items: CartItemInput[],
+  client: CartQuoteClient = prisma,
+): Promise<CartQuote> {
   const parsed = cartItemsSchema.parse(items);
 
   // Merge duplicates while preserving first-appearance order. The schema has
@@ -54,7 +64,7 @@ export async function quoteCart(items: CartItemInput[]): Promise<CartQuote> {
   }
 
   const variantIds = [...quantities.keys()];
-  const variants = await prisma.productVariant.findMany({
+  const variants = await client.productVariant.findMany({
     where: { id: { in: variantIds } },
     include: { product: { select: { slug: true, title: true, status: true } } },
   });

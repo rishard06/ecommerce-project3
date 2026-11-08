@@ -1,19 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/auth", () => ({
-  auth: {
-    api: {
-      getSession: vi.fn(),
-    },
-  },
-}));
-
-vi.mock("next/headers", () => ({
-  headers: vi.fn(async () => new Headers()),
-}));
-
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    productVariant: {
+      findMany: vi.fn(),
+    },
     order: {
       create: vi.fn(),
     },
@@ -23,203 +14,167 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/features/cart/server/quote-cart", () => {
-  class MockCartQuoteError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = "CartQuoteError";
+vi.mock("@/features/identity/server/guards", () => {
+  class MockUnauthorizedError extends Error {
+    constructor() {
+      super("Unauthorized");
+      this.name = "UnauthorizedError";
+    }
+  }
+
+  class MockForbiddenError extends Error {
+    constructor() {
+      super("Forbidden");
+      this.name = "ForbiddenError";
     }
   }
 
   return {
-    quoteCart: vi.fn(),
-    CartQuoteError: MockCartQuoteError,
+    requireUser: vi.fn(),
+    UnauthorizedError: MockUnauthorizedError,
+    ForbiddenError: MockForbiddenError,
   };
 });
 
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+vi.mock("./server/create-pending-order", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./server/create-pending-order")>();
+  return {
+    ...actual,
+    createPendingOrder: vi.fn(),
+  };
+});
+
+import { requireUser, UnauthorizedError } from "@/features/identity/server/guards";
+import { CartQuoteError } from "@/features/cart/server/quote-cart";
 import {
-  CartQuoteError,
-  quoteCart,
-} from "@/features/cart/server/quote-cart";
+  createPendingOrder,
+  InsufficientStockError,
+} from "./server/create-pending-order";
 import { createOrderAction } from "./actions";
-import type { CartItemInput, CartQuote } from "@/features/cart/types";
-import type { ShippingAddress } from "./types";
 
-const getSession = vi.mocked(auth.api.getSession);
-const createOrder = vi.mocked(prisma.order.create);
-const findUser = vi.mocked(prisma.user.findUnique);
-const quoteCartMock = vi.mocked(quoteCart);
+const requireUserMock = vi.mocked(requireUser);
+const createPendingOrderMock = vi.mocked(createPendingOrder);
 
-const SHIPPING: ShippingAddress = {
-  firstName: "Jane",
-  lastName: "Doe",
-  address: "123 Main Street",
-  city: "Springfield",
-  postalCode: "12345",
-  country: "US",
+const SESSION_USER = {
+  id: "owner-1",
+  email: "owner@example.com",
+  role: "CUSTOMER" as const,
 };
 
-const CART: CartItemInput[] = [{ variantId: "variant-1", quantity: 2 }];
-
-const QUOTE: CartQuote = {
-  items: [
-    {
-      variantId: "variant-1",
-      productSlug: "dummy-1",
-      title: "Wireless Headphones",
-      sku: "dummy-1",
-      unitPriceCents: 1999,
-      quantity: 2,
-      lineTotalCents: 3998,
-    },
-  ],
-  subtotalCents: 3998,
-  shippingCents: 0,
-  taxCents: 60,
-  totalCents: 4058,
-  currency: "USD",
+const INPUT = {
+  items: [{ variantId: "variant-1", quantity: 2 }],
+  shipping: {
+    fullName: "Jane Doe",
+    line1: "123 Main Street",
+    city: "Springfield",
+    region: "IL",
+    postalCode: "62701",
+    country: "US",
+  },
+  idempotencyKey: "key-1",
 };
-
-function mockSession(userId: string) {
-  getSession.mockResolvedValue({
-    session: { id: "session-1", userId },
-    user: {
-      id: userId,
-      name: "Owner",
-      email: "owner@example.com",
-      emailVerified: true,
-      image: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  } as never);
-  findUser.mockResolvedValue({
-    id: userId,
-    name: "Owner",
-    email: "owner@example.com",
-    emailVerified: true,
-    image: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    role: "CUSTOMER",
-  } as never);
-}
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
 describe("createOrderAction", () => {
-  it("returns Unauthorized when there is no session and never quotes or writes", async () => {
-    getSession.mockResolvedValue(null);
+  it("returns Unauthorized when there is no session and never creates an order", async () => {
+    requireUserMock.mockRejectedValue(new UnauthorizedError());
 
-    const result = await createOrderAction(SHIPPING, "stripe", CART);
+    const result = await createOrderAction(INPUT);
 
     expect(result).toEqual({ success: false, error: "Unauthorized" });
-    expect(quoteCartMock).not.toHaveBeenCalled();
-    expect(createOrder).not.toHaveBeenCalled();
+    expect(createPendingOrderMock).not.toHaveBeenCalled();
   });
 
-  it("persists the session user's id even when the caller supplies another user id", async () => {
-    mockSession("owner-1");
-    quoteCartMock.mockResolvedValue(QUOTE);
-    createOrder.mockResolvedValue({ id: "order-1" } as never);
+  it("passes the session user's id even when the caller supplies another user id", async () => {
+    requireUserMock.mockResolvedValue(SESSION_USER);
+    createPendingOrderMock.mockResolvedValue({ orderId: "order-1" });
 
-    // The attacker smuggles a different userId into the shipping payload.
-    const attackerShipping = { ...SHIPPING, userId: "attacker-1" } as ShippingAddress;
+    // The attacker smuggles a different userId into both payloads.
+    const attackerInput = {
+      ...INPUT,
+      shipping: { ...INPUT.shipping, userId: "attacker-1" },
+      items: [{ ...INPUT.items[0], userId: "attacker-1" }],
+    } as unknown as typeof INPUT;
 
-    const result = await createOrderAction(attackerShipping, "stripe", CART);
+    const result = await createOrderAction(attackerInput);
 
-    expect(result).toEqual({
-      success: true,
-      orderId: "order-1",
-      subtotalCents: 3998,
-      taxCents: 60,
-      totalCents: 4058,
-    });
-    expect(quoteCartMock).toHaveBeenCalledTimes(1);
-    expect(createOrder).toHaveBeenCalledTimes(1);
-    expect(createOrder).toHaveBeenCalledWith({
-      data: {
-        userId: "owner-1",
-        status: "PENDING",
-        currency: "USD",
-        subtotalCents: 3998,
-        shippingCents: 0,
-        taxCents: 60,
-        totalCents: 4058,
-        shippingFullName: "Jane Doe",
-        shippingLine1: "123 Main Street",
-        shippingCity: "Springfield",
-        shippingRegion: "",
-        shippingPostalCode: "12345",
-        shippingCountry: "US",
-        items: {
-          create: [
-            {
-              variantId: "variant-1",
-              productSlug: "dummy-1",
-              title: "Wireless Headphones",
-              sku: "dummy-1",
-              unitPriceCents: 1999,
-              quantity: 2,
-              lineTotalCents: 3998,
-            },
-          ],
-        },
-      },
+    expect(result).toEqual({ success: true, orderId: "order-1" });
+    expect(createPendingOrderMock).toHaveBeenCalledTimes(1);
+    expect(createPendingOrderMock).toHaveBeenCalledWith({
+      userId: "owner-1",
+      items: [{ variantId: "variant-1", quantity: 2 }],
+      shipping: INPUT.shipping,
+      idempotencyKey: "key-1",
     });
 
-    const persisted = vi.mocked(createOrder.mock.calls[0][0]);
-    expect(persisted.data.userId).not.toBe("attacker-1");
-  });
-
-  it("never trusts a user id smuggled through cart items", async () => {
-    mockSession("owner-1");
-    quoteCartMock.mockResolvedValue(QUOTE);
-    createOrder.mockResolvedValue({ id: "order-2" } as never);
-
-    const forgedItems = [
-      { variantId: "variant-1", quantity: 2, userId: "attacker-1" },
-    ] as unknown as CartItemInput[];
-
-    await createOrderAction(SHIPPING, "stripe", forgedItems);
-
-    expect(createOrder).toHaveBeenCalledWith({
-      data: expect.objectContaining({ userId: "owner-1" }),
-    });
-    const persisted = vi.mocked(createOrder.mock.calls[0][0]);
+    const persisted = createPendingOrderMock.mock.calls[0][0];
+    expect(persisted.userId).toBe("owner-1");
+    expect(persisted.userId).not.toBe("attacker-1");
     expect(JSON.stringify(persisted)).not.toContain("attacker-1");
   });
 
-  it("returns a validation error and never quotes or writes when shipping is invalid", async () => {
-    mockSession("owner-1");
+  it("returns a validation error and never creates an order when shipping is invalid", async () => {
+    requireUserMock.mockResolvedValue(SESSION_USER);
 
-    const result = await createOrderAction(
-      { ...SHIPPING, city: "" },
-      "stripe",
-      CART,
-    );
+    const result = await createOrderAction({
+      ...INPUT,
+      shipping: { ...INPUT.shipping, city: "" },
+    });
 
     expect(result).toEqual({ success: false, error: "City is required" });
-    expect(quoteCartMock).not.toHaveBeenCalled();
-    expect(createOrder).not.toHaveBeenCalled();
+    expect(createPendingOrderMock).not.toHaveBeenCalled();
   });
 
-  it("returns the quote error and never writes when the cart quote fails", async () => {
-    mockSession("owner-1");
-    quoteCartMock.mockRejectedValue(
+  it("returns a validation error and never creates an order when the cart is empty", async () => {
+    requireUserMock.mockResolvedValue(SESSION_USER);
+
+    const result = await createOrderAction({ ...INPUT, items: [] });
+
+    expect(result).toEqual({ success: false, error: "Cart is empty" });
+    expect(createPendingOrderMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a validation error and never creates an order without an idempotency key", async () => {
+    requireUserMock.mockResolvedValue(SESSION_USER);
+
+    const result = await createOrderAction({ ...INPUT, idempotencyKey: "" });
+
+    expect(result).toEqual({
+      success: false,
+      error: "Idempotency key is required",
+    });
+    expect(createPendingOrderMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a stock error message when the transaction rejects", async () => {
+    requireUserMock.mockResolvedValue(SESSION_USER);
+    createPendingOrderMock.mockRejectedValue(
+      new InsufficientStockError("variant-1"),
+    );
+
+    const result = await createOrderAction(INPUT);
+
+    expect(result).toEqual({
+      success: false,
+      error: "Insufficient stock for variant variant-1",
+    });
+  });
+
+  it("returns the quote error message when the cart cannot be priced", async () => {
+    requireUserMock.mockResolvedValue(SESSION_USER);
+    createPendingOrderMock.mockRejectedValue(
       new CartQuoteError("Variant variant-1 is not available"),
     );
 
-    const result = await createOrderAction(SHIPPING, "stripe", CART);
+    const result = await createOrderAction(INPUT);
 
     expect(result).toEqual({
       success: false,
       error: "Variant variant-1 is not available",
     });
-    expect(createOrder).not.toHaveBeenCalled();
   });
 });

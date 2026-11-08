@@ -19,6 +19,18 @@ export type FulfillmentStatus =
 
 export type ReservationStatus = "ACTIVE" | "COMMITTED" | "RELEASED";
 
+/**
+ * Raised when a conditional stock reservation cannot be satisfied. The message
+ * contains only the variant id (no customer or payment data) so it is safe to
+ * surface as a checkout validation error.
+ */
+export class InsufficientStockError extends Error {
+  constructor(variantId: string) {
+    super(`Insufficient stock for variant ${variantId}`);
+    this.name = "InsufficientStockError";
+  }
+}
+
 /** Scalar shipping snapshot captured when the order is created. */
 export interface ShippingSnapshot {
   fullName: string;
@@ -66,4 +78,42 @@ export interface OrderDetail extends OrderSummary {
     amountCents: number;
     currency: string;
   } | null;
+}
+
+/** Immutable line data copied from a server-side cart quote. */
+export interface CreateOrderItemInput {
+  variantId: string;
+  productSlug: string;
+  sku: string;
+  title: string;
+  unitPriceCents: number;
+  quantity: number;
+  lineTotalCents: number;
+}
+
+/** Input accepted by the order-record repository helper. */
+export interface CreateOrderRecordInput {
+  userId: string;
+  idempotencyKey: string;
+  currency: string;
+  subtotalCents: number;
+  shippingCents: number;
+  taxCents: number;
+  totalCents: number;
+  shipping: ShippingSnapshot;
+  items: CreateOrderItemInput[];
+}
+
+export interface CreatePaymentRecordInput {
+  orderId: string;
+  amountCents: number;
+  currency: string;
+  provider?: string;
+  status?: PaymentStatus;
+}
+
+export interface CreateReservationsInput {
+  orderId: string;
+  expiresAt: Date;
+  items: Array<{ variantId: string; quantity: number }>;
 }
