@@ -121,6 +121,11 @@ export function CheckoutSummary() {
           </div>
         </dl>
 
+        <p className="mt-4 rounded-xl border border-white/50 bg-white/40 px-4 py-3 text-xs leading-relaxed text-gray-tertiary">
+          This total is an estimate. The final amount is confirmed by Stripe at
+          checkout after the server re-quotes your cart from the catalog.
+        </p>
+
         <p className="mt-4 text-center text-xs leading-relaxed text-gray-quaternary">
           By placing your order, you agree to our{" "}
           <a href="/terms" className="underline underline-offset-2 hover:text-gray-primary">
