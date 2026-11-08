@@ -45,22 +45,47 @@ vi.mock("./server/create-pending-order", async (importOriginal) => {
   };
 });
 
-import { requireUser, UnauthorizedError } from "@/features/identity/server/guards";
+vi.mock(
+  "@/features/payments/server/create-checkout-session",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/features/payments/server/create-checkout-session")
+      >();
+    return {
+      ...actual,
+      createCheckoutSession: vi.fn(),
+    };
+  },
+);
+
+import {
+  ForbiddenError,
+  requireUser,
+  UnauthorizedError,
+} from "@/features/identity/server/guards";
 import { CartQuoteError } from "@/features/cart/server/quote-cart";
 import {
   createPendingOrder,
   InsufficientStockError,
 } from "./server/create-pending-order";
-import { createOrderAction } from "./actions";
+import {
+  CheckoutSessionError,
+  createCheckoutSession,
+} from "@/features/payments/server/create-checkout-session";
+import { startCheckoutAction } from "./actions";
 
 const requireUserMock = vi.mocked(requireUser);
 const createPendingOrderMock = vi.mocked(createPendingOrder);
+const createCheckoutSessionMock = vi.mocked(createCheckoutSession);
 
 const SESSION_USER = {
   id: "owner-1",
   email: "owner@example.com",
   role: "CUSTOMER" as const,
 };
+
+const CHECKOUT_URL = "https://checkout.stripe.com/c/pay/cs_test_123";
 
 const INPUT = {
   items: [{ variantId: "variant-1", quantity: 2 }],
@@ -77,16 +102,29 @@ const INPUT = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  createPendingOrderMock.mockResolvedValue({ orderId: "order-1" });
+  createCheckoutSessionMock.mockResolvedValue({ url: CHECKOUT_URL });
 });
 
-describe("createOrderAction", () => {
+describe("startCheckoutAction", () => {
   it("returns Unauthorized when there is no session and never creates an order", async () => {
     requireUserMock.mockRejectedValue(new UnauthorizedError());
 
-    const result = await createOrderAction(INPUT);
+    const result = await startCheckoutAction(INPUT);
 
     expect(result).toEqual({ success: false, error: "Unauthorized" });
     expect(createPendingOrderMock).not.toHaveBeenCalled();
+    expect(createCheckoutSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns Forbidden when the session lacks permission", async () => {
+    requireUserMock.mockRejectedValue(new ForbiddenError());
+
+    const result = await startCheckoutAction(INPUT);
+
+    expect(result).toEqual({ success: false, error: "Forbidden" });
+    expect(createPendingOrderMock).not.toHaveBeenCalled();
+    expect(createCheckoutSessionMock).not.toHaveBeenCalled();
   });
 
   it("passes the session user's id even when the caller supplies another user id", async () => {
@@ -100,9 +138,13 @@ describe("createOrderAction", () => {
       items: [{ ...INPUT.items[0], userId: "attacker-1" }],
     } as unknown as typeof INPUT;
 
-    const result = await createOrderAction(attackerInput);
+    const result = await startCheckoutAction(attackerInput);
 
-    expect(result).toEqual({ success: true, orderId: "order-1" });
+    expect(result).toEqual({
+      success: true,
+      url: CHECKOUT_URL,
+      orderId: "order-1",
+    });
     expect(createPendingOrderMock).toHaveBeenCalledTimes(1);
     expect(createPendingOrderMock).toHaveBeenCalledWith({
       userId: "owner-1",
@@ -117,37 +159,56 @@ describe("createOrderAction", () => {
     expect(JSON.stringify(persisted)).not.toContain("attacker-1");
   });
 
+  it("starts checkout for the pending order only after creating it", async () => {
+    requireUserMock.mockResolvedValue(SESSION_USER);
+
+    const result = await startCheckoutAction(INPUT);
+
+    expect(result).toEqual({
+      success: true,
+      url: CHECKOUT_URL,
+      orderId: "order-1",
+    });
+    expect(createCheckoutSessionMock).toHaveBeenCalledWith("order-1");
+    expect(
+      createPendingOrderMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(createCheckoutSessionMock.mock.invocationCallOrder[0]);
+  });
+
   it("returns a validation error and never creates an order when shipping is invalid", async () => {
     requireUserMock.mockResolvedValue(SESSION_USER);
 
-    const result = await createOrderAction({
+    const result = await startCheckoutAction({
       ...INPUT,
       shipping: { ...INPUT.shipping, city: "" },
     });
 
     expect(result).toEqual({ success: false, error: "City is required" });
     expect(createPendingOrderMock).not.toHaveBeenCalled();
+    expect(createCheckoutSessionMock).not.toHaveBeenCalled();
   });
 
   it("returns a validation error and never creates an order when the cart is empty", async () => {
     requireUserMock.mockResolvedValue(SESSION_USER);
 
-    const result = await createOrderAction({ ...INPUT, items: [] });
+    const result = await startCheckoutAction({ ...INPUT, items: [] });
 
     expect(result).toEqual({ success: false, error: "Cart is empty" });
     expect(createPendingOrderMock).not.toHaveBeenCalled();
+    expect(createCheckoutSessionMock).not.toHaveBeenCalled();
   });
 
   it("returns a validation error and never creates an order without an idempotency key", async () => {
     requireUserMock.mockResolvedValue(SESSION_USER);
 
-    const result = await createOrderAction({ ...INPUT, idempotencyKey: "" });
+    const result = await startCheckoutAction({ ...INPUT, idempotencyKey: "" });
 
     expect(result).toEqual({
       success: false,
       error: "Idempotency key is required",
     });
     expect(createPendingOrderMock).not.toHaveBeenCalled();
+    expect(createCheckoutSessionMock).not.toHaveBeenCalled();
   });
 
   it("returns a stock error message when the transaction rejects", async () => {
@@ -156,12 +217,13 @@ describe("createOrderAction", () => {
       new InsufficientStockError("variant-1"),
     );
 
-    const result = await createOrderAction(INPUT);
+    const result = await startCheckoutAction(INPUT);
 
     expect(result).toEqual({
       success: false,
       error: "Insufficient stock for variant variant-1",
     });
+    expect(createCheckoutSessionMock).not.toHaveBeenCalled();
   });
 
   it("returns the quote error message when the cart cannot be priced", async () => {
@@ -170,11 +232,40 @@ describe("createOrderAction", () => {
       new CartQuoteError("Variant variant-1 is not available"),
     );
 
-    const result = await createOrderAction(INPUT);
+    const result = await startCheckoutAction(INPUT);
 
     expect(result).toEqual({
       success: false,
       error: "Variant variant-1 is not available",
+    });
+    expect(createCheckoutSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the safe checkout error when Stripe cannot start a session", async () => {
+    requireUserMock.mockResolvedValue(SESSION_USER);
+    createCheckoutSessionMock.mockRejectedValue(
+      new CheckoutSessionError("Unable to start checkout"),
+    );
+
+    const result = await startCheckoutAction(INPUT);
+
+    expect(result).toEqual({
+      success: false,
+      error: "Unable to start checkout",
+    });
+  });
+
+  it("hides unexpected failures behind a generic message", async () => {
+    requireUserMock.mockResolvedValue(SESSION_USER);
+    createCheckoutSessionMock.mockRejectedValue(
+      new Error("stripe secret sk_test_leaked"),
+    );
+
+    const result = await startCheckoutAction(INPUT);
+
+    expect(result).toEqual({
+      success: false,
+      error: "An unexpected error occurred. Please try again.",
     });
   });
 });

@@ -1,12 +1,3 @@
-export interface ShippingAddress {
-  firstName: string;
-  lastName: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  country: string;
-}
-
 /** Server-side shipping snapshot accepted by the checkout action/API. */
 export interface ShippingInput {
   fullName: string;
@@ -25,16 +16,6 @@ export interface CreateOrderActionInput {
   idempotencyKey: string;
 }
 
-export type CreateOrderActionResult =
-  | { success: true; orderId: string }
+export type StartCheckoutActionResult =
+  | { success: true; url: string; orderId: string }
   | { success: false; error: string };
-
-export type PaymentMethod = 'stripe' | 'paypal' | 'crypto';
-
-export type CheckoutStatus = 'idle' | 'validating' | 'processing' | 'success' | 'error';
-
-export interface CheckoutState {
-  status: CheckoutStatus;
-  error?: string;
-  orderId?: string;
-}
