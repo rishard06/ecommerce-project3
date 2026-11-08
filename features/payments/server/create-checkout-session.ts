@@ -1,3 +1,4 @@
+import type Stripe from "stripe";
 import { getPublicEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "./stripe-client";
@@ -50,20 +51,59 @@ export async function createCheckoutSession(
   }
 
   const appUrl = getAppUrl();
+
+  // Products are charged exactly as snapshotted. Tax and shipping are added
+  // as separate lines so the hosted Checkout total matches the order total.
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
+    order.items.map((item) => ({
+      price_data: {
+        currency: "usd",
+        unit_amount: item.unitPriceCents,
+        product_data: {
+          name: item.title,
+          description: item.sku,
+        },
+      },
+      quantity: item.quantity,
+    }));
+
+  if (order.taxCents > 0) {
+    lineItems.push({
+      price_data: {
+        currency: "usd",
+        unit_amount: order.taxCents,
+        product_data: { name: "Tax" },
+      },
+      quantity: 1,
+    });
+  }
+
+  if (order.shippingCents > 0) {
+    lineItems.push({
+      price_data: {
+        currency: "usd",
+        unit_amount: order.shippingCents,
+        product_data: { name: "Shipping" },
+      },
+      quantity: 1,
+    });
+  }
+
+  // Refuse to create a session that would charge a different amount than the
+  // order snapshot. This guards against future drift in tax/shipping handling.
+  const lineItemTotalCents = lineItems.reduce(
+    (total, line) =>
+      total + (line.price_data?.unit_amount ?? 0) * (line.quantity ?? 0),
+    0,
+  );
+  if (lineItemTotalCents !== order.totalCents) {
+    throw new CheckoutSessionError();
+  }
+
   const session = await getStripe().checkout.sessions.create(
     {
       mode: "payment",
-      line_items: order.items.map((item) => ({
-        price_data: {
-          currency: "usd",
-          unit_amount: item.unitPriceCents,
-          product_data: {
-            name: item.title,
-            description: item.sku,
-          },
-        },
-        quantity: item.quantity,
-      })),
+      line_items: lineItems,
       client_reference_id: order.id,
       metadata: { orderId: order.id },
       payment_intent_data: { metadata: { orderId: order.id } },

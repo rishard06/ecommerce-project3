@@ -80,6 +80,22 @@ const SESSION = {
   url: "https://checkout.stripe.com/c/pay/cs_test_123",
 };
 
+interface TestLineItem {
+  price_data?: {
+    unit_amount?: number | null;
+    product_data?: { name?: string };
+  };
+  quantity?: number | null;
+}
+
+function lineItemTotalCents(lineItems: TestLineItem[]): number {
+  return lineItems.reduce(
+    (total, line) =>
+      total + (line.price_data?.unit_amount ?? 0) * (line.quantity ?? 0),
+    0,
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.orderFindUnique.mockResolvedValue(ORDER);
@@ -128,6 +144,14 @@ describe("createCheckoutSession", () => {
             },
             quantity: 1,
           },
+          {
+            price_data: {
+              currency: "usd",
+              unit_amount: 67,
+              product_data: { name: "Tax" },
+            },
+            quantity: 1,
+          },
         ],
         client_reference_id: "order-1",
         metadata: { orderId: "order-1" },
@@ -139,11 +163,80 @@ describe("createCheckoutSession", () => {
       { idempotencyKey: "checkout-order-1" },
     );
 
+    const sentLineItems = mocks.stripeCreate.mock.calls[0][0].line_items;
+    expect(lineItemTotalCents(sentLineItems)).toBe(ORDER.totalCents);
+
     expect(mocks.paymentUpdate).toHaveBeenCalledWith({
       where: { orderId: "order-1" },
       data: { providerSessionId: "cs_test_123" },
     });
     expect(result).toEqual({ url: SESSION.url });
+  });
+
+  it("adds a shipping line so the total still matches the order", async () => {
+    const orderWithShipping = {
+      ...ORDER,
+      taxCents: 0,
+      shippingCents: 500,
+      totalCents: 4998,
+      payment: { ...ORDER.payment, amountCents: 4998 },
+    };
+    mocks.orderFindUnique.mockResolvedValue(orderWithShipping);
+
+    await createCheckoutSession("order-1");
+
+    const sentLineItems = mocks.stripeCreate.mock.calls[0][0].line_items;
+
+    expect(sentLineItems).toContainEqual({
+      price_data: {
+        currency: "usd",
+        unit_amount: 500,
+        product_data: { name: "Shipping" },
+      },
+      quantity: 1,
+    });
+    expect(
+      sentLineItems.some(
+        (line: TestLineItem) =>
+          line.price_data?.product_data?.name === "Tax",
+      ),
+    ).toBe(false);
+    expect(lineItemTotalCents(sentLineItems)).toBe(orderWithShipping.totalCents);
+  });
+
+  it("adds both tax and shipping lines when both are non-zero", async () => {
+    const orderWithAdditions = {
+      ...ORDER,
+      taxCents: 67,
+      shippingCents: 500,
+      totalCents: 5065,
+      payment: { ...ORDER.payment, amountCents: 5065 },
+    };
+    mocks.orderFindUnique.mockResolvedValue(orderWithAdditions);
+
+    await createCheckoutSession("order-1");
+
+    const sentLineItems = mocks.stripeCreate.mock.calls[0][0].line_items;
+
+    expect(sentLineItems).toContainEqual({
+      price_data: {
+        currency: "usd",
+        unit_amount: 67,
+        product_data: { name: "Tax" },
+      },
+      quantity: 1,
+    });
+    expect(sentLineItems).toContainEqual({
+      price_data: {
+        currency: "usd",
+        unit_amount: 500,
+        product_data: { name: "Shipping" },
+      },
+      quantity: 1,
+    });
+    expect(lineItemTotalCents(sentLineItems)).toBe(
+      orderWithAdditions.totalCents,
+    );
   });
 
   it("falls back to localhost when no app URL is configured", async () => {
@@ -238,5 +331,21 @@ describe("createCheckoutSession", () => {
       CheckoutSessionError,
     );
     expect(mocks.stripeCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects order totals that do not match the constructed line items", async () => {
+    // Payment matches the corrupted total, so only the line-item guard can
+    // prevent a mismatched charge.
+    mocks.orderFindUnique.mockResolvedValue({
+      ...ORDER,
+      totalCents: ORDER.totalCents + 1,
+      payment: { ...ORDER.payment, amountCents: ORDER.totalCents + 1 },
+    });
+
+    await expect(createCheckoutSession("order-1")).rejects.toBeInstanceOf(
+      CheckoutSessionError,
+    );
+    expect(mocks.stripeCreate).not.toHaveBeenCalled();
+    expect(mocks.paymentUpdate).not.toHaveBeenCalled();
   });
 });
