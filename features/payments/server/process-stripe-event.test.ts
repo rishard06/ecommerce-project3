@@ -57,9 +57,8 @@ const racePrisma = new PrismaClient({ datasourceUrl: testDatabaseUrl });
 const TEST_DATABASE_LOCK_KEY = 728674001;
 
 const { processStripeEvent } = await import("./process-stripe-event");
-const { markCheckoutPaid, releaseCheckout } = await import(
-  "./payment-transitions"
-);
+const { markCheckoutPaid, releaseCheckout, sortReservationsForClaim } =
+  await import("./payment-transitions");
 
 let sequence = 0;
 function nextToken(prefix: string): string {
@@ -520,6 +519,69 @@ describe("payment transition cleanup races", () => {
     expect(state.reservations[0].status).toBe("RELEASED");
     expect(state.variant.onHand).toBe(10);
     expect(state.variant.reserved).toBe(0);
+
+    // The late payment is detectable by operators, not silently discarded.
+    const markers = await testPrisma.orderAuditLog.findMany({
+      where: { orderId: order.id },
+    });
+    expect(markers).toHaveLength(1);
+    expect(markers[0]).toMatchObject({
+      action: "PAYMENT_AFTER_RELEASE",
+      actorId: null,
+      fromStatus: "PENDING",
+      toStatus: "PENDING",
+    });
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining(order.id),
+    );
+  });
+
+  it("records a completed checkout on a cancelled order for reconciliation", async () => {
+    const { order, variant } = await createOrderFixture();
+
+    // Cancel through the real expiry path first: order CANCELLED, hold gone.
+    await releaseCheckout(order.id, testPrisma);
+    const cancelled = await loadState(order.id, variant.id);
+    expect(cancelled.order.status).toBe("CANCELLED");
+
+    await processStripeEvent(
+      checkoutSessionEvent({ orderId: order.id, paymentStatus: "paid" }),
+    );
+
+    const state = await loadState(order.id, variant.id);
+    expect(state.order.status).toBe("CANCELLED");
+    expect(state.payment.status).toBe("CANCELLED");
+    expect(state.reservations[0].status).toBe("RELEASED");
+    expect(state.variant.onHand).toBe(cancelled.variant.onHand);
+    expect(state.variant.reserved).toBe(0);
+
+    const markers = await testPrisma.orderAuditLog.findMany({
+      where: { orderId: order.id },
+    });
+    expect(markers).toHaveLength(1);
+    expect(markers[0]).toMatchObject({
+      action: "PAYMENT_AFTER_CANCELLATION",
+      actorId: null,
+      fromStatus: "CANCELLED",
+      toStatus: "CANCELLED",
+    });
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining(order.id),
+    );
+  });
+
+  it("claims reservations in variantId then id order", () => {
+    const sorted = sortReservationsForClaim([
+      { id: "reservation-2", variantId: "variant-b" },
+      { id: "reservation-1", variantId: "variant-a" },
+      { id: "reservation-3", variantId: "variant-a" },
+    ]);
+
+    expect(sorted.map((reservation) => reservation.id)).toEqual([
+      "reservation-1",
+      "reservation-3",
+      "reservation-2",
+    ]);
   });
 
   it("keeps stock consistent when payment and release race on one order", async () => {

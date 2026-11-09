@@ -269,6 +269,19 @@ with a `PENDING` payment. This is deliberate: the system must not sell stock
 that was released. Handle it operationally (refund/void in Stripe, reconcile the
 order manually) rather than editing payment state by hand.
 
+To make the situation machine-visible, both late-payment paths emit a
+secret-free `console.warn` containing the order id and write an `OrderAuditLog`
+row with `actorId = NULL`:
+
+| Situation | `OrderAuditLog.action` |
+| --- | --- |
+| Hold already `RELEASED`; order still `PENDING` | `PAYMENT_AFTER_RELEASE` |
+| Order already `CANCELLED` when the paid event arrives | `PAYMENT_AFTER_CANCELLATION` |
+
+The audit row's `fromStatus`/`toStatus` both echo the order status at the time
+(`PENDING` or `CANCELLED`). Payment state and stock are never advanced on these
+paths.
+
 ---
 
 ## 4. Ownership and trust boundaries
@@ -302,6 +315,37 @@ SELECT "action", "fromStatus", "toStatus", "actorId", "createdAt"
 FROM "OrderAuditLog"
 WHERE "orderId" = '<order-id>'
 ORDER BY "createdAt" ASC;
+```
+
+Reconcile charged-but-unpaid orders. A `checkout.session.completed` event is
+stored with the order id inside its JSON payload; join it back to `Order` and
+surface any order that never reached `PAID` (late payment after release, or a
+paid event that arrived after cancellation):
+
+```sql
+SELECT w."providerEventId",
+       w."type",
+       w."processedAt",
+       o.id     AS "orderId",
+       o.status AS "orderStatus",
+       p.status AS "paymentStatus"
+FROM "WebhookEvent" w
+JOIN "Order" o
+  ON o.id = w.payload #>> '{data,object,metadata,orderId}'
+LEFT JOIN "Payment" p ON p."orderId" = o.id
+WHERE w."type" = 'checkout.session.completed'
+  AND w."processedAt" IS NOT NULL
+  AND o.status <> 'PAID'
+ORDER BY w."createdAt" DESC;
+```
+
+The same orders also carry a durable audit marker:
+
+```sql
+SELECT "orderId", "action", "fromStatus", "toStatus", "createdAt"
+FROM "OrderAuditLog"
+WHERE "action" IN ('PAYMENT_AFTER_RELEASE', 'PAYMENT_AFTER_CANCELLATION')
+ORDER BY "createdAt" DESC;
 ```
 
 Useful checks:

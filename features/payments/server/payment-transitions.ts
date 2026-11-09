@@ -16,6 +16,29 @@ export class PaymentTransitionError extends Error {
 type TransitionClient = Prisma.TransactionClient;
 
 /**
+ * Audit markers written when a paid checkout cannot be honored. They are plain
+ * strings (not a schema enum), so an audit write needs no migration.
+ */
+export const PAYMENT_AFTER_RELEASE_ACTION = "PAYMENT_AFTER_RELEASE";
+export const PAYMENT_AFTER_CANCELLATION_ACTION = "PAYMENT_AFTER_CANCELLATION";
+
+/**
+ * Deterministic claim order shared with `releaseExpiredReservations`:
+ * `variantId` ascending, then reservation id. All three paths (pay, expiry,
+ * cleanup) therefore take row locks in the same order, which removes the
+ * deadlock window on multi-variant orders.
+ */
+export function sortReservationsForClaim<
+  T extends { variantId: string; id: string },
+>(reservations: T[]): T[] {
+  return [...reservations].sort(
+    (left, right) =>
+      left.variantId.localeCompare(right.variantId) ||
+      left.id.localeCompare(right.id),
+  );
+}
+
+/**
  * Converts an active stock hold into a sale.
  *
  * Each reservation is claimed with a conditional `ACTIVE → COMMITTED` update
@@ -38,11 +61,35 @@ export async function markCheckoutPaid(
     include: { reservations: true },
   });
 
-  if (!order || order.status !== "PENDING") {
+  if (!order) {
     return;
   }
 
-  const reservations = order.reservations;
+  // A replay for an already-paid order is an idempotent no-op.
+  if (order.status === "PAID") {
+    return;
+  }
+
+  // Payment arrived after cancellation (expired checkout or cleanup). The
+  // customer may still have been charged, so leave a durable, secret-free
+  // marker for manual refund/reconciliation instead of silently returning.
+  if (order.status !== "PENDING") {
+    console.warn(
+      `[payments] checkout completed for cancelled order ${orderId}; manual refund/reconciliation required`,
+    );
+    await db.orderAuditLog.create({
+      data: {
+        orderId,
+        actorId: null,
+        action: PAYMENT_AFTER_CANCELLATION_ACTION,
+        fromStatus: order.status,
+        toStatus: order.status,
+      },
+    });
+    return;
+  }
+
+  const reservations = sortReservationsForClaim(order.reservations);
   if (
     reservations.length > 0 &&
     reservations.every((reservation) => reservation.status === "COMMITTED")
@@ -54,6 +101,18 @@ export async function markCheckoutPaid(
   // reservation; leave the order for cleanup/manual refund rather than paying
   // stock that is gone.
   if (reservations.some((reservation) => reservation.status === "RELEASED")) {
+    console.warn(
+      `[payments] checkout completed after reservation release for order ${orderId}; manual refund/reconciliation required`,
+    );
+    await db.orderAuditLog.create({
+      data: {
+        orderId,
+        actorId: null,
+        action: PAYMENT_AFTER_RELEASE_ACTION,
+        fromStatus: order.status,
+        toStatus: order.status,
+      },
+    });
     return;
   }
 
@@ -148,7 +207,7 @@ export async function releaseCheckout(
     return;
   }
 
-  for (const reservation of order.reservations) {
+  for (const reservation of sortReservationsForClaim(order.reservations)) {
     if (reservation.status !== "ACTIVE") {
       continue;
     }
