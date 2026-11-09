@@ -8,70 +8,55 @@ export default async function Page({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  // The URL carries the product slug (the folder keeps its historical name).
+  const { id: slug } = await params;
 
-  try {
-    const product = await getProduct(id);
+  const product = await getProduct(slug);
 
-    if (!product) {
-      notFound();
-    }
-
-    // Fetch related products from the same category
-    const relatedResponse = await getProducts(product.category, 0, 5);
-    const relatedProducts = relatedResponse.products
-      .filter(p => p.id.toString() !== id)
-      .slice(0, 4)
-      .map(p => ({
-        id: p.id.toString(),
-        name: p.title,
-        price: p.price,
-        images: p.images,
-        description: p.description,
-        category: p.category,
-        rating: p.rating,
-        reviewCount: p.reviews.length,
-        features: [p.warrantyInformation, p.shippingInformation],
-        reviews: [] // Not needed for the card
-      }));
-
-    // Map DummyJSON product to our feature's internal product type
-    const mappedProduct: InternalProduct = {
-      id: product.id.toString(),
-      name: product.title,
-      category: product.category,
-      price: product.price,
-      originalPrice: product.price / (1 - product.discountPercentage / 100),
-      description: product.description,
-      rating: product.rating,
-      reviewCount: product.reviews.length,
-      images: product.images,
-      // Conditionally mock variants only for specific categories if not provided by API
-      colors: ['laptops', 'smartphones', 'tablets'].includes(product.category) ? [
-        { name: 'Silver', hex: '#cbd5e1' },
-        { name: 'Space Gray', hex: '#1e293b' }
-      ] : undefined,
-      storage: ['laptops', 'smartphones', 'tablets'].includes(product.category) ? 
-        ['128 GB', '256 GB', '512 GB'] : undefined,
-      features: [
-        product.warrantyInformation,
-        product.shippingInformation,
-        product.returnPolicy
-      ],
-      reviews: product.reviews.map((r, index) => ({
-        id: `rev-${index}`,
-        userName: r.reviewerName,
-        rating: r.rating,
-        date: new Date(r.date).toLocaleDateString(),
-        title: r.rating >= 4 ? "Great Product" : "Feedback",
-        content: r.comment,
-        helpfulCount: (index * 13) % 47
-      }))
-    };
-
-    return <ProductDetailPage product={mappedProduct} relatedProducts={relatedProducts} />;
-  } catch (error) {
-    console.error("Error loading product:", error);
+  if (!product) {
     notFound();
   }
+
+  // Related products from the same category, excluding the current product.
+  const relatedResponse = await getProducts(product.categorySlug, 0, 5);
+  const relatedProducts: Partial<InternalProduct>[] = relatedResponse.products
+    .filter((p) => p.slug !== slug)
+    .slice(0, 4)
+    .map((p) => ({
+      id: p.slug,
+      name: p.title,
+      priceCents: p.priceCents,
+      defaultVariantId: p.defaultVariantId,
+      images: [p.image],
+      description: p.description,
+    }));
+
+  // Map the catalog view onto the feature's internal product type.
+  const hasVariantOptions = ["laptops", "smartphones", "tablets"].includes(
+    product.categorySlug
+  );
+  const mappedProduct: InternalProduct = {
+    id: product.slug,
+    name: product.title,
+    category: product.categorySlug,
+    categoryName: product.categoryName,
+    priceCents: product.priceCents,
+    defaultVariantId: product.defaultVariantId,
+    description: product.description,
+    rating: product.rating,
+    reviewCount: product.reviewCount,
+    images: product.images,
+    // Decorative variant pickers for device-shaped categories (unchanged design).
+    colors: hasVariantOptions
+      ? [
+          { name: "Silver", hex: "#cbd5e1" },
+          { name: "Space Gray", hex: "#1e293b" },
+        ]
+      : undefined,
+    storage: hasVariantOptions ? ["128 GB", "256 GB", "512 GB"] : undefined,
+    features: product.features,
+    reviews: product.reviews,
+  };
+
+  return <ProductDetailPage product={mappedProduct} relatedProducts={relatedProducts} />;
 }

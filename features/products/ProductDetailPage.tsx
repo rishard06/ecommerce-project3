@@ -10,7 +10,7 @@ import { Product } from "./types";
 
 interface ProductDetailPageProps {
   product: Product;
-  relatedProducts: Product[];
+  relatedProducts: Partial<Product>[];
 }
 
 export function ProductDetailPage({ product, relatedProducts }: ProductDetailPageProps) {
@@ -28,7 +28,7 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
           href={`/products?category=${product.category}&skip=0`}
           className="rounded capitalize transition-colors hover:text-primary"
         >
-          {product.category}
+          {product.categoryName}
         </Link>
         <ChevronRight className="size-4 text-gray-quaternary" aria-hidden="true" />
         <span aria-current="page" className="truncate font-semibold text-gray-primary">

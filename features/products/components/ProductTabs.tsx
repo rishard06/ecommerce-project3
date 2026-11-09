@@ -82,7 +82,7 @@ export function ProductTabs({ product }: ProductTabsProps) {
             </h3>
             <div className="grid grid-cols-1 gap-x-12 md:grid-cols-2">
               {[
-                { label: "Category", value: product.category },
+                { label: "Category", value: product.categoryName },
                 { label: "Model", value: "2024 edition" },
                 { label: "Warranty", value: "24 months limited" },
                 { label: "In the box", value: "Standard accessories" },

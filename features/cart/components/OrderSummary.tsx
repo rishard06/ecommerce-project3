@@ -6,10 +6,14 @@ import { useCartStore } from "@/lib/store/cart-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getOrderTotals } from "@/lib/pricing";
+import { formatCents } from "@/lib/money";
 
 export function OrderSummary() {
-  const { getTotalPrice } = useCartStore();
-  const { subtotal, tax, total } = getOrderTotals(getTotalPrice());
+  const getTotalPriceCents = useCartStore((state) => state.getTotalPriceCents);
+
+  // Integer-cent order math for display; the server re-quotes at checkout.
+  const subtotalCents = getTotalPriceCents();
+  const { taxCents, totalCents } = getOrderTotals(subtotalCents);
 
   return (
     <div className="space-y-5">
@@ -21,7 +25,7 @@ export function OrderSummary() {
           <div className="flex items-center justify-between">
             <dt className="font-medium text-gray-tertiary">Subtotal</dt>
             <dd className="font-semibold tabular-nums text-gray-secondary">
-              ${subtotal.toLocaleString()}
+              {formatCents(subtotalCents)}
             </dd>
           </div>
           <div className="flex items-center justify-between">
@@ -31,13 +35,13 @@ export function OrderSummary() {
           <div className="flex items-center justify-between">
             <dt className="font-medium text-gray-tertiary">Estimated tax</dt>
             <dd className="font-semibold tabular-nums text-gray-secondary">
-              ${tax.toFixed(2)}
+              {formatCents(taxCents)}
             </dd>
           </div>
           <div className="flex items-center justify-between border-t border-gray-primary/10 pt-3 text-base">
             <dt className="font-semibold text-gray-primary">Total</dt>
             <dd className="font-semibold tabular-nums text-gray-primary">
-              ${total.toLocaleString()}
+              {formatCents(totalCents)}
             </dd>
           </div>
         </dl>

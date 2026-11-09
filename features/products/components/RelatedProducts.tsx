@@ -18,10 +18,11 @@ export function RelatedProducts({ products }: RelatedProductsProps) {
         {products.map((product, index) => (
           <ProductCard
             key={product.id ?? index}
-            id={product.id || index + 1}
-            title={product.name || ""}
-            price={product.price || 0}
-            image={product.images?.[0] || ""}
+            slug={product.id ?? ""}
+            variantId={product.defaultVariantId ?? ""}
+            title={product.name ?? ""}
+            priceCents={product.priceCents ?? 0}
+            image={product.images?.[0] ?? ""}
             description={product.description || "Premium quality product"}
           />
         ))}

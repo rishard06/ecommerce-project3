@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Lock, ShoppingBag } from "lucide-react";
 import Image from "next/image";
 import { getOrderTotals } from "@/lib/pricing";
+import { formatCents } from "@/lib/money";
 
 export function CheckoutSummary() {
   const [mounted, setMounted] = useState(false);
-  const { items, getTotalPrice } = useCartStore();
+  const { items, getTotalPriceCents } = useCartStore();
 
   useEffect(() => {
     setMounted(true);
@@ -29,8 +30,8 @@ export function CheckoutSummary() {
     );
   }
 
-  const subtotal = getTotalPrice();
-  const { tax, total } = getOrderTotals(subtotal);
+  const subtotalCents = getTotalPriceCents();
+  const { taxCents, totalCents } = getOrderTotals(subtotalCents);
 
   if (items.length === 0) {
     return (
@@ -57,7 +58,7 @@ export function CheckoutSummary() {
 
         <ul className="custom-scrollbar mb-6 max-h-[360px] space-y-3 overflow-y-auto pr-1">
           {items.map((item) => (
-            <li key={item.id} className="flex items-start gap-3">
+            <li key={item.variantId} className="flex items-start gap-3">
               <div className="flex size-16 shrink-0 items-center justify-center rounded-xl border border-white/50 bg-white/60 p-1.5">
                 <Image
                   src={item.image}
@@ -74,7 +75,7 @@ export function CheckoutSummary() {
                 </h3>
                 <p className="mb-1 text-xs text-gray-tertiary">Qty: {item.quantity}</p>
                 <span className="text-sm font-semibold tabular-nums text-gray-secondary">
-                  ${(item.price * item.quantity).toLocaleString()}
+                  {formatCents(item.priceCents * item.quantity)}
                 </span>
               </div>
             </li>
@@ -99,7 +100,7 @@ export function CheckoutSummary() {
           <div className="flex justify-between">
             <dt className="font-medium text-gray-tertiary">Subtotal</dt>
             <dd className="font-semibold tabular-nums text-gray-secondary">
-              ${subtotal.toLocaleString()}
+              {formatCents(subtotalCents)}
             </dd>
           </div>
           <div className="flex justify-between">
@@ -109,16 +110,21 @@ export function CheckoutSummary() {
           <div className="flex justify-between">
             <dt className="font-medium text-gray-tertiary">Estimated tax</dt>
             <dd className="font-semibold tabular-nums text-gray-secondary">
-              ${tax.toFixed(2)}
+              {formatCents(taxCents)}
             </dd>
           </div>
           <div className="flex items-center justify-between border-t border-gray-primary/10 pt-3.5">
             <dt className="text-base font-semibold text-gray-primary">Total</dt>
             <dd className="text-xl font-semibold tabular-nums tracking-tight text-gray-primary">
-              ${total.toLocaleString()}
+              {formatCents(totalCents)}
             </dd>
           </div>
         </dl>
+
+        <p className="mt-4 rounded-xl border border-white/50 bg-white/40 px-4 py-3 text-xs leading-relaxed text-gray-tertiary">
+          This total is an estimate. The final amount is confirmed by Stripe at
+          checkout after the server re-quotes your cart from the catalog.
+        </p>
 
         <p className="mt-4 text-center text-xs leading-relaxed text-gray-quaternary">
           By placing your order, you agree to our{" "}

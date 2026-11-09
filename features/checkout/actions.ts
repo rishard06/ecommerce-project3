@@ -1,67 +1,82 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { ShippingAddress, PaymentMethod } from "./types";
-import { validateCartPrices, CartItemInput } from "@/lib/price-validation";
+import { CartQuoteError } from "@/features/cart/server/quote-cart";
+import {
+  ForbiddenError,
+  requireUser,
+  UnauthorizedError,
+} from "@/features/identity/server/guards";
+import {
+  CheckoutSessionError,
+  createCheckoutSession,
+} from "@/features/payments/server/create-checkout-session";
+import {
+  createPendingOrder,
+  createPendingOrderInputSchema,
+  InsufficientStockError,
+} from "./server/create-pending-order";
+import type {
+  CreateOrderActionInput,
+  StartCheckoutActionResult,
+} from "./types";
 
-const shippingSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  address: z.string().min(5, "Address must be at least 5 characters"),
-  city: z.string().min(2, "City is required"),
-  postalCode: z.string().min(5, "Postal code is required"),
-  country: z.string().min(2, "Country is required"),
-});
+/**
+ * Browser-submitted checkout fields. `userId` is intentionally absent: it is
+ * always taken from the authenticated session.
+ */
+const checkoutInputSchema = createPendingOrderInputSchema.omit({ userId: true });
 
-export async function createOrderAction(
-  shippingInfo: ShippingAddress,
-  paymentMethod: PaymentMethod,
-  items: CartItemInput[]
-) {
+/**
+ * Creates a pending order and immediately starts a hosted Stripe Checkout
+ * session for it. Identity comes only from the session; prices come only from
+ * the server-side cart quote. The returned URL is a redirect target, not proof
+ * of payment.
+ */
+export async function startCheckoutAction(
+  input: CreateOrderActionInput,
+): Promise<StartCheckoutActionResult> {
   try {
-    // 1. Validate Shipping Info
-    const validatedShipping = shippingSchema.parse(shippingInfo);
+    // SECURITY: ownership comes from the session, never from the payload.
+    const user = await requireUser();
 
-    // 2. Validate Prices Server-Side (SECURITY: Prevent price manipulation)
-    const priceValidation = await validateCartPrices(items);
+    const { items, shipping, idempotencyKey } = checkoutInputSchema.parse(input);
 
-    if (!priceValidation.success) {
-      return {
-        success: false,
-        error: priceValidation.error || "Failed to validate product prices"
-      };
-    }
-
-    // 3. Simulate Payment Delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // 4. Create Order in Prisma with validated prices
-    const order = await prisma.order.create({
-      data: {
-        totalAmount: priceValidation.total!,
-        items: {
-          create: priceValidation.validatedItems!.map((item) => ({
-            productId: item.id,
-            title: item.title,
-            price: item.price,
-            quantity: item.quantity,
-          })),
-        },
-      },
+    const { orderId } = await createPendingOrder({
+      userId: user.id,
+      items,
+      shipping,
+      idempotencyKey,
     });
 
-    return {
-      success: true,
-      orderId: order.id,
-      total: priceValidation.total,
-      subtotal: priceValidation.subtotal,
-      tax: priceValidation.tax
-    };
+    const { url } = await createCheckoutSession(orderId);
+
+    return { success: true, url, orderId };
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message };
+    if (error instanceof UnauthorizedError) {
+      return { success: false, error: "Unauthorized" };
     }
-    return { success: false, error: "An unexpected error occurred. Please try again." };
+    if (error instanceof ForbiddenError) {
+      return { success: false, error: "Forbidden" };
+    }
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0]?.message ?? "Invalid checkout request",
+      };
+    }
+    if (
+      error instanceof CartQuoteError ||
+      error instanceof InsufficientStockError
+    ) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof CheckoutSessionError) {
+      return { success: false, error: error.message };
+    }
+    return {
+      success: false,
+      error: "An unexpected error occurred. Please try again.",
+    };
   }
 }

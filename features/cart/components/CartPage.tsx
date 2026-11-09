@@ -52,7 +52,7 @@ export function CartPage() {
         <div className="space-y-4 lg:col-span-2">
           <AnimatePresence mode="popLayout" initial={false}>
             {items.map((item) => (
-              <CartPageItem key={item.id} item={item} />
+              <CartPageItem key={item.variantId} item={item} />
             ))}
           </AnimatePresence>
 

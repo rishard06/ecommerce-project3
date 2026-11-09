@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { CartItem as CartItemType, useCartStore } from "@/lib/store/cart-store";
 import { Button } from "@/components/ui/button";
 import { spring } from "@/lib/motion";
+import { formatCents } from "@/lib/money";
 
 interface CartPageItemProps {
   item: CartItemType;
@@ -41,7 +42,7 @@ export function CartPageItem({ item }: CartPageItemProps) {
             {item.title}
           </h2>
           <p className="text-lg font-semibold tabular-nums text-gray-secondary">
-            ${(item.price * item.quantity).toLocaleString()}
+            {formatCents(item.priceCents * item.quantity)}
           </p>
         </div>
 
@@ -51,7 +52,7 @@ export function CartPageItem({ item }: CartPageItemProps) {
               variant="ghost"
               size="icon"
               className="size-9 rounded-full text-gray-secondary hover:bg-white/80"
-              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+              onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
               aria-label={`Decrease quantity of ${item.title}`}
             >
               <Minus className="size-4" aria-hidden="true" />
@@ -66,7 +67,7 @@ export function CartPageItem({ item }: CartPageItemProps) {
               variant="ghost"
               size="icon"
               className="size-9 rounded-full text-gray-secondary hover:bg-white/80"
-              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+              onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
               aria-label={`Increase quantity of ${item.title}`}
             >
               <Plus className="size-4" aria-hidden="true" />
@@ -75,7 +76,7 @@ export function CartPageItem({ item }: CartPageItemProps) {
 
           <Button
             variant="ghost"
-            onClick={() => removeItem(item.id)}
+            onClick={() => removeItem(item.variantId)}
             className="h-9 gap-1.5 rounded-full px-3 text-sm font-medium text-gray-tertiary hover:bg-destructive/10 hover:text-destructive"
             aria-label={`Remove ${item.title} from cart`}
           >

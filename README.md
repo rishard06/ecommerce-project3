@@ -1,64 +1,138 @@
-# Ecommerce Project 3
+# Venn Store
 
-A modern, high-performance e-commerce platform built with the latest web technologies. This project focuses on a seamless user experience, responsive design, and robust authentication.
+A production-shaped e-commerce storefront built with Next.js 15, PostgreSQL,
+Better Auth, and hosted Stripe Checkout. The catalog, cart pricing, orders,
+payments, stock reservations, and fulfillment all live in the owned database;
+DummyJSON is only a seed-time source.
 
-## 🚀 Key Features
+## Features
 
-- **Next.js 15+ & Turbopack**: Blazing fast development and production builds.
-- **Tailwind CSS v4**: Utilizing the latest CSS-in-JS capabilities with `@theme` and direct CSS configuration.
-- **Robust Authentication**: Secure user management and session handling.
-- **Interactive UI**: 
-  - Custom `Stack` component with Framer Motion (swipe-to-back, drag-and-drop, 3D perspective).
-  - High-quality icons via `lucide-react`.
-  - Accessible components from `shadcn/ui`.
-- **Fully Responsive**: Optimized for all screen sizes, from mobile to ultra-wide displays.
+- **Owned PostgreSQL catalog** — categories, products, images, and variants
+  with integer-cent prices. `prisma/seed.mjs` imports ~194 products from
+  DummyJSON once; the runtime never calls it.
+- **Admin catalog management** — server-validated create/update/archive flows
+  at `/admin/products`. Products are archived, never hard-deleted, so order
+  history keeps its snapshots.
+- **DB-authoritative cart quotes** — the browser sends only variant ids and
+  quantities. Totals are quoted from the database (1.5% tax, free shipping,
+  integer cents).
+- **Atomic pending orders** — one transaction reserves stock, snapshots line
+  items/shipping/prices, and creates the payment. Per-user idempotency keys
+  make duplicate submits return the same order without a second reservation.
+- **30-minute stock reservations** — a hold is committed only by a paid
+  webhook, released on checkout expiry, or reclaimed by the cleanup cron.
+- **Hosted Stripe Checkout** — sessions are built from immutable order
+  snapshots; the session refuses to start if the charge would differ from the
+  order total.
+- **Signed, idempotent webhooks** — `/api/webhooks/stripe` verifies the raw
+  payload signature before any payment or stock logic runs. Replays are
+  successful no-ops keyed by the provider event id.
+- **Customer order history** — `/orders` and `/orders/[id]`; ownership is part
+  of every SQL predicate, so customers only see their own orders.
+- **Admin fulfillment with audit** — `UNFULFILLED → PROCESSING → SHIPPED →
+  DELIVERED` plus an explicit cancellation branch, at `/admin/orders`. Every
+  change writes an `OrderAuditLog` entry.
+- **Protected reservation cleanup** — Vercel Cron calls
+  `/api/cron/release-reservations` every five minutes with
+  `Authorization: Bearer $CRON_SECRET`.
+- **Better Auth** — GitHub OAuth and email/password sign-in; roles
+  (`CUSTOMER`/`ADMIN`) are read from PostgreSQL on every request.
 
-## 🛠️ Tech Stack
+Payment truth is deliberately narrow: **only a signed Stripe webhook can mark
+an order paid.** The success redirect and query string are display-only.
 
-- **Framework**: [Next.js 15](https://nextjs.org/)
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
-- **Animation**: [Motion (Framer Motion)](https://motion.dev/)
-- **Auth**: [Better-Auth](https://better-auth.com/)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
+## Architecture
 
-## 🏁 Getting Started
+- `app/` — Next.js App Router. Route groups: `(shop)`, `(admin)`, `(auth)`.
+  API routes: Better Auth, orders, Stripe webhook, cron cleanup.
+- `features/*/server/` — business services (catalog, cart, checkout, payments,
+  orders, inventory, identity). Route handlers and server actions stay thin.
+- `features/*/components/` — feature UI; `components/ui/` holds shadcn/ui
+  primitives.
+- `lib/` — validated environment (`env.ts`), Prisma singleton, Better Auth,
+  money/tax helpers, stores, guards helpers.
+- `prisma/` — schema, migrations, and the DummyJSON seed importer.
+- Tests are co-located as `*.test.ts` and run under Vitest; database suites
+  serialize on a PostgreSQL advisory lock.
 
-### 1. Prerequisites
-Ensure you have `node` and `npm` installed on your machine.
+## Prerequisites
 
-### 2. Installation
-Clone the repository and install dependencies:
+- Node.js **22.18+** (24.x LTS recommended) — the seed imports a `.ts` module
+  and relies on native TypeScript type stripping.
+- PostgreSQL 14+ (tested on 18).
+- A Stripe test account and, for local webhooks, the Stripe CLI.
+- A GitHub OAuth app.
+
+## Quick start
+
 ```bash
-npm install
-```
+createdb -h localhost -U postgres ecommerce_dev
+createdb -h localhost -U postgres ecommerce_test
 
-### 3. Environment Setup
-Create a `.env` file based on the environment requirements (refer to internal documentation for required variables).
-
-### 4. Run Development Server
-```bash
+npm ci --legacy-peer-deps   # required: better-auth/vitest optional peer range
+cp .env.example .env        # fill in the values; see docs/production-setup.md
+npx prisma generate
+npx prisma migrate deploy
+DATABASE_URL="$DATABASE_URL_TEST" npx prisma migrate deploy  # test DB schema
+npx prisma db seed
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) to see the application in action.
 
-## 📁 Project Structure
+Open <http://localhost:3000>. Then:
 
-- `app/`: Next.js App Router (pages, API routes, layouts).
-- `component/`: Main UI features (Hero, Stack, FeatureProducts, etc.).
-- `components/ui/`: Reusable atomic components.
-- `lib/`: Utility functions, configuration, and custom hooks.
-- `types/`: Global TypeScript interfaces and types.
+- Promote an admin with the SQL in
+  [`docs/production-setup.md`](docs/production-setup.md#4-promote-an-admin).
+- Forward Stripe webhooks locally with
+  `stripe listen --forward-to localhost:3000/api/webhooks/stripe`.
+- Complete a checkout with test card `4242 4242 4242 4242`.
 
-## 📜 Available Scripts
+Full runbook: [`docs/production-setup.md`](docs/production-setup.md)
+(local setup, OAuth, Stripe test mode, cron, backups, launch checklist).
+State machines: [`docs/order-lifecycle.md`](docs/order-lifecycle.md)
+(orders, payments, reservations, fulfillment, webhook idempotency).
 
-- `npm run dev`: Starts the development server with Turbopack.
-- `npm run build`: Builds the application for production.
-- `npm run start`: Starts the production server.
+## Environment
 
-## 🤝 Contributing
+Copy [`.env.example`](.env.example) to `.env`. The required server variables
+are validated by `lib/env.ts`: `DATABASE_URL`, `BETTER_AUTH_SECRET`,
+`BETTER_AUTH_URL`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and `CRON_SECRET`.
+`NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` are optional.
+`DATABASE_URL_TEST` is required only by the test suite and must point at a
+disposable database that differs from `DATABASE_URL`.
 
-Feel free to open issues or submit pull requests to improve the platform.
+Use `.env` (not only `.env.local`): Prisma CLI, the seed script, and the test
+suites read `.env`. `.env*` files are gitignored.
 
----
+## Verification
 
-Built with ❤️ using Next.js and Tailwind CSS.
+```bash
+npx prisma validate
+npx prisma migrate status
+npm test                 # requires DATABASE_URL_TEST (loaded from .env)
+npx tsc --noEmit
+npm run build
+```
+
+`npm test` runs the full Vitest suite, including the database-backed service
+and route tests. Never point `DATABASE_URL_TEST` at a database you want to
+keep.
+
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Next.js dev server with Turbopack. |
+| `npm run build` | Production build. |
+| `npm run start` | Serve the production build. |
+| `npm test` | Full Vitest run. |
+| `npm run test:watch` | Vitest watch mode. |
+
+## Tech stack
+
+- Next.js 15 (App Router, Turbopack), React 19, TypeScript
+- PostgreSQL + Prisma 6
+- Better Auth (GitHub OAuth, email/password)
+- Stripe (hosted Checkout, signed webhooks)
+- Tailwind CSS v4, shadcn/ui, Motion
+- Vitest + Testing Library

@@ -9,6 +9,9 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "prisma": {
+    "seed": "node prisma/seed.mjs"
+  },
   "dependencies": {
     "@gsap/react": "^2.1.2",
     "@paper-design/shaders-react": "^0.0.47",
@@ -45,6 +48,7 @@
     "prisma": "^6.15.0",
     "tailwindcss": "^4",
     "typescript": "^5.9.3",
+    "vite": "^8.3.6",
     "vitest": "^5.0.3"
   }
 }

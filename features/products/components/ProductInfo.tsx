@@ -12,6 +12,7 @@ import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import { spring } from "@/lib/motion";
+import { formatCents } from "@/lib/money";
 
 interface ProductInfoProps {
   product: Product;
@@ -27,20 +28,9 @@ export function ProductInfo({ product }: ProductInfoProps) {
   const [selectedColor, setSelectedColor] = React.useState(0);
   const [selectedStorage, setSelectedStorage] = React.useState(0);
 
-  const numericId = typeof product.id === "string" ? parseInt(product.id) : product.id;
-  const favorited = isFavorite(numericId);
+  const favorited = isFavorite(product.id);
 
-  const formattedPrice = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(product.price);
-
-  const formattedOriginalPrice = product.originalPrice
-    ? new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(product.originalPrice)
-    : null;
+  const formattedPrice = formatCents(product.priceCents);
 
   const handleAddToCart = () => {
     if (!session) {
@@ -49,9 +39,10 @@ export function ProductInfo({ product }: ProductInfoProps) {
     }
 
     addItem({
-      id: numericId,
+      variantId: product.defaultVariantId,
+      productSlug: product.id,
       title: product.name,
-      price: product.price,
+      priceCents: product.priceCents,
       image: product.images[0],
     });
   };
@@ -63,9 +54,10 @@ export function ProductInfo({ product }: ProductInfoProps) {
     }
 
     toggleFavorite({
-      id: numericId,
+      productSlug: product.id,
+      variantId: product.defaultVariantId,
       title: product.name,
-      price: product.price,
+      priceCents: product.priceCents,
       image: product.images[0],
       description: product.description,
     });
@@ -128,11 +120,6 @@ export function ProductInfo({ product }: ProductInfoProps) {
           <span className="text-3xl font-semibold tabular-nums tracking-tight text-gray-primary md:text-4xl">
             {formattedPrice}
           </span>
-          {formattedOriginalPrice && (
-            <span className="text-lg tabular-nums text-gray-quaternary line-through">
-              {formattedOriginalPrice}
-            </span>
-          )}
         </div>
         <p className="leading-relaxed text-gray-secondary">{product.description}</p>
       </div>

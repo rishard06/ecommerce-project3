@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push/PR update cancels the in-flight run for the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Test, typecheck, build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ecommerce_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Distinct from DATABASE_URL_TEST so the test-suite fail-closed guard
+      # passes. The DB test files repoint DATABASE_URL at the test database
+      # in-process, so this value is never connected to.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ecommerce_dev
+      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/ecommerce_test
+      # Dummy, non-secret values so server env validation passes in CI.
+      BETTER_AUTH_SECRET: ci-only-not-a-secret-0000000000000000
+      BETTER_AUTH_URL: http://localhost:3000
+      GITHUB_CLIENT_ID: ci-placeholder
+      GITHUB_CLIENT_SECRET: ci-placeholder
+      STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
+      CRON_SECRET: ci-placeholder-cron-secret
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply migrations to the test database
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL_TEST }}
+
+      # Database suites serialize on a PostgreSQL advisory lock in a shared test
+      # database; running files in parallel can exceed the 5s test timeout.
+      # Serializing file execution keeps the DB suites deterministic.
+      - name: Run tests
+        run: npm test -- --no-file-parallelism
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # Some pages query the database during build; point it at the migrated
+      # test database (empty data is handled by the read services).
+      - name: Build
+        run: npm run build
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL_TEST }}

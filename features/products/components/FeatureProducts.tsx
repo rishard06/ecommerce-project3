@@ -33,11 +33,12 @@ export default async function FeatureProducts() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
           {featureProducts.map((product, i) => (
             <ProductCard
-              key={product.id}
-              id={product.id}
+              key={product.slug}
+              slug={product.slug}
+              variantId={product.defaultVariantId}
               title={product.title}
-              price={product.price}
-              image={i === 3 ? product.images[0] : product.images[1] || ""}
+              priceCents={product.priceCents}
+              image={product.image}
               description={product.description}
               isPopular
             />

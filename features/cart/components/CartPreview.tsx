@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { AnimatePresence } from "motion/react";
 import { CartItem } from "./CartItem";
+import { formatCents } from "@/lib/money";
 
 export default function CartPreview() {
-  const { items, removeItem, getTotalPrice, getTotalItems } = useCartStore();
+  const { items, removeItem, getTotalPriceCents, getTotalItems } = useCartStore();
 
   if (items.length === 0) {
     return (
@@ -46,14 +47,14 @@ export default function CartPreview() {
           </span>
         </h3>
         <span className="text-base font-semibold text-accent-700">
-          ${getTotalPrice().toLocaleString()}
+          {formatCents(getTotalPriceCents())}
         </span>
       </div>
 
       <div className="custom-scrollbar flex-1 space-y-1 overflow-y-auto p-3">
         <AnimatePresence initial={false}>
           {items.map((item) => (
-            <CartItem key={item.id} item={item} onRemove={removeItem} />
+            <CartItem key={item.variantId} item={item} onRemove={removeItem} />
           ))}
         </AnimatePresence>
       </div>

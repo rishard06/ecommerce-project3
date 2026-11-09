@@ -52,13 +52,14 @@ export default async function ProductsPage({
             <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
               {products.map((product) => (
                 <ProductCard
-                  key={product.id}
-                  id={product.id}
+                  key={product.slug}
+                  slug={product.slug}
+                  variantId={product.defaultVariantId}
                   title={product.title}
-                  price={product.price}
-                  image={product.thumbnail}
+                  priceCents={product.priceCents}
+                  image={product.image}
                   description={product.description}
-                  isPopular={product.rating > 4.5}
+                  isPopular={product.isPopular}
                 />
               ))}
             </div>

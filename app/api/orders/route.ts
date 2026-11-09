@@ -1,53 +1,64 @@
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { validateCartPrices, CartItemInput } from "@/lib/price-validation";
+import { z } from "zod";
+import { CartQuoteError } from "@/features/cart/server/quote-cart";
+import {
+  ForbiddenError,
+  requireUser,
+  UnauthorizedError,
+} from "@/features/identity/server/guards";
+import {
+  createPendingOrder,
+  createPendingOrderInputSchema,
+  InsufficientStockError,
+} from "@/features/checkout/server/create-pending-order";
+
+/**
+ * Legacy JSON checkout entry point. It shares the transactional order service
+ * with the server action so every order path creates stock reservations.
+ */
+const checkoutInputSchema = createPendingOrderInputSchema.omit({ userId: true });
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { items } = body;
+    // SECURITY: ownership comes from the session, never from the request body.
+    const user = await requireUser();
 
-    if (!items || items.length === 0) {
-      return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
-    }
+    const body = await req.json().catch(() => null);
+    const { items, shipping, idempotencyKey } = checkoutInputSchema.parse(
+      body ?? {},
+    );
 
-    // Convert items to CartItemInput format (only id and quantity)
-    const cartItems: CartItemInput[] = items.map((item: any) => ({
-      id: typeof item.id === 'string' ? parseInt(item.id) : item.id,
-      quantity: item.quantity
-    }));
-
-    // Validate prices server-side (SECURITY: Prevent price manipulation)
-    const priceValidation = await validateCartPrices(cartItems);
-
-    if (!priceValidation.success) {
-      return NextResponse.json(
-        { error: priceValidation.error || "Failed to validate product prices" },
-        { status: 400 }
-      );
-    }
-
-    // Create order with validated prices and totals
-    const order = await prisma.order.create({
-      data: {
-        totalAmount: priceValidation.total!,
-        items: {
-          create: priceValidation.validatedItems!.map((item) => ({
-            productId: item.id,
-            title: item.title,
-            price: item.price,
-            quantity: item.quantity
-          }))
-        }
-      },
-      include: {
-        items: true
-      }
+    const { orderId } = await createPendingOrder({
+      userId: user.id,
+      items,
+      shipping,
+      idempotencyKey,
     });
 
-    return NextResponse.json(order);
-  } catch (error: any) {
+    return NextResponse.json({ orderId }, { status: 201 });
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (error instanceof ForbiddenError) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (error instanceof CartQuoteError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof InsufficientStockError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors[0]?.message ?? "Invalid request" },
+        { status: 400 },
+      );
+    }
     console.error("ORDER_CREATION_ERROR", error);
-    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Something went wrong" },
+      { status: 500 },
+    );
   }
 }
