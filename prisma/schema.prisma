@@ -6,12 +6,17 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../app/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  CANCELLED
 }
 
 model User {
@@ -24,6 +29,8 @@ model User {
   updatedAt     DateTime
   sessions      Session[]
   accounts      Account[]
+  addresses     Address[]
+  orders        Order[]
 
   @@unique([email])
   @@map("user")
@@ -75,10 +82,20 @@ model Verification {
 }
 
 model Order {
-  id          String      @id @default(uuid())
-  createdAt   DateTime    @default(now())
-  totalAmount Float
-  items       OrderItem[]
+  id              String        @id @default(uuid())
+  createdAt       DateTime      @default(now())
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  status          OrderStatus   @default(PAID)
+  subtotal        Float         @default(0)
+  shipping        Float         @default(0)
+  tax             Float         @default(0)
+  totalAmount     Float
+  shippingAddress Json?
+  paymentMethod   String        @default("card_test")
+  coupon          String?
+  idempotencyKey  String?       @unique
+  items           OrderItem[]
 }
 
 model OrderItem {
@@ -90,4 +107,42 @@ model OrderItem {
   title     String
   price     Float
   quantity  Int
+}
+
+model Product {
+  id        Int      @id
+  title     String
+  price     Float
+  thumbnail String
+  stock     Int
+  category  String
+  brand     String?
+  sku       String?
+  description String?
+  reviews   Review[]
+}
+
+model Address {
+  id         String  @id @default(uuid())
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName  String
+  lastName   String
+  address    String
+  city       String
+  postalCode String
+  country    String
+  isDefault  Boolean @default(false)
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+
+  @@unique([productId, userId])
 }
