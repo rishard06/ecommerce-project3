@@ -17,7 +17,9 @@ export interface ProductResponse {
  * Fetches all product categories from DummyJSON.
  */
 export async function getCategories(): Promise<Category[]> {
-  const res = await fetch("https://dummyjson.com/products/categories");
+  const res = await fetch("https://dummyjson.com/products/categories", {
+    signal: AbortSignal.timeout(8000),
+  });
   if (!res.ok) throw new Error("Failed to fetch categories");
   return res.json();
 }
@@ -36,6 +38,7 @@ export async function getProducts(
   
   const res = await fetch(`${baseUrl}?limit=${limit}&skip=${skip}`, {
     next: { revalidate: 3600 },
+    signal: AbortSignal.timeout(8000),
   });
   
   if (!res.ok) throw new Error("Failed to fetch products");
@@ -46,7 +49,9 @@ export async function getProducts(
  * Fetches a single product by ID.
  */
 export async function getProduct(id: string): Promise<Product> {
-  const res = await fetch(`https://dummyjson.com/products/${id}`);
+  const res = await fetch(`https://dummyjson.com/products/${id}`, {
+    signal: AbortSignal.timeout(8000),
+  });
   if (!res.ok) throw new Error(`Failed to fetch product with id: ${id}`);
   return res.json();
 }
@@ -63,6 +68,7 @@ export async function getFeatureProducts(): Promise<Product[]> {
       urls.map((url) =>
         fetch(url, {
           next: { revalidate: 3600 },
+          signal: AbortSignal.timeout(8000),
         }),
       ),
     );
