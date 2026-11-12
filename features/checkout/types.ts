@@ -9,6 +9,8 @@ export interface ShippingAddress {
 
 export type PaymentMethod = 'stripe' | 'paypal' | 'crypto';
 
+export type CheckoutStep = 'shipping' | 'payment' | 'review';
+
 export type CheckoutStatus = 'idle' | 'validating' | 'processing' | 'success' | 'error';
 
 export interface CheckoutState {

@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useCartStore } from "@/lib/store/cart-store";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Lock, ShoppingBag } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { getOrderTotals } from "@/lib/pricing";
 
 export function CheckoutSummary() {
@@ -81,18 +80,12 @@ export function CheckoutSummary() {
           ))}
         </ul>
 
-        <div className="mb-6 flex gap-2">
-          <label htmlFor="checkout-promo" className="sr-only">
-            Promo code
-          </label>
-          <Input
-            id="checkout-promo"
-            className="h-11 flex-1 rounded-xl border-transparent bg-white/60 px-4 text-sm placeholder:text-gray-quaternary focus-visible:bg-white/90"
-            placeholder="Promo code"
-          />
-          <Button className="h-11 rounded-xl bg-gray-primary px-5 text-sm font-semibold text-white hover:bg-gray-secondary">
-            Apply
-          </Button>
+        <div className="mb-6 rounded-2xl border border-white/40 bg-white/30 p-4 text-sm text-gray-tertiary">
+          Have a code? Enter it in the{" "}
+          <Link href="/checkout?step=payment" className="font-semibold text-gray-primary underline underline-offset-2">
+            payment step
+          </Link>{" "}
+          (try DEMO10).
         </div>
 
         <dl className="mb-6 space-y-2.5 border-t border-gray-primary/10 pt-5 text-sm">

@@ -1,11 +1,25 @@
-"use client";
-
 import { CheckoutForm } from "@/features/checkout/components/CheckoutForm";
 import { CheckoutSummary } from "@/features/checkout/components/CheckoutSummary";
+import { CheckoutSteps } from "@/features/checkout/components/CheckoutSteps";
+import type { CheckoutStep } from "@/features/checkout/types";
 import { ChevronRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
-export default function CheckoutPage() {
+const STEP_NUMBERS: Record<CheckoutStep, number> = {
+  shipping: 1,
+  payment: 2,
+  review: 3,
+};
+
+export default async function CheckoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ step?: string }>;
+}) {
+  const params = await searchParams;
+  const step: CheckoutStep =
+    params.step === "payment" || params.step === "review" ? params.step : "shipping";
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 md:py-12 lg:px-8">
       <div className="mb-10 flex flex-col justify-between gap-5 md:mb-12 md:flex-row md:items-end">
@@ -37,9 +51,13 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      <div className="mb-8 max-w-3xl">
+        <CheckoutSteps step={STEP_NUMBERS[step]} />
+      </div>
+
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
         <div className="lg:col-span-8">
-          <CheckoutForm />
+          <CheckoutForm step={step} />
         </div>
         <div className="lg:col-span-4">
           <CheckoutSummary />
