@@ -31,7 +31,7 @@ export const useCartStore = create<CartStore>()(
           set({
             items: currentItems.map((item) =>
               item.id === product.id
-                ? { ...item, quantity: item.quantity + 1 }
+                ? { ...item, quantity: Math.min(item.quantity + 1, 99) }
                 : item
             ),
           });
@@ -49,7 +49,7 @@ export const useCartStore = create<CartStore>()(
         }
         set({
           items: get().items.map((item) =>
-            item.id === id ? { ...item, quantity } : item
+            item.id === id ? { ...item, quantity: Math.min(Math.floor(quantity), 99) } : item
           ),
         });
       },
@@ -63,6 +63,29 @@ export const useCartStore = create<CartStore>()(
     }),
     {
       name: 'cart-storage',
+      version: 1,
+      partialize: (state) => ({ items: state.items }),
+      migrate: (persistedState) => {
+        const state = persistedState as { items?: unknown };
+        if (!state || !Array.isArray(state.items)) {
+          return { items: [] } as CartStore;
+        }
+        const items = state.items
+          .filter(
+            (item): item is CartItem =>
+              typeof item === 'object' &&
+              item !== null &&
+              typeof (item as CartItem).id === 'number' &&
+              typeof (item as CartItem).title === 'string' &&
+              typeof (item as CartItem).price === 'number' &&
+              typeof (item as CartItem).quantity === 'number'
+          )
+          .map((item) => ({
+            ...item,
+            quantity: Math.min(Math.max(Math.floor(item.quantity), 1), 99),
+          }));
+        return { items } as CartStore;
+      },
     }
   )
 );
