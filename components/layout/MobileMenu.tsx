@@ -231,17 +231,46 @@ export default function MobileMenu() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {session?.user ? (
-                      <DropdownMenuItem
-                        onClick={async () => {
-                          await authClient.revokeSessions();
-                          await signOut();
-                          router.refresh();
-                          closeMenu();
-                        }}
-                        className="cursor-pointer"
-                      >
-                        Log Out
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            router.push("/account");
+                            closeMenu();
+                          }}
+                          className="cursor-pointer"
+                        >
+                          Dashboard
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            router.push("/account/orders");
+                            closeMenu();
+                          }}
+                          className="cursor-pointer"
+                        >
+                          Orders
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            router.push("/account/profile");
+                            closeMenu();
+                          }}
+                          className="cursor-pointer"
+                        >
+                          Profile
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            await authClient.revokeSessions();
+                            await signOut();
+                            router.refresh();
+                            closeMenu();
+                          }}
+                          className="cursor-pointer"
+                        >
+                          Log Out
+                        </DropdownMenuItem>
+                      </>
                     ) : (
                       <DropdownMenuItem
                         onClick={() => {

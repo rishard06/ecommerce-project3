@@ -49,18 +49,33 @@ export default function UserAction() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {session?.user ? (
-          <DropdownMenuItem
-            onClick={async () => {
-              await authClient.revokeSessions();
-              await signOut();
-              router.push("/");
-              clearCart();
-              clearFavorites();
-            }}
-            className="cursor-pointer"
-          >
-            Log Out
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer">
+              Dashboard
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/account/orders")} className="cursor-pointer">
+              Orders
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/account/profile")} className="cursor-pointer">
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/account/settings")} className="cursor-pointer">
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={async () => {
+                await authClient.revokeSessions();
+                await signOut();
+                router.push("/");
+                clearCart();
+                clearFavorites();
+              }}
+              className="cursor-pointer"
+            >
+              Log Out
+            </DropdownMenuItem>
+          </>
         ) : (
           <DropdownMenuItem
             onClick={() => router.push("/login")}
