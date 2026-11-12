@@ -49,6 +49,7 @@ export const useFavoritesStore = create<FavoritesStore>()(
     }),
     {
       name: 'favorites-storage',
+      version: 1,
     }
   )
 );

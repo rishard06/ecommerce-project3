@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s | venn.",
   },
   description:
-    "A calm, considered shop for everyday essentials — clear pricing, fast delivery, and a checkout that gets out of your way.",
+    "A calm, considered shop for everyday essentials — clear pricing, fast delivery, honest reviews, easy returns, and a checkout that gets out of your way.",
   applicationName: "venn.",
 };
 
