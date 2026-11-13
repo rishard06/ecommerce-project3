@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useCartStore } from "@/lib/store/cart-store";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Lock, ShoppingBag } from "lucide-react";
 import Image from "next/image";
+import { Lock, ShoppingBag } from "lucide-react";
+import { useCartStore } from "@/lib/store/cart-store";
 import { getOrderTotals } from "@/lib/pricing";
 import { formatCents } from "@/lib/money";
 
 export function CheckoutSummary() {
   const [mounted, setMounted] = useState(false);
-  const { items, getTotalPriceCents } = useCartStore();
+  const items = useCartStore((state) => state.items);
+  const getTotalPriceCents = useCartStore((state) => state.getTotalPriceCents);
 
   useEffect(() => {
     setMounted(true);
@@ -30,6 +29,8 @@ export function CheckoutSummary() {
     );
   }
 
+  // Display-only estimate from integer cents. The review step replaces this
+  // with the authoritative server quote before any Stripe handoff.
   const subtotalCents = getTotalPriceCents();
   const { taxCents, totalCents } = getOrderTotals(subtotalCents);
 
@@ -41,7 +42,10 @@ export function CheckoutSummary() {
             Order summary
           </h2>
           <div className="space-y-3 py-10 text-center">
-            <ShoppingBag className="mx-auto size-10 text-gray-quaternary" aria-hidden="true" />
+            <ShoppingBag
+              className="mx-auto size-10 text-gray-quaternary"
+              aria-hidden="true"
+            />
             <p className="font-medium text-gray-tertiary">Your cart is empty</p>
           </div>
         </div>
@@ -73,7 +77,9 @@ export function CheckoutSummary() {
                 <h3 className="mb-0.5 truncate text-sm font-semibold text-gray-primary">
                   {item.title}
                 </h3>
-                <p className="mb-1 text-xs text-gray-tertiary">Qty: {item.quantity}</p>
+                <p className="mb-1 text-xs text-gray-tertiary">
+                  Qty: {item.quantity}
+                </p>
                 <span className="text-sm font-semibold tabular-nums text-gray-secondary">
                   {formatCents(item.priceCents * item.quantity)}
                 </span>
@@ -81,20 +87,6 @@ export function CheckoutSummary() {
             </li>
           ))}
         </ul>
-
-        <div className="mb-6 flex gap-2">
-          <label htmlFor="checkout-promo" className="sr-only">
-            Promo code
-          </label>
-          <Input
-            id="checkout-promo"
-            className="h-11 flex-1 rounded-xl border-transparent bg-white/60 px-4 text-sm placeholder:text-gray-quaternary focus-visible:bg-white/90"
-            placeholder="Promo code"
-          />
-          <Button className="h-11 rounded-xl bg-gray-primary px-5 text-sm font-semibold text-white hover:bg-gray-secondary">
-            Apply
-          </Button>
-        </div>
 
         <dl className="mb-6 space-y-2.5 border-t border-gray-primary/10 pt-5 text-sm">
           <div className="flex justify-between">
@@ -122,17 +114,23 @@ export function CheckoutSummary() {
         </dl>
 
         <p className="mt-4 rounded-xl border border-white/50 bg-white/40 px-4 py-3 text-xs leading-relaxed text-gray-tertiary">
-          This total is an estimate. The final amount is confirmed by Stripe at
-          checkout after the server re-quotes your cart from the catalog.
+          This total is an estimate. The review step re-quotes your cart from
+          the catalog and Stripe charges that server-quoted total.
         </p>
 
         <p className="mt-4 text-center text-xs leading-relaxed text-gray-quaternary">
           By placing your order, you agree to our{" "}
-          <a href="/terms" className="underline underline-offset-2 hover:text-gray-primary">
+          <a
+            href="/terms"
+            className="underline underline-offset-2 hover:text-gray-primary"
+          >
             Terms of Service
           </a>{" "}
           and{" "}
-          <a href="/privacy" className="underline underline-offset-2 hover:text-gray-primary">
+          <a
+            href="/privacy"
+            className="underline underline-offset-2 hover:text-gray-primary"
+          >
             Privacy Policy
           </a>
           .

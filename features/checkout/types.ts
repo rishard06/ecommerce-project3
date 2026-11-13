@@ -1,3 +1,5 @@
+import type { CartQuote } from "@/features/cart/types";
+
 /** Server-side shipping snapshot accepted by the checkout action/API. */
 export interface ShippingInput {
   fullName: string;
@@ -18,4 +20,11 @@ export interface CreateOrderActionInput {
 
 export type StartCheckoutActionResult =
   | { success: true; url: string; orderId: string }
+  | { success: false; error: string };
+
+/** URL-driven preamble state. Payment always happens on hosted Stripe. */
+export type CheckoutStep = "shipping" | "review";
+
+export type QuoteCheckoutActionResult =
+  | { success: true; quote: CartQuote }
   | { success: false; error: string };
