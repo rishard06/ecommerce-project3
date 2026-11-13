@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { ChevronRight, MapPin, Package, ShoppingBag } from "lucide-react";
 import { listOrdersForUser } from "@/features/orders/server/customer-order-service";
+import {
+  FulfillmentStatusPill,
+  OrderStatusPill,
+} from "@/features/orders/components/OrderStatusBadges";
 import { listAddresses } from "@/features/account/address-actions";
 import { requireAccountSession } from "@/features/account/require-session";
 import { formatCents } from "@/lib/money";
@@ -117,7 +121,11 @@ export default async function AccountPage() {
                       #{order.id.slice(0, 8)}
                     </span>
                     <span className="block text-sm font-medium text-gray-tertiary">
-                      {dateFormatter.format(order.createdAt)} · {order.status.toLowerCase()}
+                      {dateFormatter.format(order.createdAt)}
+                    </span>
+                    <span className="mt-1 flex flex-wrap items-center gap-2">
+                      <OrderStatusPill status={order.status} />
+                      <FulfillmentStatusPill status={order.fulfillmentStatus} />
                     </span>
                   </span>
                   <span className="text-sm font-semibold tabular-nums text-gray-primary">

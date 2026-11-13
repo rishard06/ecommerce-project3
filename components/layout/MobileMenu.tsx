@@ -274,6 +274,15 @@ export default function MobileMenu() {
                           Profile
                         </DropdownMenuItem>
                         <DropdownMenuItem
+                          onClick={() => {
+                            router.push("/account/settings");
+                            closeMenu();
+                          }}
+                          className="cursor-pointer"
+                        >
+                          Settings
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={async () => {
                             await authClient.revokeSessions();
                             await signOut();

@@ -2,28 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LogIn } from "lucide-react";
 import {
-  LayoutDashboard,
-  LogIn,
-  MapPin,
-  Package,
-  Settings,
-  UserRound,
-} from "lucide-react";
+  ACCOUNT_NAV_LINKS,
+  isAccountNavLinkActive,
+} from "./account-nav-links";
 
 export interface AccountNavUser {
   name: string;
   email: string;
   image?: string | null;
 }
-
-const LINKS = [
-  { href: "/account", label: "Overview", icon: LayoutDashboard },
-  { href: "/account/orders", label: "Orders", icon: Package },
-  { href: "/account/addresses", label: "Addresses", icon: MapPin },
-  { href: "/account/profile", label: "Profile", icon: UserRound },
-  { href: "/account/settings", label: "Settings", icon: Settings },
-] as const;
 
 export function AccountNav({ user }: { user: AccountNavUser | null }) {
   const pathname = usePathname();
@@ -85,9 +74,8 @@ export function AccountNav({ user }: { user: AccountNavUser | null }) {
         aria-label="Account"
         className="no-scrollbar flex gap-1 overflow-x-auto lg:flex-col"
       >
-        {LINKS.map(({ href, label, icon: Icon }) => {
-          const isActive =
-            pathname === href || (href !== "/account" && pathname.startsWith(href));
+        {ACCOUNT_NAV_LINKS.map(({ href, label, icon: Icon }) => {
+          const isActive = isAccountNavLinkActive(pathname, href);
 
           return (
             <Link
