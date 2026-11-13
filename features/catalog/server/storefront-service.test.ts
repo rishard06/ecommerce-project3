@@ -46,6 +46,7 @@ interface RowFixture {
   updatedAt: Date;
   rating: number;
   reviews: unknown;
+  _count: { userReviews: number };
   features: string[];
   category: {
     id: string;
@@ -100,6 +101,7 @@ function makeRow(overrides: Partial<RowFixture> = {}): RowFixture {
       },
     ],
     features: ["1 year warranty", "Free shipping", "30 days return policy"],
+    _count: { userReviews: 0 },
     category: {
       id: "cat-1",
       slug: "beauty",
@@ -261,8 +263,26 @@ describe("getActiveProduct", () => {
     await getActiveProduct("dummy-1");
 
     expect(product.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { slug: "dummy-1", status: "ACTIVE" } }),
+      expect.objectContaining({
+        where: { slug: "dummy-1", status: "ACTIVE" },
+        include: expect.objectContaining({
+          _count: { select: { userReviews: true } },
+        }),
+      }),
     );
+  });
+
+  it("counts signed-in customer reviews alongside the seed baseline", async () => {
+    product.findFirst.mockResolvedValue(
+      makeRow({ _count: { userReviews: 3 } }) as never,
+    );
+
+    const detail = await getActiveProduct("dummy-1");
+
+    // Seed reviews render in CustomerReviews; customer reviews render in the
+    // adjacent ReviewList, so only the aggregate count is merged.
+    expect(detail?.reviews).toHaveLength(2);
+    expect(detail?.reviewCount).toBe(5);
   });
 
   it("returns null when an otherwise active product has no variant", async () => {

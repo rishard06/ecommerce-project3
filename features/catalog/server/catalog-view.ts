@@ -18,9 +18,23 @@ export const PRODUCT_INCLUDE = {
   variants: true,
 } as const;
 
+/**
+ * Detail-only include: the aggregate panel counts signed-in customer reviews
+ * alongside the seed reviews, without loading every review row for cards.
+ */
+export const PRODUCT_DETAIL_INCLUDE = {
+  ...PRODUCT_INCLUDE,
+  _count: { select: { userReviews: true } },
+} as const;
+
 /** Row shape returned by every storefront product query. */
 export type CatalogProductRow = Prisma.ProductGetPayload<{
   include: typeof PRODUCT_INCLUDE;
+}>;
+
+/** Row shape returned by product detail reads. */
+export type CatalogProductDetailRow = Prisma.ProductGetPayload<{
+  include: typeof PRODUCT_DETAIL_INCLUDE;
 }>;
 
 /** A purchasable catalog variant as the storefront sees it. */
@@ -145,7 +159,7 @@ export function toSummary(row: CatalogProductRow): StorefrontProductSummary | nu
 }
 
 /** Maps a row to a detail view, or null when the product has no variant. */
-export function toDetail(row: CatalogProductRow): StorefrontProduct | null {
+export function toDetail(row: CatalogProductDetailRow): StorefrontProduct | null {
   const defaultVariant = defaultVariantOf(row);
   if (!defaultVariant) return null;
 
@@ -164,7 +178,9 @@ export function toDetail(row: CatalogProductRow): StorefrontProduct | null {
     images: row.images.map((image) => image.url),
     features: row.features,
     reviews,
-    reviewCount: reviews.length,
+    // Seed reviews render in CustomerReviews; signed-in reviews render in the
+    // adjacent ReviewList, so only the aggregate count is merged here.
+    reviewCount: reviews.length + row._count.userReviews,
     variants: row.variants.map(toVariantView),
     defaultVariant,
   };

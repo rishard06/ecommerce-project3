@@ -9,10 +9,11 @@
 
 import { prisma } from "@/lib/prisma";
 import {
+  PRODUCT_DETAIL_INCLUDE,
   PRODUCT_INCLUDE,
   toDetail,
   toSummary,
-  type CatalogProductRow,
+  type CatalogProductDetailRow,
   type StorefrontProduct,
   type StorefrontProductSummary,
 } from "./catalog-view";
@@ -75,9 +76,9 @@ export async function listActiveProducts(
  * null when the slug is unknown, not ACTIVE, or the product has no variant.
  */
 export async function getActiveProduct(slug: string): Promise<StorefrontProduct | null> {
-  const row: CatalogProductRow | null = await prisma.product.findFirst({
+  const row: CatalogProductDetailRow | null = await prisma.product.findFirst({
     where: { slug, status: "ACTIVE" },
-    include: PRODUCT_INCLUDE,
+    include: PRODUCT_DETAIL_INCLUDE,
   });
 
   if (!row) return null;

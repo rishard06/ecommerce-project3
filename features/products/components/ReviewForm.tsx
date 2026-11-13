@@ -30,7 +30,7 @@ export function ReviewForm({ productSlug }: ReviewFormProps) {
 
     startTransition(async () => {
       try {
-        await submitReview(productSlug, rating, comment, session?.user?.id);
+        await submitReview(productSlug, rating, comment);
         setComment("");
         setRating(5);
         setSubmitted(true);
