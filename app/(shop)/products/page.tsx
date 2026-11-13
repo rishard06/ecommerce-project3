@@ -3,21 +3,31 @@ import Link from "next/link";
 import ProductCard from "@/features/products/components/ProductCard";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getCategories, getProducts } from "@/lib/products";
+import { isSearchSort } from "@/features/products/search";
 import { CategorySidebar } from "@/features/products/components/CategorySidebar";
 
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; skip?: string }>;
+  searchParams: Promise<{
+    category?: string;
+    skip?: string;
+    q?: string;
+    sort?: string;
+  }>;
 }) {
   const params = await searchParams;
   const currentCategory = params.category;
+  const q = params.q?.trim() || undefined;
+  const sort = isSearchSort(params.sort) ? params.sort : undefined;
   const skip = parseInt(params.skip || "0", 10);
   const limit = 20;
 
   const buildHref = (nextSkip: number) => {
     const query = new URLSearchParams();
     if (currentCategory) query.set("category", currentCategory);
+    if (q) query.set("q", q);
+    if (sort) query.set("sort", sort);
     query.set("skip", String(Math.max(0, nextSkip)));
     return `/products?${query.toString()}`;
   };
@@ -25,7 +35,7 @@ export default async function ProductsPage({
   try {
     const [categories, productData] = await Promise.all([
       getCategories(),
-      getProducts(currentCategory, skip, limit),
+      getProducts(currentCategory, skip, limit, { q, sort }),
     ]);
 
     const { products, total } = productData;
@@ -40,7 +50,11 @@ export default async function ProductsPage({
         <div className="glass-component flex w-full flex-col p-5 sm:p-6 lg:w-3/4 md:p-8">
           <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
             <h1 className="text-2xl font-semibold capitalize tracking-tight text-gray-primary md:text-3xl">
-              {currentCategory ? currentCategory.replace(/-/g, " ") : "All products"}
+              {q
+                ? `Results for "${q}"`
+                : currentCategory
+                  ? currentCategory.replace(/-/g, " ")
+                  : "All products"}
             </h1>
             <p className="text-sm font-medium text-gray-tertiary" aria-live="polite">
               Showing {Math.min(skip + 1, total)}–{Math.min(skip + products.length, total)} of{" "}
@@ -66,7 +80,9 @@ export default async function ProductsPage({
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
               <p className="text-lg font-medium text-gray-secondary">
-                No products in this category yet.
+                {q
+                  ? `No products found for "${q}".`
+                  : "No products in this category yet."}
               </p>
               <Link
                 href="/products"

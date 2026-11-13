@@ -10,9 +10,12 @@ import { prisma } from "@/lib/prisma";
 import {
   getActiveProduct,
   getFeatureProducts as queryFeatureProducts,
-  listActiveProducts,
   type ProductPage,
 } from "@/features/catalog/server/storefront-service";
+import {
+  searchProducts,
+  type SearchSort,
+} from "@/features/products/search";
 import type {
   StorefrontProduct,
   StorefrontProductSummary,
@@ -25,6 +28,11 @@ export interface Category {
 
 export type ProductResponse = ProductPage;
 
+export interface ProductListingOptions {
+  q?: string;
+  sort?: SearchSort;
+}
+
 /**
  * Active catalog categories ordered by name.
  */
@@ -36,14 +44,25 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 /**
- * Active products with optional category filtering and pagination.
+ * Active products with optional category, full-text query, sort, and paging.
+ * Search/paging/sort execute in the database; `total` counts every matching
+ * product, not just the returned page.
  */
 export async function getProducts(
   category?: string,
   skip: number = 0,
-  limit: number = 20
+  limit: number = 20,
+  options: ProductListingOptions = {}
 ): Promise<ProductResponse> {
-  return listActiveProducts(category, skip, limit);
+  const { products, total } = await searchProducts({
+    q: options.q,
+    sort: options.sort,
+    category,
+    skip,
+    limit,
+  });
+
+  return { products, total, skip, take: limit };
 }
 
 /**

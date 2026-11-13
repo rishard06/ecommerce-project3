@@ -37,6 +37,7 @@ export default function MobileMenu() {
   const [mounted, setMounted] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartPreviewOpen, setIsCartPreviewOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const cartItems = useCartStore((state) => state.items);
   const favoriteItems = useFavoritesStore((state) => state.items);
@@ -157,7 +158,18 @@ export default function MobileMenu() {
               transition={spring.sheet}
               className="glass-component fixed inset-x-3 top-[4.75rem] z-50 mx-auto flex max-w-md flex-col gap-5 rounded-[1.75rem] p-5 outline-none md:hidden"
             >
-              <div>
+              <form
+                role="search"
+                aria-label="Product search"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const q = searchQuery.trim();
+                  router.push(
+                    q ? `/products?q=${encodeURIComponent(q)}` : "/products",
+                  );
+                  closeMenu();
+                }}
+              >
                 <label htmlFor="mobile-search" className="sr-only">
                   Search products
                 </label>
@@ -165,6 +177,8 @@ export default function MobileMenu() {
                   <Input
                     id="mobile-search"
                     type="search"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
                     placeholder="Search products…"
                     className="h-11 w-full rounded-full border-transparent bg-white/50 pl-10 pr-4 text-sm placeholder:text-gray-quaternary focus-visible:bg-white/80"
                   />
@@ -173,7 +187,7 @@ export default function MobileMenu() {
                     aria-hidden="true"
                   />
                 </div>
-              </div>
+              </form>
 
               <div className="flex items-center justify-between gap-3">
                 <Button
