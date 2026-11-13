@@ -45,3 +45,6 @@ next-env.d.ts
 .gemini/
 gha-creds-*.json
 .superpowers/
+
+# local git worktrees (merge/plan isolation, never commit contents)
+/.worktrees/
