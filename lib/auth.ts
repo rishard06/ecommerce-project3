@@ -10,8 +10,14 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   emailAndPassword: {
-    enabled: true, 
-  }, 
+    enabled: true,
+    // Auto sign-in is Better Auth's default for email/password. It is set
+    // explicitly here so the registration flow (which routes straight to
+    // /account) and this configuration cannot drift apart. Do not move this
+    // option to the top level: Better Auth only reads it under
+    // `emailAndPassword`.
+    autoSignIn: true,
+  },
   ...(githubClientId && githubClientSecret
     ? {
         socialProviders: {
@@ -23,5 +29,4 @@ export const auth = betterAuth({
         },
       }
     : {}),
-  autoSignIn: false, 
 });

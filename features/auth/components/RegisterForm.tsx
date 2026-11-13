@@ -25,7 +25,23 @@ export default function RegisterForm() {
     if (password.length < 8) return setError("Password must be at least 8 characters");
     setLoading(true);
     try {
-      await signUp.email({ email, password, name, callbackURL: "/account" });
+      const { error: signUpError } = await signUp.email({
+        email,
+        password,
+        name,
+        callbackURL: "/account",
+      });
+      if (signUpError) {
+        const apiError = signUpError as unknown as { message?: unknown };
+        setError(
+          typeof apiError.message === "string" && apiError.message.length > 0
+            ? apiError.message
+            : "Registration failed. Please try again.",
+        );
+        return;
+      }
+      // Better Auth's email/password sign-up signs the user in by default
+      // (see `emailAndPassword.autoSignIn` in lib/auth.ts).
       router.push("/account");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
