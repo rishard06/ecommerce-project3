@@ -86,7 +86,6 @@ model Verification {
 enum OrderStatus {
   PENDING
   PAID
-  SHIPPED
   CANCELLED
 }
 

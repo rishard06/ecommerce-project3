@@ -60,7 +60,6 @@ export function StatusPill({
 const orderStatusMeta: Record<OrderStatus, { label: string; tone: Tone }> = {
   PENDING: { label: "Pending payment", tone: "warning" },
   PAID: { label: "Paid", tone: "success" },
-  SHIPPED: { label: "Shipped", tone: "info" },
   CANCELLED: { label: "Cancelled", tone: "danger" },
 };
 

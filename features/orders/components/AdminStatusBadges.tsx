@@ -16,7 +16,6 @@ const orderStatusMeta: Record<
 > = {
   PENDING: { label: "Pending payment", variant: "secondary" },
   PAID: { label: "Paid", variant: "default" },
-  SHIPPED: { label: "Shipped", variant: "secondary" },
   CANCELLED: { label: "Cancelled", variant: "destructive" },
 };
 
