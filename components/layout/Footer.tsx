@@ -56,7 +56,10 @@ const contactInfo: ContactInfo[] = [
 const footerLinks: FooterLink[] = [
   { href: "/terms", label: "Terms of Service" },
   { href: "/privacy", label: "Privacy Policy" },
+  { href: "/shipping", label: "Shipping" },
+  { href: "/returns", label: "Returns" },
   { href: "/faq", label: "FAQ" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export default function Footer() {

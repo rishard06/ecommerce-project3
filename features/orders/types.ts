@@ -6,7 +6,7 @@
  * customer-facing pages.
  */
 
-export type OrderStatus = "PENDING" | "PAID" | "CANCELLED";
+export type OrderStatus = "PENDING" | "PAID" | "SHIPPED" | "CANCELLED";
 
 export type PaymentStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
 

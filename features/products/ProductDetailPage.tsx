@@ -6,6 +6,9 @@ import { ProductInfo } from "./components/ProductInfo";
 import { ProductTabs } from "./components/ProductTabs";
 import { CustomerReviews } from "./components/CustomerReviews";
 import { RelatedProducts } from "./components/RelatedProducts";
+import { ReviewForm } from "./components/ReviewForm";
+import { ReviewList } from "./components/ReviewList";
+import { getProductReviews } from "./actions";
 import { Product } from "./types";
 
 interface ProductDetailPageProps {
@@ -13,7 +16,8 @@ interface ProductDetailPageProps {
   relatedProducts: Partial<Product>[];
 }
 
-export function ProductDetailPage({ product, relatedProducts }: ProductDetailPageProps) {
+export async function ProductDetailPage({ product, relatedProducts }: ProductDetailPageProps) {
+  const storeReviews = await getProductReviews(product.id);
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
       <nav
@@ -52,6 +56,28 @@ export function ProductDetailPage({ product, relatedProducts }: ProductDetailPag
         rating={product.rating}
         totalReviews={product.reviewCount}
       />
+
+      <section aria-label="Store reviews" className="mt-12 space-y-6">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold tracking-tight text-gray-primary">
+            Store reviews
+          </h2>
+          <p className="text-sm text-gray-tertiary">
+            Written by signed-in shoppers of this demo store.
+          </p>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ReviewList
+            reviews={storeReviews.map((review) => ({
+              id: review.id,
+              rating: review.rating,
+              comment: review.comment,
+              createdAt: review.createdAt,
+            }))}
+          />
+          <ReviewForm productSlug={product.id} />
+        </div>
+      </section>
 
       <RelatedProducts products={relatedProducts} />
     </main>

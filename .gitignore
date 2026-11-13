@@ -44,6 +44,7 @@ next-env.d.ts
 
 .gemini/
 gha-creds-*.json
+# agent scaffolding (local only)
 .superpowers/
 
 # local git worktrees (merge/plan isolation, never commit contents)

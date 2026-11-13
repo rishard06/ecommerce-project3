@@ -30,6 +30,8 @@ model User {
   role          Role      @default(CUSTOMER)
   sessions      Session[]
   accounts      Account[]
+  addresses     Address[]
+  reviews       Review[]
   orders        Order[]
 
   @@unique([email])
@@ -84,6 +86,7 @@ model Verification {
 enum OrderStatus {
   PENDING
   PAID
+  SHIPPED
   CANCELLED
 }
 
@@ -245,6 +248,8 @@ model Product {
   rating      Float            @default(0)
   /// Raw seed reviews: [{ rating, comment, date, reviewerName }].
   reviews     Json?
+  /// Signed-in customer reviews stored in the owned catalog.
+  userReviews Review[]
   /// Non-empty policy strings: [warrantyInformation, shippingInformation, returnPolicy].
   features    String[]         @default([])
   createdAt   DateTime         @default(now())
@@ -281,4 +286,35 @@ model ProductVariant {
 
   @@index([productId])
   @@map("product_variant")
+}
+
+model Address {
+  id         String  @id @default(uuid())
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName  String
+  lastName   String
+  address    String
+  city       String
+  postalCode String
+  country    String
+  isDefault  Boolean @default(false)
+
+  @@index([userId])
+  @@map("address")
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  productSlug String
+  product     Product  @relation(fields: [productSlug], references: [slug], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating      Int
+  comment     String
+  createdAt   DateTime @default(now())
+
+  @@unique([productSlug, userId])
+  @@index([productSlug, createdAt])
+  @@map("review")
 }
