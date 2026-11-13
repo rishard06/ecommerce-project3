@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { Star, ShoppingBag, Headphones, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -6,6 +7,7 @@ interface Feature {
   title: string;
   description: string;
   icon: React.ReactNode;
+  href?: string;
 }
 
 const features: Feature[] = [
@@ -20,6 +22,7 @@ const features: Feature[] = [
     description:
       "Orders leave the same day and arrive while the excitement is still fresh.",
     icon: <ShoppingBag className="size-7" aria-hidden="true" />,
+    href: "/shipping",
   },
   {
     title: "24/7 support",
@@ -32,6 +35,7 @@ const features: Feature[] = [
     description:
       "Change your mind within a month — no forms, no interrogation.",
     icon: <CheckCircle className="size-7" aria-hidden="true" />,
+    href: "/returns",
   },
 ];
 
@@ -55,7 +59,16 @@ export default function Features() {
                   {feature.icon}
                 </div>
                 <CardTitle className="text-lg font-semibold tracking-tight text-gray-primary">
-                  {feature.title}
+                  {feature.href ? (
+                    <Link
+                      href={feature.href}
+                      className="underline-offset-4 transition-colors hover:text-accent-700 hover:underline"
+                    >
+                      {feature.title}
+                    </Link>
+                  ) : (
+                    feature.title
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="pb-6">
