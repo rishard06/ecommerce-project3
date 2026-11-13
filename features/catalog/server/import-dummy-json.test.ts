@@ -68,7 +68,7 @@ interface FakeVariant extends Record<string, unknown> {
   productId: string;
 }
 
-interface FakeImage extends Record<string, unknown> {
+interface FakeImage {
   productId: string;
   url: string;
   position: number;
@@ -89,13 +89,9 @@ function createFakeClient(): CatalogImportClient & {
   const newId = () => `fake-id-${++nextId}`;
   let imageDeletes = 0;
 
-  const tx = {
+  const tx: CatalogImportTx = {
     category: {
-      upsert: async (args: {
-        where: { slug: string };
-        create: { slug: string; name: string };
-        update: { name: string };
-      }) => {
+      upsert: async (args) => {
         const existing = categories.get(args.where.slug);
         if (existing) {
           const next = { ...existing, ...args.update };
@@ -108,11 +104,7 @@ function createFakeClient(): CatalogImportClient & {
       },
     },
     product: {
-      upsert: async (args: {
-        where: { slug: string };
-        create: Record<string, unknown> & { slug: string };
-        update: Record<string, unknown>;
-      }) => {
+      upsert: async (args) => {
         const existing = products.get(args.where.slug);
         if (existing) {
           const next = { ...existing, ...args.update } as FakeProduct;
@@ -130,7 +122,7 @@ function createFakeClient(): CatalogImportClient & {
         imageDeletes += 1;
         return { count: 1 };
       },
-      createMany: async (args: { data: FakeImage[] }) => {
+      createMany: async (args) => {
         for (const image of args.data) {
           const list = imagesByProductId.get(image.productId) ?? [];
           list.push(image);
@@ -140,11 +132,7 @@ function createFakeClient(): CatalogImportClient & {
       },
     },
     productVariant: {
-      upsert: async (args: {
-        where: { sku: string };
-        create: Record<string, unknown> & { sku: string };
-        update: Record<string, unknown>;
-      }) => {
+      upsert: async (args) => {
         const existing = variants.get(args.where.sku);
         if (existing) {
           const next = { ...existing, ...args.update } as FakeVariant;
@@ -159,8 +147,10 @@ function createFakeClient(): CatalogImportClient & {
   };
 
   const client: CatalogImportClient = {
-    $transaction: <T>(work: (tx: CatalogImportTx) => Promise<T>): Promise<T> =>
-      work(tx as unknown as CatalogImportTx),
+    category: tx.category,
+    product: tx.product,
+    productImage: tx.productImage,
+    productVariant: tx.productVariant,
   };
 
   return Object.assign(client, {

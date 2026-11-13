@@ -160,9 +160,7 @@ export interface CatalogImportTx {
   };
 }
 
-export interface CatalogImportClient {
-  $transaction<T>(work: (tx: CatalogImportTx) => Promise<T>): Promise<T>;
-}
+export interface CatalogImportClient extends CatalogImportTx {}
 
 /** Default stock for development data imported from DummyJSON. */
 const SEED_ON_HAND = 25;
@@ -214,7 +212,7 @@ export function mapDummyProduct(input: DummyProduct): CatalogSeedProduct {
 
 /**
  * Idempotently import DummyJSON categories + products into the owned catalog
- * (inside a single transaction):
+ * as sequential writes (no interactive transaction):
  * - categories upserted on `Category.slug`;
  * - products upserted on `Product.slug`, with status ACTIVE on create only
  *   (existing products keep their DB status);
@@ -231,92 +229,95 @@ export async function importDummyCatalog(
   const categories = data.categories;
   const products = data.products;
 
-  return client.$transaction(async (tx) => {
-    const categoryIds = new Map<string, { id: string; slug: string }>();
-    for (const category of categories) {
-      categoryIds.set(
-        category.slug,
-        await tx.category.upsert({
-          where: { slug: category.slug },
-          create: { slug: category.slug, name: category.name },
-          update: { name: category.name },
-        }),
-      );
-    }
+  // NOTE: deliberately no interactive $transaction here. The hosted
+  // connection closes interactive transactions at BEGIN (P2028), so every
+  // write below is a sequential idempotent upsert; a rerun safely resumes.
+  // The test fake exposes the same delegates at the top level.
+  const categoryIds = new Map<string, { id: string; slug: string }>();
 
-    for (const product of products) {
-      const seed = mapDummyProduct(product);
-      const category =
-        categoryIds.get(seed.categorySlug) ??
-        (await tx.category.upsert({
-          where: { slug: seed.categorySlug },
-          // Provisional name on create: a slug can carry no display name on its own.
-          create: { slug: seed.categorySlug, name: seed.categorySlug },
-          // Non-destructive on update: never overwrite a managed category name
-          // when the import payload does not define this category.
-          update: {},
-        }));
-      categoryIds.set(seed.categorySlug, category);
+  for (const category of categories) {
+    categoryIds.set(
+      category.slug,
+      await client.category.upsert({
+        where: { slug: category.slug },
+        create: { slug: category.slug, name: category.name },
+        update: { name: category.name },
+      }),
+    );
+  }
 
-      const dbProduct = await tx.product.upsert({
-        where: { slug: seed.slug },
-        create: {
-          slug: seed.slug,
-          title: seed.title,
-          description: seed.description,
-          brand: seed.brand ?? null,
-          status: SEED_PRODUCT_STATUS,
-          categoryId: category.id,
-          rating: seed.rating,
-          reviews: seed.reviews,
-          features: seed.features,
-        },
-        // Existing products keep their DB status; only business fields refresh.
-        update: {
-          title: seed.title,
-          description: seed.description,
-          brand: seed.brand ?? null,
-          categoryId: category.id,
-          rating: seed.rating,
-          reviews: seed.reviews,
-          features: seed.features,
-        },
-      });
+  for (const product of products) {
+    const seed = mapDummyProduct(product);
+    const category =
+      categoryIds.get(seed.categorySlug) ??
+      (await client.category.upsert({
+        where: { slug: seed.categorySlug },
+        // Provisional name on create: a slug can carry no display name on its own.
+        create: { slug: seed.categorySlug, name: seed.categorySlug },
+        // Non-destructive on update: never overwrite a managed category name
+        // when the import payload does not define this category.
+        update: {},
+      }));
+    categoryIds.set(seed.categorySlug, category);
 
-      // Replace images on every run so repeated imports do not duplicate them.
-      await tx.productImage.deleteMany({ where: { productId: dbProduct.id } });
-      if (seed.images.length > 0) {
-        await tx.productImage.createMany({
-          data: seed.images.map((url, position) => ({
-            productId: dbProduct.id,
-            url,
-            position,
-          })),
-        });
-      }
+    const dbProduct = await client.product.upsert({
+      where: { slug: seed.slug },
+      create: {
+        slug: seed.slug,
+        title: seed.title,
+        description: seed.description,
+        brand: seed.brand ?? null,
+        status: SEED_PRODUCT_STATUS,
+        categoryId: category.id,
+        rating: seed.rating,
+        reviews: seed.reviews,
+        features: seed.features,
+      },
+      // Existing products keep their DB status; only business fields refresh.
+      update: {
+        title: seed.title,
+        description: seed.description,
+        brand: seed.brand ?? null,
+        categoryId: category.id,
+        rating: seed.rating,
+        reviews: seed.reviews,
+        features: seed.features,
+      },
+    });
 
-      await tx.productVariant.upsert({
-        where: { sku: seed.sku },
-        create: {
-          sku: seed.sku,
-          name: DEFAULT_VARIANT_NAME,
-          priceCents: seed.priceCents,
-          currency: seed.currency,
-          onHand: seed.onHand,
-          reserved: seed.reserved,
-          isDefault: true,
+    // Replace images on every run so repeated imports do not duplicate them.
+    await client.productImage.deleteMany({ where: { productId: dbProduct.id } });
+    if (seed.images.length > 0) {
+      await client.productImage.createMany({
+        data: seed.images.map((url, position) => ({
           productId: dbProduct.id,
-        },
-        update: {
-          name: DEFAULT_VARIANT_NAME,
-          priceCents: seed.priceCents,
-          currency: seed.currency,
-          onHand: seed.onHand,
-          reserved: seed.reserved,
-        },
+          url,
+          position,
+        })),
       });
     }
 
-    return { categories: categories.length, products: products.length };
-  });
+    await client.productVariant.upsert({
+      where: { sku: seed.sku },
+      create: {
+        sku: seed.sku,
+        name: DEFAULT_VARIANT_NAME,
+        priceCents: seed.priceCents,
+        currency: seed.currency,
+        onHand: seed.onHand,
+        reserved: seed.reserved,
+        isDefault: true,
+        productId: dbProduct.id,
+      },
+      update: {
+        name: DEFAULT_VARIANT_NAME,
+        priceCents: seed.priceCents,
+        currency: seed.currency,
+        onHand: seed.onHand,
+        reserved: seed.reserved,
+      },
+    });
+  }
+
+  return { categories: categories.length, products: products.length };
 }
