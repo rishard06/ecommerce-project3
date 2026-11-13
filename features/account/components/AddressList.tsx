@@ -53,7 +53,7 @@ export function AddressList({ addresses }: { addresses: AddressRow[] }) {
           <li key={address.id} className="glass-component space-y-3 p-5">
             <div className="flex items-center justify-between gap-3">
               <p className="font-semibold text-gray-primary">
-                {address.firstName} {address.lastName}
+                {address.fullName}
               </p>
               {address.isDefault ? (
                 <span className="rounded-full bg-accent-500/60 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-gray-primary">
@@ -62,9 +62,13 @@ export function AddressList({ addresses }: { addresses: AddressRow[] }) {
               ) : null}
             </div>
             <address className="text-sm not-italic leading-relaxed text-gray-tertiary">
-              <span className="block">{address.address}</span>
+              <span className="block">{address.line1}</span>
+              {address.line2 ? (
+                <span className="block">{address.line2}</span>
+              ) : null}
               <span className="block">
-                {address.city}, {address.postalCode}
+                {address.city}
+                {address.region ? `, ${address.region}` : ""} {address.postalCode}
               </span>
               <span className="block">{address.country}</span>
             </address>

@@ -8,22 +8,15 @@ import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/lib/store/cart-store";
 import { getOrderTotals } from "@/lib/pricing";
 import { formatCents } from "@/lib/money";
+import { listAddresses } from "@/features/account/address-actions";
+import type { AddressRow } from "@/features/account/types";
 import { startCheckoutAction } from "../actions";
+import type { ShippingInput } from "../types";
 
-interface ShippingFormState {
-  firstName: string;
-  lastName: string;
-  address: string;
-  city: string;
-  region: string;
-  postalCode: string;
-  country: string;
-}
-
-const EMPTY_SHIPPING: ShippingFormState = {
-  firstName: "",
-  lastName: "",
-  address: "",
+const EMPTY_SHIPPING: Required<ShippingInput> = {
+  fullName: "",
+  line1: "",
+  line2: "",
   city: "",
   region: "",
   postalCode: "",
@@ -40,7 +33,9 @@ export function CheckoutForm() {
   const { totalCents } = getOrderTotals(getTotalPriceCents());
 
   const [shippingInfo, setShippingInfo] =
-    useState<ShippingFormState>(EMPTY_SHIPPING);
+    useState<Required<ShippingInput>>(EMPTY_SHIPPING);
+  const [savedAddresses, setSavedAddresses] = useState<AddressRow[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +46,26 @@ export function CheckoutForm() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Saved addresses are a prefill convenience only. If the shopper is signed
+  // out or the address book is unavailable, manual shipping entry still works.
+  useEffect(() => {
+    let active = true;
+
+    listAddresses()
+      .then((addresses) => {
+        if (active) {
+          setSavedAddresses(addresses);
+        }
+      })
+      .catch(() => {
+        // Manual entry is the fallback; no checkout-blocking error here.
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (!mounted) {
@@ -64,7 +79,36 @@ export function CheckoutForm() {
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
+    setSelectedAddressId("");
     setShippingInfo((previous) => ({ ...previous, [name]: value }));
+  };
+
+  /**
+   * Prefill-only picker: selecting an address copies its ShippingInput fields
+   * into the form. It never submits, and it never writes back to the book.
+   */
+  const handleSavedAddressChange = (
+    event: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const address = savedAddresses.find(
+      (candidate) => candidate.id === event.target.value,
+    );
+
+    setSelectedAddressId(event.target.value);
+
+    if (!address) {
+      return;
+    }
+
+    setShippingInfo({
+      fullName: address.fullName,
+      line1: address.line1,
+      line2: address.line2 ?? "",
+      city: address.city,
+      region: address.region,
+      postalCode: address.postalCode,
+      country: address.country,
+    });
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -77,11 +121,6 @@ export function CheckoutForm() {
     setIsProcessing(true);
     setError(null);
 
-    const fullName = [shippingInfo.firstName, shippingInfo.lastName]
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .join(" ");
-
     try {
       const result = await startCheckoutAction({
         items: items.map((item) => ({
@@ -89,8 +128,9 @@ export function CheckoutForm() {
           quantity: item.quantity,
         })),
         shipping: {
-          fullName,
-          line1: shippingInfo.address.trim(),
+          fullName: shippingInfo.fullName.trim(),
+          line1: shippingInfo.line1.trim(),
+          line2: shippingInfo.line2.trim() || undefined,
           city: shippingInfo.city.trim(),
           region: shippingInfo.region.trim(),
           postalCode: shippingInfo.postalCode.trim(),
@@ -133,59 +173,87 @@ export function CheckoutForm() {
           <ShieldCheck className="text-accent-500 h-6 w-6" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
+        {savedAddresses.length > 0 ? (
+          <div className="mb-6 space-y-2">
             <label
-              htmlFor="firstName"
+              htmlFor="savedAddress"
               className="block text-sm font-bold text-gray-secondary"
             >
-              First Name
+              Use a saved address
             </label>
-            <Input
-              id="firstName"
-              name="firstName"
-              value={shippingInfo.firstName}
-              onChange={handleInputChange}
-              className="h-12 bg-white/60 border-transparent px-4 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40"
-              placeholder="Ryman"
-              autoComplete="given-name"
-              required
-            />
+            <select
+              id="savedAddress"
+              value={selectedAddressId}
+              onChange={handleSavedAddressChange}
+              className="h-12 w-full rounded-xl border-transparent bg-white/60 px-4 text-gray-primary focus-visible:ring-2 focus-visible:ring-accent-500/40"
+            >
+              <option value="">Enter a new address</option>
+              {savedAddresses.map((address) => (
+                <option key={address.id} value={address.id}>
+                  {address.fullName} — {address.line1}, {address.city}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-tertiary">
+              Selecting an address only fills the fields below. Checkout never
+              writes back to your address book.
+            </p>
           </div>
-          <div className="space-y-2">
+        ) : null}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="md:col-span-2 space-y-2">
             <label
-              htmlFor="lastName"
+              htmlFor="fullName"
               className="block text-sm font-bold text-gray-secondary"
             >
-              Last Name
+              Full Name
             </label>
             <Input
-              id="lastName"
-              name="lastName"
-              value={shippingInfo.lastName}
+              id="fullName"
+              name="fullName"
+              value={shippingInfo.fullName}
               onChange={handleInputChange}
               className="h-12 bg-white/60 border-transparent px-4 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40"
-              placeholder="Alex"
-              autoComplete="family-name"
+              placeholder="Ryman Alex"
+              autoComplete="name"
               required
             />
           </div>
           <div className="md:col-span-2 space-y-2">
             <label
-              htmlFor="address"
+              htmlFor="line1"
               className="block text-sm font-bold text-gray-secondary"
             >
-              Address
+              Address Line 1
             </label>
             <Input
-              id="address"
-              name="address"
-              value={shippingInfo.address}
+              id="line1"
+              name="line1"
+              value={shippingInfo.line1}
               onChange={handleInputChange}
               className="h-12 bg-white/60 border-transparent px-4 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40"
-              placeholder="123 Tech Avenue, Silicon Valley"
-              autoComplete="street-address"
+              placeholder="123 Tech Avenue"
+              autoComplete="address-line1"
               required
+            />
+          </div>
+          <div className="md:col-span-2 space-y-2">
+            <label
+              htmlFor="line2"
+              className="block text-sm font-bold text-gray-secondary"
+            >
+              Address Line 2{" "}
+              <span className="font-medium text-gray-tertiary">(optional)</span>
+            </label>
+            <Input
+              id="line2"
+              name="line2"
+              value={shippingInfo.line2}
+              onChange={handleInputChange}
+              className="h-12 bg-white/60 border-transparent px-4 rounded-xl focus-visible:ring-2 focus-visible:ring-accent-500/40"
+              placeholder="Apartment, suite, unit"
+              autoComplete="address-line2"
             />
           </div>
           <div className="space-y-2">

@@ -19,7 +19,7 @@ export default async function AccountPage() {
   try {
     [orders, addresses] = await Promise.all([
       listOrdersForUser(session.user.id),
-      listAddresses(session.user.id),
+      listAddresses(),
     ]);
   } catch (error) {
     dbReady = false;

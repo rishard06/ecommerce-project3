@@ -1,84 +1,148 @@
 "use server";
 
-import { headers } from "next/headers";
-import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/features/identity/server/guards";
+import { addressMutationSchema, addressInputSchema } from "./schemas";
 import type { AddressRow } from "./types";
 
-const addressInputSchema = z.object({
-  firstName: z.string().trim().min(1, "First name is required").max(80),
-  lastName: z.string().trim().min(1, "Last name is required").max(80),
-  address: z.string().trim().min(3, "Street address is required").max(200),
-  city: z.string().trim().min(1, "City is required").max(120),
-  postalCode: z.string().trim().min(1, "Postal code is required").max(30),
-  country: z.string().trim().min(1, "Country is required").max(120),
-  isDefault: z.boolean().optional(),
-});
-
-async function requireUserId(): Promise<string> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
-    throw new Error("Please sign in to manage your addresses.");
-  }
-  return session.user.id;
+function addressData(
+  parsed: ReturnType<typeof addressInputSchema.parse>,
+): Omit<AddressRow, "id" | "userId" | "isDefault"> {
+  return {
+    fullName: parsed.fullName,
+    line1: parsed.line1,
+    line2: parsed.line2 && parsed.line2.length > 0 ? parsed.line2 : null,
+    city: parsed.city,
+    region: parsed.region,
+    postalCode: parsed.postalCode,
+    country: parsed.country,
+  };
 }
 
+/**
+ * Saves an address for the signed-in user. Identity comes only from the
+ * session; a caller-supplied `userId` is stripped by the schema. When the
+ * address is the new default, unsetting the previous default and creating the
+ * row happen in one transaction.
+ */
 export async function saveAddress(data: unknown): Promise<AddressRow> {
-  const userId = await requireUserId();
-  const parsed = addressInputSchema.parse(data);
+  const user = await requireUser();
+  const parsed = addressMutationSchema.parse(data);
 
-  if (parsed.isDefault) {
-    await prisma.address.updateMany({
-      where: { userId },
-      data: { isDefault: false },
+  return prisma.$transaction(async (tx) => {
+    if (parsed.isDefault) {
+      await tx.address.updateMany({
+        where: { userId: user.id },
+        data: { isDefault: false },
+      });
+    }
+
+    return tx.address.create({
+      data: {
+        userId: user.id,
+        ...addressData(parsed),
+        isDefault: parsed.isDefault ?? false,
+      },
     });
-  }
-
-  return prisma.address.create({
-    data: {
-      userId,
-      firstName: parsed.firstName,
-      lastName: parsed.lastName,
-      address: parsed.address,
-      city: parsed.city,
-      postalCode: parsed.postalCode,
-      country: parsed.country,
-      isDefault: parsed.isDefault ?? false,
-    },
   });
 }
 
-export async function deleteAddress(addressId: string) {
-  const userId = await requireUserId();
-  await prisma.address.deleteMany({ where: { id: addressId, userId } });
-  return { success: true as const };
-}
+/**
+ * Lists only the signed-in user's addresses. The caller id is never accepted,
+ * so another user's address book cannot be requested.
+ */
+export async function listAddresses(): Promise<AddressRow[]> {
+  const user = await requireUser();
 
-export async function setDefaultAddress(addressId: string) {
-  const userId = await requireUserId();
-  const existing = await prisma.address.findFirst({
-    where: { id: addressId, userId },
-  });
-  if (!existing) {
-    throw new Error("Address not found.");
-  }
-
-  await prisma.address.updateMany({
-    where: { userId },
-    data: { isDefault: false },
-  });
-  await prisma.address.update({
-    where: { id: addressId },
-    data: { isDefault: true },
-  });
-
-  return { success: true as const };
-}
-
-export async function listAddresses(userId: string): Promise<AddressRow[]> {
   return prisma.address.findMany({
-    where: { userId },
+    where: { userId: user.id },
     orderBy: { isDefault: "desc" },
   });
+}
+
+/**
+ * Updates one of the signed-in user's addresses. The ownership predicate is
+ * part of both the lookup and the update, so another user's row resolves to
+ * "Address not found." without being read or modified.
+ */
+export async function updateAddress(
+  addressId: string,
+  data: unknown,
+): Promise<AddressRow> {
+  const user = await requireUser();
+  const parsed = addressMutationSchema.parse(data);
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.address.findFirst({
+      where: { id: addressId, userId: user.id },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new Error("Address not found.");
+    }
+
+    if (parsed.isDefault) {
+      await tx.address.updateMany({
+        where: { userId: user.id },
+        data: { isDefault: false },
+      });
+    }
+
+    return tx.address.update({
+      where: { id: addressId, userId: user.id },
+      data: {
+        ...addressData(parsed),
+        ...(parsed.isDefault === undefined
+          ? {}
+          : { isDefault: parsed.isDefault }),
+      },
+    });
+  });
+}
+
+/**
+ * Marks one owned address as the default. Unsetting every default and setting
+ * the target happen in one transaction, so a missing target rolls back the
+ * unset step instead of leaving the user without a default.
+ */
+export async function setDefaultAddress(addressId: string) {
+  const user = await requireUser();
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.address.findFirst({
+      where: { id: addressId, userId: user.id },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new Error("Address not found.");
+    }
+
+    await tx.address.updateMany({
+      where: { userId: user.id },
+      data: { isDefault: false },
+    });
+    await tx.address.update({
+      where: { id: addressId, userId: user.id },
+      data: { isDefault: true },
+    });
+
+    return { success: true as const };
+  });
+}
+
+/**
+ * Deletes one owned address. Deleting the default leaves no default address;
+ * that behavior is pinned in `server/addresses.test.ts`. Orders keep their own
+ * scalar shipping snapshot, so deleting an address never mutates an order.
+ */
+export async function deleteAddress(addressId: string) {
+  const user = await requireUser();
+
+  await prisma.address.deleteMany({
+    where: { id: addressId, userId: user.id },
+  });
+
+  return { success: true as const };
 }

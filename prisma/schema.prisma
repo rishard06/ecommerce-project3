@@ -291,10 +291,11 @@ model Address {
   id         String  @id @default(uuid())
   userId     String
   user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  firstName  String
-  lastName   String
-  address    String
+  fullName   String
+  line1      String
+  line2      String?
   city       String
+  region     String
   postalCode String
   country    String
   isDefault  Boolean @default(false)

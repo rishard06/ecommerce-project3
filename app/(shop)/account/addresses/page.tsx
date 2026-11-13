@@ -4,11 +4,11 @@ import { listAddresses } from "@/features/account/address-actions";
 import { requireAccountSession } from "@/features/account/require-session";
 
 export default async function AccountAddressesPage() {
-  const session = await requireAccountSession("/account/addresses");
+  await requireAccountSession("/account/addresses");
   let addresses: Awaited<ReturnType<typeof listAddresses>> = [];
   let dbReady = true;
   try {
-    addresses = await listAddresses(session.user.id);
+    addresses = await listAddresses();
   } catch (error) {
     dbReady = false;
     console.error("Addresses DB unavailable — run prisma migrate + generate:", error);
