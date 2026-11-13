@@ -20,7 +20,7 @@ interface ExpiredReservation {
   orderId: string;
   variantId: string;
   quantity: number;
-  order: { status: "PENDING" | "PAID" | "SHIPPED" | "CANCELLED" };
+  order: { status: "PENDING" | "PAID" | "CANCELLED" };
 }
 
 /**
