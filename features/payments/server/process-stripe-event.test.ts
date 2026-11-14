@@ -10,6 +10,11 @@ import {
 } from "vitest";
 import { PrismaClient } from "@/app/generated/prisma";
 import type Stripe from "stripe";
+import { sendOrderConfirmation } from "@/lib/email/send-order-confirmation";
+
+vi.mock("@/lib/email/send-order-confirmation", () => ({
+  sendOrderConfirmation: vi.fn(),
+}));
 
 /**
  * Loads the disposable test database URL. Tests must never fall back to the
@@ -221,6 +226,7 @@ function checkoutSessionEvent(
 
 beforeEach(async () => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
+  vi.mocked(sendOrderConfirmation).mockReset();
 
   // Foreign-key order matters: children before parents.
   await testPrisma.orderAuditLog.deleteMany();
@@ -333,6 +339,59 @@ describe("processStripeEvent checkout completion", () => {
     expect(state.variant.reserved).toBe(2);
     expect(state.events).toHaveLength(1);
     expect(state.events[0].processedAt).not.toBeNull();
+  });
+});
+
+describe("processStripeEvent order confirmation email", () => {
+  it("sends exactly one confirmation after a paid checkout.session.completed", async () => {
+    const { order } = await createOrderFixture();
+
+    await processStripeEvent(checkoutSessionEvent({ orderId: order.id }));
+
+    expect(sendOrderConfirmation).toHaveBeenCalledTimes(1);
+    expect(sendOrderConfirmation).toHaveBeenCalledWith(order.id);
+  });
+
+  it("does not resend the confirmation when the same event is delivered twice", async () => {
+    const { order } = await createOrderFixture();
+    const event = checkoutSessionEvent({ orderId: order.id });
+
+    await processStripeEvent(event);
+    await processStripeEvent(event);
+
+    expect(sendOrderConfirmation).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not email for an unpaid completed session", async () => {
+    const { order } = await createOrderFixture();
+
+    await processStripeEvent(
+      checkoutSessionEvent({ orderId: order.id, paymentStatus: "unpaid" }),
+    );
+
+    expect(sendOrderConfirmation).not.toHaveBeenCalled();
+  });
+
+  it("does not email for a checkout.session.expired", async () => {
+    const { order } = await createOrderFixture();
+
+    await processStripeEvent(
+      checkoutSessionEvent({ type: "checkout.session.expired", orderId: order.id }),
+    );
+
+    expect(sendOrderConfirmation).not.toHaveBeenCalled();
+  });
+
+  it("does not email for a non-checkout event type", async () => {
+    const { order } = await createOrderFixture();
+
+    await processStripeEvent({
+      ...checkoutSessionEvent({ orderId: order.id }),
+      id: "evt_email_other_type",
+      type: "payment_intent.succeeded",
+    } as Stripe.Event);
+
+    expect(sendOrderConfirmation).not.toHaveBeenCalled();
   });
 });
 

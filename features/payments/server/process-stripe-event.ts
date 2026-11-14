@@ -2,6 +2,7 @@ import type { Prisma } from "@/app/generated/prisma";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { markCheckoutPaid, releaseCheckout } from "./payment-transitions";
+import { sendOrderConfirmation } from "@/lib/email/send-order-confirmation";
 
 function isUniqueConstraintError(error: unknown): boolean {
   return (
@@ -94,6 +95,7 @@ async function applyEvent(
  * all.
  */
 export async function processStripeEvent(event: Stripe.Event): Promise<void> {
+  let paidOrderId: string | null = null;
   try {
     await prisma.$transaction(async (tx) => {
       await tx.webhookEvent.create({
@@ -110,6 +112,21 @@ export async function processStripeEvent(event: Stripe.Event): Promise<void> {
         where: { providerEventId: event.id },
         data: { processedAt: new Date() },
       });
+
+      if (event.type === "checkout.session.completed") {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const orderId =
+          typeof session.metadata?.orderId === "string"
+            ? session.metadata.orderId
+            : null;
+        if (
+          orderId &&
+          (session.payment_status === "paid" ||
+            session.payment_status === "no_payment_required")
+        ) {
+          paidOrderId = orderId;
+        }
+      }
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
@@ -125,5 +142,9 @@ export async function processStripeEvent(event: Stripe.Event): Promise<void> {
     }
 
     throw error;
+  }
+
+  if (paidOrderId) {
+    await sendOrderConfirmation(paidOrderId);
   }
 }
