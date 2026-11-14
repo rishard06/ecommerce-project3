@@ -175,6 +175,12 @@ describe("startCheckoutAction", () => {
     expect(payload.userId).toBeUndefined();
     expect(typeof payload.guestToken).toBe("string");
     expect(createCheckoutSessionMock).toHaveBeenCalled();
+    expect(result).toEqual({
+      success: true,
+      url: CHECKOUT_URL,
+      orderId: "order-1",
+      guestToken: payload.guestToken,
+    });
   });
 
   it("returns Forbidden when the session lacks permission", async () => {

@@ -1,10 +1,9 @@
-import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { CartQuoteError } from "@/features/cart/server/quote-cart";
 import {
   ForbiddenError,
-  getCurrentUser,
+  requireUser,
   UnauthorizedError,
 } from "@/features/identity/server/guards";
 import {
@@ -24,27 +23,23 @@ const checkoutInputSchema = createPendingOrderBaseSchema.omit({
 
 export async function POST(req: Request) {
   try {
-    const user = await getCurrentUser();
+    // SECURITY: ownership comes from the session, never from the request body.
+    // Guests use startCheckoutAction; this legacy endpoint stays authenticated.
+    const user = await requireUser();
 
     const body = await req.json().catch(() => null);
     const { items, shipping, idempotencyKey } = checkoutInputSchema.parse(
       body ?? {},
     );
 
-    const guestToken = user ? undefined : randomUUID();
-
     const { orderId } = await createPendingOrder({
-      userId: user?.id,
-      guestToken,
+      userId: user.id,
       items,
       shipping,
       idempotencyKey,
     });
 
-    return NextResponse.json(
-      { orderId, ...(guestToken ? { guestToken } : {}) },
-      { status: 201 },
-    );
+    return NextResponse.json({ orderId }, { status: 201 });
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
