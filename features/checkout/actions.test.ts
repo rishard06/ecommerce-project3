@@ -31,6 +31,7 @@ vi.mock("@/features/identity/server/guards", () => {
 
   return {
     requireUser: vi.fn(),
+    getCurrentUser: vi.fn(),
     UnauthorizedError: MockUnauthorizedError,
     ForbiddenError: MockForbiddenError,
   };
@@ -70,6 +71,7 @@ vi.mock("@/features/cart/server/quote-cart", async (importOriginal) => {
 
 import {
   ForbiddenError,
+  getCurrentUser,
   requireUser,
   UnauthorizedError,
 } from "@/features/identity/server/guards";
@@ -94,6 +96,7 @@ import {
 import { quoteCheckoutAction, startCheckoutAction } from "./actions";
 
 const requireUserMock = vi.mocked(requireUser);
+const getCurrentUserMock = vi.mocked(getCurrentUser);
 const createPendingOrderMock = vi.mocked(createPendingOrder);
 const createCheckoutSessionMock = vi.mocked(createCheckoutSession);
 const quoteCartMock = vi.mocked(quoteCart);
@@ -151,23 +154,31 @@ const QUOTE: CartQuote = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  getCurrentUserMock.mockResolvedValue(SESSION_USER);
+  requireUserMock.mockResolvedValue(SESSION_USER);
   createPendingOrderMock.mockResolvedValue({ orderId: "order-1" });
   createCheckoutSessionMock.mockResolvedValue({ url: CHECKOUT_URL });
 });
 
 describe("startCheckoutAction", () => {
-  it("returns Unauthorized when there is no session and never creates an order", async () => {
-    requireUserMock.mockRejectedValue(new UnauthorizedError());
+  it("creates guest order with server token when there is no session", async () => {
+    getCurrentUserMock.mockResolvedValue(null);
 
     const result = await startCheckoutAction(INPUT);
 
-    expect(result).toEqual({ success: false, error: "Unauthorized" });
-    expect(createPendingOrderMock).not.toHaveBeenCalled();
-    expect(createCheckoutSessionMock).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    expect(createPendingOrderMock).toHaveBeenCalledTimes(1);
+    const payload = createPendingOrderMock.mock.calls[0][0] as {
+      guestToken?: string;
+      userId?: string;
+    };
+    expect(payload.userId).toBeUndefined();
+    expect(typeof payload.guestToken).toBe("string");
+    expect(createCheckoutSessionMock).toHaveBeenCalled();
   });
 
   it("returns Forbidden when the session lacks permission", async () => {
-    requireUserMock.mockRejectedValue(new ForbiddenError());
+    getCurrentUserMock.mockRejectedValue(new ForbiddenError());
 
     const result = await startCheckoutAction(INPUT);
 
@@ -177,7 +188,7 @@ describe("startCheckoutAction", () => {
   });
 
   it("passes the session user's id even when the caller supplies another user id", async () => {
-    requireUserMock.mockResolvedValue(SESSION_USER);
+    getCurrentUserMock.mockResolvedValue(SESSION_USER);
     createPendingOrderMock.mockResolvedValue({ orderId: "order-1" });
 
     // The attacker smuggles a different userId into both payloads.
@@ -197,6 +208,7 @@ describe("startCheckoutAction", () => {
     expect(createPendingOrderMock).toHaveBeenCalledTimes(1);
     expect(createPendingOrderMock).toHaveBeenCalledWith({
       userId: "owner-1",
+      guestToken: undefined,
       items: [{ variantId: "variant-1", quantity: 2 }],
       shipping: INPUT.shipping,
       idempotencyKey: "key-1",
@@ -209,7 +221,7 @@ describe("startCheckoutAction", () => {
   });
 
   it("starts checkout for the pending order only after creating it", async () => {
-    requireUserMock.mockResolvedValue(SESSION_USER);
+    getCurrentUserMock.mockResolvedValue(SESSION_USER);
 
     const result = await startCheckoutAction(INPUT);
 
@@ -225,7 +237,7 @@ describe("startCheckoutAction", () => {
   });
 
   it("returns a validation error and never creates an order when shipping is invalid", async () => {
-    requireUserMock.mockResolvedValue(SESSION_USER);
+    getCurrentUserMock.mockResolvedValue(SESSION_USER);
 
     const result = await startCheckoutAction({
       ...INPUT,
@@ -238,7 +250,7 @@ describe("startCheckoutAction", () => {
   });
 
   it("returns a validation error and never creates an order when the cart is empty", async () => {
-    requireUserMock.mockResolvedValue(SESSION_USER);
+    getCurrentUserMock.mockResolvedValue(SESSION_USER);
 
     const result = await startCheckoutAction({ ...INPUT, items: [] });
 
@@ -248,7 +260,7 @@ describe("startCheckoutAction", () => {
   });
 
   it("returns a validation error and never creates an order without an idempotency key", async () => {
-    requireUserMock.mockResolvedValue(SESSION_USER);
+    getCurrentUserMock.mockResolvedValue(SESSION_USER);
 
     const result = await startCheckoutAction({ ...INPUT, idempotencyKey: "" });
 
@@ -261,7 +273,7 @@ describe("startCheckoutAction", () => {
   });
 
   it("returns a stock error message when the transaction rejects", async () => {
-    requireUserMock.mockResolvedValue(SESSION_USER);
+    getCurrentUserMock.mockResolvedValue(SESSION_USER);
     createPendingOrderMock.mockRejectedValue(
       new InsufficientStockError("variant-1"),
     );
@@ -276,7 +288,7 @@ describe("startCheckoutAction", () => {
   });
 
   it("returns the quote error message when the cart cannot be priced", async () => {
-    requireUserMock.mockResolvedValue(SESSION_USER);
+    getCurrentUserMock.mockResolvedValue(SESSION_USER);
     createPendingOrderMock.mockRejectedValue(
       new CartQuoteError("Variant variant-1 is not available"),
     );
@@ -291,7 +303,7 @@ describe("startCheckoutAction", () => {
   });
 
   it("returns the safe checkout error when Stripe cannot start a session", async () => {
-    requireUserMock.mockResolvedValue(SESSION_USER);
+    getCurrentUserMock.mockResolvedValue(SESSION_USER);
     createCheckoutSessionMock.mockRejectedValue(
       new CheckoutSessionError("Unable to start checkout"),
     );
@@ -305,7 +317,7 @@ describe("startCheckoutAction", () => {
   });
 
   it("hides unexpected failures behind a generic message", async () => {
-    requireUserMock.mockResolvedValue(SESSION_USER);
+    getCurrentUserMock.mockResolvedValue(SESSION_USER);
     createCheckoutSessionMock.mockRejectedValue(
       new Error("stripe secret sk_test_leaked"),
     );

@@ -1,11 +1,12 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { CartQuoteError, quoteCart } from "@/features/cart/server/quote-cart";
 import type { CartItemInput } from "@/features/cart/types";
 import {
   ForbiddenError,
-  requireUser,
+  getCurrentUser,
   UnauthorizedError,
 } from "@/features/identity/server/guards";
 import {
@@ -14,7 +15,7 @@ import {
 } from "@/features/payments/server/create-checkout-session";
 import {
   createPendingOrder,
-  createPendingOrderInputSchema,
+  createPendingOrderBaseSchema,
   InsufficientStockError,
 } from "./server/create-pending-order";
 import type {
@@ -24,10 +25,14 @@ import type {
 } from "./types";
 
 /**
- * Browser-submitted checkout fields. `userId` is intentionally absent: it is
- * always taken from the authenticated session.
+ * Browser-submitted checkout fields. Identity is never accepted from the
+ * client: authenticated users come from the session, guests get a fresh
+ * server-generated token.
  */
-const checkoutInputSchema = createPendingOrderInputSchema.omit({ userId: true });
+const checkoutInputSchema = createPendingOrderBaseSchema.omit({
+  userId: true,
+  guestToken: true,
+});
 
 /**
  * Prices the cart for the review step. Only `{ variantId, quantity }` is
@@ -59,21 +64,24 @@ export async function quoteCheckoutAction(
 
 /**
  * Creates a pending order and immediately starts a hosted Stripe Checkout
- * session for it. Identity comes only from the session; prices come only from
- * the server-side cart quote. The returned URL is a redirect target, not proof
- * of payment.
+ * session for it. Authenticated identity comes from the session; guests get a
+ * server-generated token. Prices come only from the server-side cart quote.
+ * The returned URL is a redirect target, not proof of payment.
  */
 export async function startCheckoutAction(
   input: CreateOrderActionInput,
 ): Promise<StartCheckoutActionResult> {
   try {
-    // SECURITY: ownership comes from the session, never from the payload.
-    const user = await requireUser();
+    // Authenticated path wins; guests fall through with a fresh token.
+    const user = await getCurrentUser();
 
     const { items, shipping, idempotencyKey } = checkoutInputSchema.parse(input);
 
+    const guestToken = user ? undefined : randomUUID();
+
     const { orderId } = await createPendingOrder({
-      userId: user.id,
+      userId: user?.id,
+      guestToken,
       items,
       shipping,
       idempotencyKey,
@@ -81,7 +89,7 @@ export async function startCheckoutAction(
 
     const { url } = await createCheckoutSession(orderId);
 
-    return { success: true, url, orderId };
+    return { success: true, url, orderId, ...(guestToken ? { guestToken } : {}) };
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return { success: false, error: "Unauthorized" };

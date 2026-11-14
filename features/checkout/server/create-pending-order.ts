@@ -33,9 +33,11 @@ export const shippingInputSchema = z.object({
 /**
  * Full checkout input. `userId` is supplied by the authenticated server
  * context, never by the browser; the cart schema strips any price/title fields.
+ * Guest checkouts supply `guestToken` instead — exactly one identity required.
  */
-export const createPendingOrderInputSchema = z.object({
-  userId: z.string().min(1, "User id is required"),
+export const createPendingOrderBaseSchema = z.object({
+  userId: z.string().min(1, "User id is required").optional(),
+  guestToken: z.string().min(1).max(64).optional(),
   idempotencyKey: z
     .string()
     .min(1, "Idempotency key is required")
@@ -43,6 +45,14 @@ export const createPendingOrderInputSchema = z.object({
   items: cartItemsSchema,
   shipping: shippingInputSchema,
 });
+
+export const createPendingOrderInputSchema = createPendingOrderBaseSchema.refine(
+  (v) => Boolean(v.userId) !== Boolean(v.guestToken),
+  {
+    message: "Exactly one of userId or guestToken is required",
+    path: ["userId"],
+  },
+);
 
 export type CreatePendingOrderInput = z.infer<
   typeof createPendingOrderInputSchema
@@ -58,9 +68,18 @@ function isUniqueConstraintError(error: unknown): boolean {
 }
 
 async function findExistingOrderId(
-  userId: string,
+  userId: string | null | undefined,
   idempotencyKey: string,
+  guestToken?: string | null,
 ): Promise<string | null> {
+  if (guestToken) {
+    const existing = await prisma.order.findUnique({
+      where: { guestToken_idempotencyKey: { guestToken, idempotencyKey } },
+      select: { id: true },
+    });
+    return existing?.id ?? null;
+  }
+  if (!userId) return null;
   const existing = await prisma.order.findUnique({
     where: { userId_idempotencyKey: { userId, idempotencyKey } },
     select: { id: true },
@@ -84,7 +103,7 @@ async function findExistingOrderId(
 export async function createPendingOrder(
   input: CreatePendingOrderInput,
 ): Promise<{ orderId: string }> {
-  const { userId, idempotencyKey, items, shipping } =
+  const { userId, guestToken, idempotencyKey, items, shipping } =
     createPendingOrderInputSchema.parse(input);
 
   try {
@@ -93,8 +112,9 @@ export async function createPendingOrder(
       // even if the catalog can no longer satisfy the same cart.
       const existing = await findOrderIdByIdempotencyKey(
         tx,
-        userId,
+        userId ?? null,
         idempotencyKey,
+        guestToken ?? null,
       );
       if (existing) {
         return { orderId: existing.id };
@@ -109,7 +129,8 @@ export async function createPendingOrder(
       }
 
       const order = await createOrderRecord(tx, {
-        userId,
+        userId: userId ?? null,
+        guestToken: guestToken ?? null,
         idempotencyKey,
         currency: quote.currency,
         subtotalCents: quote.subtotalCents,
@@ -147,8 +168,9 @@ export async function createPendingOrder(
       error instanceof InsufficientStockError
     ) {
       const existingOrderId = await findExistingOrderId(
-        userId,
+        userId ?? null,
         idempotencyKey,
+        guestToken ?? null,
       );
       if (existingOrderId) {
         return { orderId: existingOrderId };

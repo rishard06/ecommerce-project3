@@ -406,3 +406,87 @@ describe("createPendingOrder snapshots", () => {
     }
   });
 });
+
+describe("createPendingOrder guest checkout", () => {
+  it("creates a PENDING order with reservations for a guest token", async () => {
+    const { variant } = await createVariant({ onHand: 5, priceCents: 1999 });
+    const guestToken = nextToken("guest");
+
+    const result = await createPendingOrder({
+      guestToken,
+      items: [{ variantId: variant.id, quantity: 2 }],
+      shipping: SHIPPING,
+      idempotencyKey: "key-guest",
+    });
+
+    const order = await testPrisma.order.findUniqueOrThrow({
+      where: { id: result.orderId },
+      include: { payment: true, reservations: true },
+    });
+
+    expect(order.status).toBe("PENDING");
+    expect(order.userId).toBeNull();
+    expect(order.guestToken).toBe(guestToken);
+    expect(order.idempotencyKey).toBe("key-guest");
+    expect(order.totalCents).toBeGreaterThan(0);
+    expect(order.payment).toMatchObject({ status: "PENDING" });
+    expect(order.reservations).toHaveLength(1);
+    expect(order.reservations[0]).toMatchObject({ status: "ACTIVE" });
+    expect(
+      (
+        await testPrisma.productVariant.findUniqueOrThrow({
+          where: { id: variant.id },
+        })
+      ).reserved,
+    ).toBe(2);
+  });
+
+  it("rejects a request with neither userId nor guestToken", async () => {
+    const { variant } = await createVariant();
+
+    await expect(
+      createPendingOrder({
+        items: [{ variantId: variant.id, quantity: 1 }],
+        shipping: SHIPPING,
+        idempotencyKey: "key-no-identity",
+      }),
+    ).rejects.toThrow(/exactly one/i);
+
+    await expectNoOrderRows();
+  });
+
+  it("rejects a request with both userId and guestToken", async () => {
+    const user = await createUser();
+    const { variant } = await createVariant();
+
+    await expect(
+      createPendingOrder({
+        userId: user.id,
+        guestToken: nextToken("guest"),
+        items: [{ variantId: variant.id, quantity: 1 }],
+        shipping: SHIPPING,
+        idempotencyKey: "key-both-identities",
+      }),
+    ).rejects.toThrow(/exactly one/i);
+
+    await expectNoOrderRows();
+  });
+
+  it("returns the original order for a repeated guest-scoped idempotency key", async () => {
+    const { variant } = await createVariant({ onHand: 2 });
+    const guestToken = nextToken("guest");
+    const input = {
+      guestToken,
+      items: [{ variantId: variant.id, quantity: 2 }],
+      shipping: SHIPPING,
+      idempotencyKey: "key-guest-idempotent",
+    };
+
+    const first = await createPendingOrder(input);
+    const second = await createPendingOrder(input);
+
+    expect(second.orderId).toBe(first.orderId);
+    expect(await testPrisma.order.count()).toBe(1);
+    expect(await testPrisma.reservation.count()).toBe(1);
+  });
+});
