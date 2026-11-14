@@ -28,6 +28,20 @@ export async function sendPasswordResetEmail({
   });
 }
 
+export async function sendVerificationEmail({
+  user,
+  url,
+}: {
+  user: { email: string };
+  url: string;
+}): Promise<void> {
+  await sendEmail({
+    to: user.email,
+    subject: "Verify your email",
+    html: verificationHtml(url),
+  });
+}
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -45,13 +59,7 @@ export const auth = betterAuth({
   emailVerification: {
     sendOnSignUp: false,
     autoSignInAfterVerification: true,
-    sendVerificationEmail: async ({ user, url }) => {
-      await sendEmail({
-        to: user.email,
-        subject: "Verify your email",
-        html: verificationHtml(url),
-      });
-    },
+    sendVerificationEmail: sendVerificationEmail,
   },
   ...(githubClientId && githubClientSecret
     ? {
