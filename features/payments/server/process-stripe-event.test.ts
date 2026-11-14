@@ -79,6 +79,8 @@ interface OrderFixtureOptions {
   paymentSessionId?: string | null;
   paymentStatus?: "PENDING" | "SUCCEEDED" | "CANCELLED" | "FAILED";
   reservationStatus?: "ACTIVE" | "COMMITTED" | "RELEASED";
+  /** When true, the order is created with `userId: null` and a guest token. */
+  guest?: boolean;
 }
 
 /**
@@ -91,16 +93,18 @@ async function createOrderFixture(options: OrderFixtureOptions = {}) {
   const priceCents = options.priceCents ?? 1999;
   const totalCents = priceCents * quantity;
 
-  const user = await testPrisma.user.create({
-    data: {
-      id: `user-${token}`,
-      name: "Test User",
-      email: `user-${token}@example.com`,
-      emailVerified: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
+  const user = options.guest
+    ? null
+    : await testPrisma.user.create({
+        data: {
+          id: `user-${token}`,
+          name: "Test User",
+          email: `user-${token}@example.com`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
 
   const category = await testPrisma.category.create({
     data: { slug: `category-${token}`, name: "Test Category" },
@@ -127,7 +131,8 @@ async function createOrderFixture(options: OrderFixtureOptions = {}) {
 
   const order = await testPrisma.order.create({
     data: {
-      userId: user.id,
+      userId: user?.id ?? null,
+      guestToken: options.guest ? `guest-${token}` : undefined,
       status: "PENDING",
       fulfillmentStatus: "UNFULFILLED",
       currency: "USD",
@@ -716,5 +721,55 @@ describe("processStripeEvent atomicity", () => {
     expect(state.variant.onHand).toBe(10);
     expect(state.variant.reserved).toBe(1);
     expect(state.events).toHaveLength(0);
+  });
+});
+
+describe("guest orders (null userId)", () => {
+  it("marks a guest checkout paid without a user row", async () => {
+    const { order, variant } = await createOrderFixture({ guest: true });
+
+    await processStripeEvent(
+      checkoutSessionEvent({ orderId: order.id, paymentStatus: "paid" }),
+    );
+
+    const state = await loadState(order.id, variant.id);
+    expect(state.order.userId).toBeNull();
+    expect(state.order.status).toBe("PAID");
+    expect(state.payment.status).toBe("SUCCEEDED");
+    expect(state.reservations[0].status).toBe("COMMITTED");
+    expect(state.variant.onHand).toBe(8);
+    expect(state.variant.reserved).toBe(0);
+  });
+
+  it("writes a null-actor audit marker when a guest payment arrives after release", async () => {
+    const { order, variant } = await createOrderFixture({
+      guest: true,
+      onHand: 10,
+      reserved: 0,
+      reservationStatus: "RELEASED",
+    });
+
+    await processStripeEvent(
+      checkoutSessionEvent({ orderId: order.id, paymentStatus: "paid" }),
+    );
+
+    const state = await loadState(order.id, variant.id);
+    expect(state.order.userId).toBeNull();
+    expect(state.order.status).toBe("PENDING");
+    expect(state.payment.status).toBe("PENDING");
+
+    const markers = await testPrisma.orderAuditLog.findMany({
+      where: { orderId: order.id },
+    });
+    expect(markers).toHaveLength(1);
+    expect(markers[0]).toMatchObject({
+      action: "PAYMENT_AFTER_RELEASE",
+      actorId: null,
+      fromStatus: "PENDING",
+      toStatus: "PENDING",
+    });
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining(order.id),
+    );
   });
 });
