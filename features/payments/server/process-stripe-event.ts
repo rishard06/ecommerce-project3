@@ -30,12 +30,12 @@ function getPaymentIntentId(
 async function applyEvent(
   event: Stripe.Event,
   tx: Prisma.TransactionClient,
-): Promise<void> {
+): Promise<string | null> {
   if (
     event.type !== "checkout.session.completed" &&
     event.type !== "checkout.session.expired"
   ) {
-    return;
+    return null;
   }
 
   const session = event.data.object as Stripe.Checkout.Session;
@@ -45,7 +45,7 @@ async function applyEvent(
     console.warn(
       `Stripe webhook ${event.id} (${event.type}) has no metadata.orderId; ignoring.`,
     );
-    return;
+    return null;
   }
 
   const order = await tx.order.findUnique({
@@ -57,12 +57,12 @@ async function applyEvent(
     console.warn(
       `Stripe webhook ${event.id} (${event.type}) references an unknown order; ignoring.`,
     );
-    return;
+    return null;
   }
 
   if (event.type === "checkout.session.expired") {
     await releaseCheckout(orderId, tx);
-    return;
+    return null;
   }
 
   // A completed session only means the customer finished the flow. Payment is
@@ -71,10 +71,10 @@ async function applyEvent(
     session.payment_status !== "paid" &&
     session.payment_status !== "no_payment_required"
   ) {
-    return;
+    return null;
   }
 
-  await markCheckoutPaid(orderId, session.id, tx);
+  const paid = await markCheckoutPaid(orderId, session.id, tx);
 
   const paymentIntentId = getPaymentIntentId(session.payment_intent);
   if (paymentIntentId) {
@@ -83,6 +83,11 @@ async function applyEvent(
       data: { providerPaymentIntentId: paymentIntentId },
     });
   }
+
+  // Report the order id only when the order actually transitioned to PAID.
+  // No-pay exits (already paid, cancelled, released hold) must not trigger a
+  // confirmation email.
+  return paid ? orderId : null;
 }
 
 /**
@@ -106,27 +111,12 @@ export async function processStripeEvent(event: Stripe.Event): Promise<void> {
         },
       });
 
-      await applyEvent(event, tx);
+      paidOrderId = await applyEvent(event, tx);
 
       await tx.webhookEvent.update({
         where: { providerEventId: event.id },
         data: { processedAt: new Date() },
       });
-
-      if (event.type === "checkout.session.completed") {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const orderId =
-          typeof session.metadata?.orderId === "string"
-            ? session.metadata.orderId
-            : null;
-        if (
-          orderId &&
-          (session.payment_status === "paid" ||
-            session.payment_status === "no_payment_required")
-        ) {
-          paidOrderId = orderId;
-        }
-      }
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {

@@ -607,6 +607,10 @@ describe("payment transition cleanup races", () => {
       checkoutSessionEvent({ orderId: order.id, paymentStatus: "paid" }),
     );
 
+    // The payment was not actually recorded (cancelled order stays unpaid), so
+    // no confirmation email may go out for a charge that requires manual refund.
+    expect(sendOrderConfirmation).not.toHaveBeenCalled();
+
     const state = await loadState(order.id, variant.id);
     expect(state.order.status).toBe("CANCELLED");
     expect(state.payment.status).toBe("CANCELLED");
