@@ -29,7 +29,14 @@ export interface PublicEnv {
 }
 
 const requiredString = z.string().trim().min(1);
-const optionalString = z.string().trim().min(1).optional();
+// Optional strings treat an empty string as "not set", matching how the
+// `.env.example` ships `RESEND_API_KEY=""` and how the email client treats
+// `""` as absent. Without this, `parseServerEnv(process.env)` would throw
+// against the documented default.
+const optionalString = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().trim().min(1).optional(),
+);
 const requiredUrl = z.string().trim().url();
 const optionalUrl = z.string().trim().url().optional();
 

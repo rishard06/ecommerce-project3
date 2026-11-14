@@ -118,6 +118,17 @@ describe("parseServerEnv", () => {
       expect(message).not.toContain("test-github-client-id");
     }
   });
+
+  it("treats_empty_optional_email_values_as_absent", () => {
+    const env = parseServerEnv({
+      ...VALID_SERVER_ENV,
+      RESEND_API_KEY: "",
+      EMAIL_FROM: "",
+    });
+
+    expect(env.RESEND_API_KEY).toBeUndefined();
+    expect(env.EMAIL_FROM).toBeUndefined();
+  });
 });
 
 describe("parsePublicEnv", () => {
