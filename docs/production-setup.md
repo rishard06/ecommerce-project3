@@ -58,6 +58,8 @@ Next.js only (and overrides `.env`), so keep database URLs and secrets in
 | `STRIPE_SECRET_KEY` | **Required** (server) | Server-side Stripe key used to create Checkout sessions and verify webhooks. Use `sk_test_...` locally, `sk_live_...` only in production. | `sk_test_your-secret-key` |
 | `STRIPE_WEBHOOK_SECRET` | **Required** (server) | Signing secret for the `/api/webhooks/stripe` endpoint. Locally this is the `whsec_...` printed by `stripe listen`; in production it comes from the dashboard endpoint. | `whsec_your-webhook-signing-secret` |
 | `CRON_SECRET` | **Required** (server) | Bearer secret that authenticates the Vercel Cron call to `/api/cron/release-reservations`. | `replace-with-a-random-cron-secret` |
+| `RESEND_API_KEY` | Optional (server) | Resend API key for order-confirmation + auth emails. When unset, emails use the dev-log fallback; set in production to send. | `re_your-api-key` |
+| `EMAIL_FROM` | Optional (server) | Sender address for order-confirmation + auth emails. When unset, defaults to the app fallback; set in production. | `venn. <orders@example.com>` |
 | `NEXT_PUBLIC_APP_URL` | Optional (public) | Base URL used for Stripe success/cancel redirects. Defaults to `http://localhost:3000` when unset. | `https://store.example.com` |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Optional (public) | Publishable key. Hosted Checkout does not read it today; it is reserved for client-side Stripe.js. | `pk_test_your-publishable-key` |
 | `DATABASE_URL_TEST` | Test-only (required for `npm test`) | Disposable database used by the database-backed suites. Must differ from `DATABASE_URL`; the suites refuse to run if they match. | `postgresql://postgres:postgres@localhost:5432/ecommerce_test` |

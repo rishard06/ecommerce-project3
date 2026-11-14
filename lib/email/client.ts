@@ -4,6 +4,8 @@
  * All failures throw plain Errors with safe messages.
  */
 
+import { getServerEnv } from "../env";
+
 export interface SendEmailInput {
   to: string;
   subject: string;
@@ -11,12 +13,29 @@ export interface SendEmailInput {
   from?: string;
 }
 
+/**
+ * Reads the Resend key through the validated server env schema so the
+ * `""` → absent normalization in `lib/env.ts` applies at runtime.
+ * Falls back to a normalized raw read when the full server schema is not
+ * satisfied (e.g. unit tests stubbing only email vars), preserving the
+ * dev fallback: absent/empty key means log + deterministic dev id.
+ */
 function getResendKey(): string | undefined {
-  return process.env.RESEND_API_KEY;
+  try {
+    return getServerEnv().RESEND_API_KEY;
+  } catch {
+    const raw = process.env.RESEND_API_KEY;
+    return raw === "" ? undefined : raw;
+  }
 }
 
 function getDefaultFrom(): string {
-  return process.env.EMAIL_FROM ?? "venn. <orders@example.com>";
+  try {
+    return getServerEnv().EMAIL_FROM ?? "venn. <orders@example.com>";
+  } catch {
+    const raw = process.env.EMAIL_FROM;
+    return (raw === "" ? undefined : raw) ?? "venn. <orders@example.com>";
+  }
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<{ id: string }> {

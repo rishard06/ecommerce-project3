@@ -66,4 +66,28 @@ describe("sendEmail", () => {
     });
     expect(result.id).toMatch(/^dev-/);
   });
+
+  it("treats_empty_email_from_as_absent_at_consumer_level", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test_key");
+    vi.stubEnv("EMAIL_FROM", "");
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ id: "email-123" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
+
+    await sendEmail({
+      to: "a@example.com",
+      subject: "Hi",
+      html: "<p>Hi</p>",
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(JSON.parse(init.body as string).from).toBe(
+      "venn. <orders@example.com>",
+    );
+  });
 });

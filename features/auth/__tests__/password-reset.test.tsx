@@ -94,6 +94,27 @@ describe("password reset", () => {
     ).toBeDefined();
   });
 
+  it("forgot_form_shows_uniform_confirmation_on_backend_error", async () => {
+    mocks.requestPasswordReset.mockResolvedValueOnce({
+      data: null,
+      error: { message: "User not found" },
+    });
+
+    render(createElement(ForgotPasswordForm));
+    fireEvent.change(screen.getByPlaceholderText("you@example.com"), {
+      target: { value: "unknown@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Check your email for a reset link."),
+      ).toBeDefined();
+    });
+    // Backend error text must never leak into the UI (no oracle).
+    expect(screen.queryByText("User not found")).toBeNull();
+  });
+
   it("reset_form_consumes_token_single_use_and_redirects_to_login", async () => {
     render(createElement(ResetPasswordForm));
     fireEvent.change(screen.getByPlaceholderText("New password (8+ chars)"), {
