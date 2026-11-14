@@ -16,6 +16,8 @@ export interface ServerEnv {
   STRIPE_WEBHOOK_SECRET: string;
   /** Shared bearer secret that authenticates Vercel Cron requests. */
   CRON_SECRET: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
 }
 
 /**
@@ -41,6 +43,8 @@ const serverEnvSchema: z.ZodType<ServerEnv> = z.object({
   STRIPE_SECRET_KEY: requiredString,
   STRIPE_WEBHOOK_SECRET: requiredString,
   CRON_SECRET: requiredString,
+  RESEND_API_KEY: optionalString,
+  EMAIL_FROM: optionalString,
 });
 
 const publicEnvSchema: z.ZodType<PublicEnv> = z.object({
