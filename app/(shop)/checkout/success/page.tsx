@@ -7,11 +7,8 @@ import {
   ReceiptText,
   XCircle,
 } from "lucide-react";
-import {
-  requireUser,
-  UnauthorizedError,
-} from "@/features/identity/server/guards";
-import { getOrderForUser } from "@/features/orders/server/customer-order-service";
+import { getCurrentUser } from "@/features/identity/server/guards";
+import { getOrderForViewer } from "@/features/orders/server/customer-order-service";
 import {
   FulfillmentStatusPill,
   OrderStatusPill,
@@ -32,29 +29,29 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 export default async function CheckoutSuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ orderId?: string | string[] }>;
+  searchParams: Promise<{ orderId?: string | string[]; token?: string | string[] }>;
 }) {
-  const user = await requireUser().catch((error: unknown) => {
-    if (error instanceof UnauthorizedError) {
-      return null;
-    }
-    throw error;
-  });
-
-  if (!user) {
-    redirect("/login");
-  }
+  const user = await getCurrentUser();
 
   const params = await searchParams;
   const orderId = typeof params.orderId === "string" ? params.orderId : null;
+  const token = typeof params.token === "string" ? params.token : null;
 
   if (!orderId) {
     notFound();
   }
 
-  const order = await getOrderForUser(orderId, user.id);
+  const order = await getOrderForViewer(orderId, {
+    userId: user?.id ?? null,
+    guestToken: token,
+  });
 
   if (!order) {
+    // Preserve legacy behavior: authed users without access go to login only
+    // when completely unauthenticated; otherwise 404 to avoid leaking ids.
+    if (!user && !token) {
+      redirect("/login");
+    }
     notFound();
   }
 
@@ -176,7 +173,11 @@ export default async function CheckoutSuccessPage({
             Continue shopping
           </Link>
           <Link
-            href={`/orders/${order.id}`}
+            href={
+              token
+                ? `/orders/${order.id}?token=${encodeURIComponent(token)}`
+                : `/orders/${order.id}`
+            }
             className="group inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-accent-500 px-6 text-sm font-semibold text-gray-primary shadow-soft transition-colors hover:bg-accent-600 sm:w-auto"
           >
             View order details
@@ -191,7 +192,11 @@ export default async function CheckoutSuccessPage({
           <p className="mt-5 text-center text-xs font-medium leading-relaxed text-gray-quaternary">
             You can safely{" "}
             <Link
-              href={`/checkout/success?orderId=${encodeURIComponent(order.id)}`}
+              href={
+                token
+                  ? `/checkout/success?orderId=${encodeURIComponent(order.id)}&token=${encodeURIComponent(token)}`
+                  : `/checkout/success?orderId=${encodeURIComponent(order.id)}`
+              }
               className="underline underline-offset-2 transition-colors hover:text-gray-primary"
             >
               check this page again

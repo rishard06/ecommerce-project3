@@ -8,7 +8,7 @@ import {
 } from "@/features/identity/server/guards";
 import {
   createPendingOrder,
-  createPendingOrderInputSchema,
+  createPendingOrderBaseSchema,
   InsufficientStockError,
 } from "@/features/checkout/server/create-pending-order";
 
@@ -16,11 +16,15 @@ import {
  * Legacy JSON checkout entry point. It shares the transactional order service
  * with the server action so every order path creates stock reservations.
  */
-const checkoutInputSchema = createPendingOrderInputSchema.omit({ userId: true });
+const checkoutInputSchema = createPendingOrderBaseSchema.omit({
+  userId: true,
+  guestToken: true,
+});
 
 export async function POST(req: Request) {
   try {
     // SECURITY: ownership comes from the session, never from the request body.
+    // Guests use startCheckoutAction; this legacy endpoint stays authenticated.
     const user = await requireUser();
 
     const body = await req.json().catch(() => null);

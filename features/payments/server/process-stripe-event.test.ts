@@ -10,6 +10,11 @@ import {
 } from "vitest";
 import { PrismaClient } from "@/app/generated/prisma";
 import type Stripe from "stripe";
+import { sendOrderConfirmation } from "@/lib/email/send-order-confirmation";
+
+vi.mock("@/lib/email/send-order-confirmation", () => ({
+  sendOrderConfirmation: vi.fn(),
+}));
 
 /**
  * Loads the disposable test database URL. Tests must never fall back to the
@@ -74,6 +79,8 @@ interface OrderFixtureOptions {
   paymentSessionId?: string | null;
   paymentStatus?: "PENDING" | "SUCCEEDED" | "CANCELLED" | "FAILED";
   reservationStatus?: "ACTIVE" | "COMMITTED" | "RELEASED";
+  /** When true, the order is created with `userId: null` and a guest token. */
+  guest?: boolean;
 }
 
 /**
@@ -86,16 +93,18 @@ async function createOrderFixture(options: OrderFixtureOptions = {}) {
   const priceCents = options.priceCents ?? 1999;
   const totalCents = priceCents * quantity;
 
-  const user = await testPrisma.user.create({
-    data: {
-      id: `user-${token}`,
-      name: "Test User",
-      email: `user-${token}@example.com`,
-      emailVerified: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
+  const user = options.guest
+    ? null
+    : await testPrisma.user.create({
+        data: {
+          id: `user-${token}`,
+          name: "Test User",
+          email: `user-${token}@example.com`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
 
   const category = await testPrisma.category.create({
     data: { slug: `category-${token}`, name: "Test Category" },
@@ -122,7 +131,8 @@ async function createOrderFixture(options: OrderFixtureOptions = {}) {
 
   const order = await testPrisma.order.create({
     data: {
-      userId: user.id,
+      userId: user?.id ?? null,
+      guestToken: options.guest ? `guest-${token}` : undefined,
       status: "PENDING",
       fulfillmentStatus: "UNFULFILLED",
       currency: "USD",
@@ -221,6 +231,7 @@ function checkoutSessionEvent(
 
 beforeEach(async () => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
+  vi.mocked(sendOrderConfirmation).mockReset();
 
   // Foreign-key order matters: children before parents.
   await testPrisma.orderAuditLog.deleteMany();
@@ -333,6 +344,59 @@ describe("processStripeEvent checkout completion", () => {
     expect(state.variant.reserved).toBe(2);
     expect(state.events).toHaveLength(1);
     expect(state.events[0].processedAt).not.toBeNull();
+  });
+});
+
+describe("processStripeEvent order confirmation email", () => {
+  it("sends exactly one confirmation after a paid checkout.session.completed", async () => {
+    const { order } = await createOrderFixture();
+
+    await processStripeEvent(checkoutSessionEvent({ orderId: order.id }));
+
+    expect(sendOrderConfirmation).toHaveBeenCalledTimes(1);
+    expect(sendOrderConfirmation).toHaveBeenCalledWith(order.id);
+  });
+
+  it("does not resend the confirmation when the same event is delivered twice", async () => {
+    const { order } = await createOrderFixture();
+    const event = checkoutSessionEvent({ orderId: order.id });
+
+    await processStripeEvent(event);
+    await processStripeEvent(event);
+
+    expect(sendOrderConfirmation).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not email for an unpaid completed session", async () => {
+    const { order } = await createOrderFixture();
+
+    await processStripeEvent(
+      checkoutSessionEvent({ orderId: order.id, paymentStatus: "unpaid" }),
+    );
+
+    expect(sendOrderConfirmation).not.toHaveBeenCalled();
+  });
+
+  it("does not email for a checkout.session.expired", async () => {
+    const { order } = await createOrderFixture();
+
+    await processStripeEvent(
+      checkoutSessionEvent({ type: "checkout.session.expired", orderId: order.id }),
+    );
+
+    expect(sendOrderConfirmation).not.toHaveBeenCalled();
+  });
+
+  it("does not email for a non-checkout event type", async () => {
+    const { order } = await createOrderFixture();
+
+    await processStripeEvent({
+      ...checkoutSessionEvent({ orderId: order.id }),
+      id: "evt_email_other_type",
+      type: "payment_intent.succeeded",
+    } as Stripe.Event);
+
+    expect(sendOrderConfirmation).not.toHaveBeenCalled();
   });
 });
 
@@ -548,6 +612,10 @@ describe("payment transition cleanup races", () => {
       checkoutSessionEvent({ orderId: order.id, paymentStatus: "paid" }),
     );
 
+    // The payment was not actually recorded (cancelled order stays unpaid), so
+    // no confirmation email may go out for a charge that requires manual refund.
+    expect(sendOrderConfirmation).not.toHaveBeenCalled();
+
     const state = await loadState(order.id, variant.id);
     expect(state.order.status).toBe("CANCELLED");
     expect(state.payment.status).toBe("CANCELLED");
@@ -653,5 +721,55 @@ describe("processStripeEvent atomicity", () => {
     expect(state.variant.onHand).toBe(10);
     expect(state.variant.reserved).toBe(1);
     expect(state.events).toHaveLength(0);
+  });
+});
+
+describe("guest orders (null userId)", () => {
+  it("marks a guest checkout paid without a user row", async () => {
+    const { order, variant } = await createOrderFixture({ guest: true });
+
+    await processStripeEvent(
+      checkoutSessionEvent({ orderId: order.id, paymentStatus: "paid" }),
+    );
+
+    const state = await loadState(order.id, variant.id);
+    expect(state.order.userId).toBeNull();
+    expect(state.order.status).toBe("PAID");
+    expect(state.payment.status).toBe("SUCCEEDED");
+    expect(state.reservations[0].status).toBe("COMMITTED");
+    expect(state.variant.onHand).toBe(8);
+    expect(state.variant.reserved).toBe(0);
+  });
+
+  it("writes a null-actor audit marker when a guest payment arrives after release", async () => {
+    const { order, variant } = await createOrderFixture({
+      guest: true,
+      onHand: 10,
+      reserved: 0,
+      reservationStatus: "RELEASED",
+    });
+
+    await processStripeEvent(
+      checkoutSessionEvent({ orderId: order.id, paymentStatus: "paid" }),
+    );
+
+    const state = await loadState(order.id, variant.id);
+    expect(state.order.userId).toBeNull();
+    expect(state.order.status).toBe("PENDING");
+    expect(state.payment.status).toBe("PENDING");
+
+    const markers = await testPrisma.orderAuditLog.findMany({
+      where: { orderId: order.id },
+    });
+    expect(markers).toHaveLength(1);
+    expect(markers[0]).toMatchObject({
+      action: "PAYMENT_AFTER_RELEASE",
+      actorId: null,
+      fromStatus: "PENDING",
+      toStatus: "PENDING",
+    });
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining(order.id),
+    );
   });
 });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { KeyRound, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { LogoutButton } from "@/features/account/components/LogoutButton";
+import { ResendVerificationButton } from "@/features/auth/components/ResendVerificationButton";
 import { requireAccountSession } from "@/features/account/require-session";
 
 export default async function AccountSettingsPage() {
@@ -46,6 +47,10 @@ export default async function AccountSettingsPage() {
               <dd className="font-semibold text-gray-primary">
                 {session.user.emailVerified ? "Verified" : "Not verified"}
               </dd>
+              <ResendVerificationButton
+                email={session.user.email}
+                emailVerified={session.user.emailVerified}
+              />
             </div>
           </div>
         </dl>

@@ -16,6 +16,8 @@ export interface ServerEnv {
   STRIPE_WEBHOOK_SECRET: string;
   /** Shared bearer secret that authenticates Vercel Cron requests. */
   CRON_SECRET: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
 }
 
 /**
@@ -27,11 +29,18 @@ export interface PublicEnv {
 }
 
 const requiredString = z.string().trim().min(1);
-const optionalString = z.string().trim().min(1).optional();
+// Optional strings treat an empty string as "not set", matching how the
+// `.env.example` ships `RESEND_API_KEY=""` and how the email client treats
+// `""` as absent. Without this, `parseServerEnv(process.env)` would throw
+// against the documented default.
+const optionalString = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().trim().min(1).optional(),
+);
 const requiredUrl = z.string().trim().url();
 const optionalUrl = z.string().trim().url().optional();
 
-const serverEnvSchema: z.ZodType<ServerEnv> = z.object({
+const serverEnvSchema: z.ZodType<ServerEnv, z.ZodTypeDef, unknown> = z.object({
   // Prisma connection strings are not required to be http(s) URLs.
   DATABASE_URL: requiredString,
   BETTER_AUTH_SECRET: requiredString,
@@ -41,9 +50,11 @@ const serverEnvSchema: z.ZodType<ServerEnv> = z.object({
   STRIPE_SECRET_KEY: requiredString,
   STRIPE_WEBHOOK_SECRET: requiredString,
   CRON_SECRET: requiredString,
+  RESEND_API_KEY: optionalString,
+  EMAIL_FROM: optionalString,
 });
 
-const publicEnvSchema: z.ZodType<PublicEnv> = z.object({
+const publicEnvSchema: z.ZodType<PublicEnv, z.ZodTypeDef, unknown> = z.object({
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
   NEXT_PUBLIC_APP_URL: optionalUrl,
 });

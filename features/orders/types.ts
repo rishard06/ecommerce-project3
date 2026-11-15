@@ -93,7 +93,8 @@ export interface CreateOrderItemInput {
 
 /** Input accepted by the order-record repository helper. */
 export interface CreateOrderRecordInput {
-  userId: string;
+  userId?: string | null;
+  guestToken?: string | null;
   idempotencyKey: string;
   currency: string;
   subtotalCents: number;

@@ -17,9 +17,17 @@ import {
 /** Returns the order created for a user's idempotency key, with its items. */
 export async function findOrderIdByIdempotencyKey(
   tx: Prisma.TransactionClient,
-  userId: string,
+  userId: string | null | undefined,
   idempotencyKey: string,
+  guestToken?: string | null,
 ) {
+  if (guestToken) {
+    return tx.order.findUnique({
+      where: { guestToken_idempotencyKey: { guestToken, idempotencyKey } },
+      include: { items: true },
+    });
+  }
+  if (!userId) return null;
   return tx.order.findUnique({
     where: { userId_idempotencyKey: { userId, idempotencyKey } },
     include: { items: true },
@@ -55,7 +63,8 @@ export async function createOrderRecord(
 ) {
   return tx.order.create({
     data: {
-      userId: input.userId,
+      userId: input.userId ?? null,
+      guestToken: input.guestToken ?? null,
       status: "PENDING",
       fulfillmentStatus: "UNFULFILLED",
       currency: input.currency,

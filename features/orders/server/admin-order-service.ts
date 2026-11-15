@@ -190,7 +190,7 @@ export async function listOrdersForAdmin(): Promise<AdminOrderSummary[]> {
     createdAt: order.createdAt,
     status: order.status,
     fulfillmentStatus: order.fulfillmentStatus,
-    customerEmail: order.user.email,
+    customerEmail: order.user?.email ?? "guest",
     currency: order.currency,
     subtotalCents: order.subtotalCents,
     shippingCents: order.shippingCents,
@@ -252,7 +252,7 @@ export async function getOrderForAdmin(
     shippingCents: order.shippingCents,
     taxCents: order.taxCents,
     totalCents: order.totalCents,
-    customerEmail: order.user.email,
+    customerEmail: order.user?.email ?? "guest",
     items,
     shipping,
     payment: order.payment

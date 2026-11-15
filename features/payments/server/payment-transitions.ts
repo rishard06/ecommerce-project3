@@ -50,24 +50,29 @@ export function sortReservationsForClaim<
  * The order remains `UNFULFILLED` — fulfillment is a separate concern that a
  * payment webhook must never advance. Repeated calls for an already-paid order
  * remain successful no-ops.
+ *
+ * Returns `true` only when the order was actually transitioned to `PAID`. The
+ * no-pay exits (already paid, cancelled, released hold, or a no-op) return
+ * `false`, so callers can distinguish a real transition from a replay or a
+ * payment that must be manually refunded.
  */
 export async function markCheckoutPaid(
   orderId: string,
   sessionId: string,
   db: TransitionClient = prisma,
-): Promise<void> {
+): Promise<boolean> {
   const order = await db.order.findUnique({
     where: { id: orderId },
     include: { reservations: true },
   });
 
   if (!order) {
-    return;
+    return false;
   }
 
   // A replay for an already-paid order is an idempotent no-op.
   if (order.status === "PAID") {
-    return;
+    return false;
   }
 
   // Payment arrived after cancellation (expired checkout or cleanup). The
@@ -86,7 +91,7 @@ export async function markCheckoutPaid(
         toStatus: order.status,
       },
     });
-    return;
+    return false;
   }
 
   const reservations = sortReservationsForClaim(order.reservations);
@@ -94,7 +99,7 @@ export async function markCheckoutPaid(
     reservations.length > 0 &&
     reservations.every((reservation) => reservation.status === "COMMITTED")
   ) {
-    return;
+    return false;
   }
 
   // Cleanup already reclaimed this hold. Payment arrived too late for the
@@ -113,7 +118,7 @@ export async function markCheckoutPaid(
         toStatus: order.status,
       },
     });
-    return;
+    return false;
   }
 
   for (const reservation of reservations) {
@@ -183,6 +188,8 @@ export async function markCheckoutPaid(
   if (orderUpdated.count !== 1) {
     throw new PaymentTransitionError("Unable to mark order paid");
   }
+
+  return true;
 }
 
 /**

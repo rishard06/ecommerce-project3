@@ -8,10 +8,9 @@ import {
   Package,
 } from "lucide-react";
 import {
-  requireUser,
-  UnauthorizedError,
+  getCurrentUser,
 } from "@/features/identity/server/guards";
-import { getOrderForUser } from "@/features/orders/server/customer-order-service";
+import { getOrderForViewer } from "@/features/orders/server/customer-order-service";
 import {
   FulfillmentStatusPill,
   OrderStatusPill,
@@ -31,24 +30,25 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 export default async function OrderDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ token?: string | string[] }>;
 }) {
-  const user = await requireUser().catch((error: unknown) => {
-    if (error instanceof UnauthorizedError) {
-      return null;
-    }
-    throw error;
-  });
-
-  if (!user) {
-    redirect("/login");
-  }
+  const user = await getCurrentUser();
 
   const { id } = await params;
-  const order = await getOrderForUser(id, user.id);
+  const sp = await searchParams;
+  const token = typeof sp.token === "string" ? sp.token : null;
+  const order = await getOrderForViewer(id, {
+    userId: user?.id ?? null,
+    guestToken: token,
+  });
 
   if (!order) {
+    if (!user && !token) {
+      redirect("/login");
+    }
     notFound();
   }
 

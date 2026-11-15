@@ -19,7 +19,7 @@ export interface CreateOrderActionInput {
 }
 
 export type StartCheckoutActionResult =
-  | { success: true; url: string; orderId: string }
+  | { success: true; url: string; orderId: string; guestToken?: string }
   | { success: false; error: string };
 
 /** URL-driven preamble state. Payment always happens on hosted Stripe. */

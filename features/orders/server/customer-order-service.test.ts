@@ -41,7 +41,7 @@ const testPrisma = new PrismaClient({
 
 const TEST_DATABASE_LOCK_KEY = 728674001;
 
-const { getOrderForUser, listOrdersForUser } = await import(
+const { getOrderForUser, getOrderForViewer, listOrdersForUser } = await import(
   "./customer-order-service"
 );
 
@@ -173,6 +173,50 @@ async function createOrder(userId: string, options: OrderFixtureOptions = {}) {
   return order;
 }
 
+async function createGuestOrder(guestToken: string) {
+  return testPrisma.order.create({
+    data: {
+      userId: null,
+      guestToken,
+      status: "PENDING",
+      fulfillmentStatus: "UNFULFILLED",
+      currency: "USD",
+      subtotalCents: 3998,
+      shippingCents: 500,
+      taxCents: 320,
+      totalCents: 4818,
+      shippingFullName: SHIPPING.fullName,
+      shippingLine1: SHIPPING.line1,
+      shippingLine2: SHIPPING.line2,
+      shippingCity: SHIPPING.city,
+      shippingRegion: SHIPPING.region,
+      shippingPostalCode: SHIPPING.postalCode,
+      shippingCountry: SHIPPING.country,
+      items: {
+        create: [
+          {
+            variantId: null,
+            productSlug: "product-slug",
+            sku: "sku-1",
+            title: "Snapshot product",
+            unitPriceCents: 1999,
+            quantity: 2,
+            lineTotalCents: 3998,
+          },
+        ],
+      },
+      payment: {
+        create: {
+          status: "PENDING",
+          provider: "stripe",
+          amountCents: 4818,
+          currency: "USD",
+        },
+      },
+    },
+  });
+}
+
 beforeEach(async () => {
   // Foreign-key order matters: children before parents.
   await testPrisma.orderAuditLog.deleteMany();
@@ -294,6 +338,61 @@ describe("getOrderForUser detail", () => {
       quantity: 2,
       lineTotalCents: 3998,
     });
+  });
+});
+
+describe("getOrderForViewer guest access", () => {
+  it("lets a guest token read its own order", async () => {
+    const token = nextToken("guest-viewer");
+    const order = await createGuestOrder(token);
+
+    await expect(
+      getOrderForViewer(order.id, { guestToken: token }),
+    ).resolves.toMatchObject({ id: order.id });
+  });
+
+  it("returns null for a wrong token or another order's token", async () => {
+    const token = nextToken("guest-viewer");
+    const otherToken = nextToken("guest-viewer");
+    const order = await createGuestOrder(token);
+    const otherOrder = await createGuestOrder(otherToken);
+
+    await expect(
+      getOrderForViewer(order.id, { guestToken: "wrong-token" }),
+    ).resolves.toBeNull();
+    await expect(
+      getOrderForViewer(order.id, { guestToken: otherToken }),
+    ).resolves.toBeNull();
+    await expect(
+      getOrderForViewer(otherOrder.id, { guestToken: token }),
+    ).resolves.toBeNull();
+  });
+
+  it("keeps the user path unchanged: owner reads own, intruder gets null", async () => {
+    const owner = await createUser();
+    const intruder = await createUser();
+    const order = await createOrder(owner.id);
+
+    await expect(
+      getOrderForViewer(order.id, { userId: owner.id }),
+    ).resolves.toMatchObject({ id: order.id });
+    await expect(
+      getOrderForViewer(order.id, { userId: intruder.id }),
+    ).resolves.toBeNull();
+  });
+
+  it("does not leak a guest order to a userId alone, and returns null with no credentials", async () => {
+    const token = nextToken("guest-viewer");
+    const order = await createGuestOrder(token);
+    const user = await createUser();
+
+    await expect(
+      getOrderForViewer(order.id, { userId: user.id }),
+    ).resolves.toBeNull();
+    await expect(getOrderForViewer(order.id, {})).resolves.toBeNull();
+    await expect(
+      getOrderForViewer(order.id, { userId: null, guestToken: null }),
+    ).resolves.toBeNull();
   });
 });
 

@@ -2,6 +2,7 @@ import type { Prisma } from "@/app/generated/prisma";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { markCheckoutPaid, releaseCheckout } from "./payment-transitions";
+import { sendOrderConfirmation } from "@/lib/email/send-order-confirmation";
 
 function isUniqueConstraintError(error: unknown): boolean {
   return (
@@ -29,12 +30,12 @@ function getPaymentIntentId(
 async function applyEvent(
   event: Stripe.Event,
   tx: Prisma.TransactionClient,
-): Promise<void> {
+): Promise<string | null> {
   if (
     event.type !== "checkout.session.completed" &&
     event.type !== "checkout.session.expired"
   ) {
-    return;
+    return null;
   }
 
   const session = event.data.object as Stripe.Checkout.Session;
@@ -44,7 +45,7 @@ async function applyEvent(
     console.warn(
       `Stripe webhook ${event.id} (${event.type}) has no metadata.orderId; ignoring.`,
     );
-    return;
+    return null;
   }
 
   const order = await tx.order.findUnique({
@@ -56,12 +57,12 @@ async function applyEvent(
     console.warn(
       `Stripe webhook ${event.id} (${event.type}) references an unknown order; ignoring.`,
     );
-    return;
+    return null;
   }
 
   if (event.type === "checkout.session.expired") {
     await releaseCheckout(orderId, tx);
-    return;
+    return null;
   }
 
   // A completed session only means the customer finished the flow. Payment is
@@ -70,10 +71,10 @@ async function applyEvent(
     session.payment_status !== "paid" &&
     session.payment_status !== "no_payment_required"
   ) {
-    return;
+    return null;
   }
 
-  await markCheckoutPaid(orderId, session.id, tx);
+  const paid = await markCheckoutPaid(orderId, session.id, tx);
 
   const paymentIntentId = getPaymentIntentId(session.payment_intent);
   if (paymentIntentId) {
@@ -82,6 +83,11 @@ async function applyEvent(
       data: { providerPaymentIntentId: paymentIntentId },
     });
   }
+
+  // Report the order id only when the order actually transitioned to PAID.
+  // No-pay exits (already paid, cancelled, released hold) must not trigger a
+  // confirmation email.
+  return paid ? orderId : null;
 }
 
 /**
@@ -94,6 +100,7 @@ async function applyEvent(
  * all.
  */
 export async function processStripeEvent(event: Stripe.Event): Promise<void> {
+  let paidOrderId: string | null = null;
   try {
     await prisma.$transaction(async (tx) => {
       await tx.webhookEvent.create({
@@ -104,7 +111,7 @@ export async function processStripeEvent(event: Stripe.Event): Promise<void> {
         },
       });
 
-      await applyEvent(event, tx);
+      paidOrderId = await applyEvent(event, tx);
 
       await tx.webhookEvent.update({
         where: { providerEventId: event.id },
@@ -125,5 +132,9 @@ export async function processStripeEvent(event: Stripe.Event): Promise<void> {
     }
 
     throw error;
+  }
+
+  if (paidOrderId) {
+    await sendOrderConfirmation(paidOrderId);
   }
 }
