@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import {
   ArrowLeft,
   ChevronRight,
@@ -10,7 +11,12 @@ import {
 import {
   getCurrentUser,
 } from "@/features/identity/server/guards";
-import { getOrderForViewer } from "@/features/orders/server/customer-order-service";
+import {
+  cancelOrder,
+  getOrderForViewer,
+  OrderNotCancellableError,
+  OrderNotFoundError,
+} from "@/features/orders/server/customer-order-service";
 import {
   FulfillmentStatusPill,
   OrderStatusPill,
@@ -50,6 +56,37 @@ export default async function OrderDetailPage({
       redirect("/login");
     }
     notFound();
+  }
+
+  const cancellable =
+    order.status === "PENDING" && order.fulfillmentStatus === "UNFULFILLED";
+  // Captured for the server action below: narrowing on `order` does not
+  // persist into the nested closure.
+  const orderId = order.id;
+
+  /**
+   * Customer-initiated cancellation. Ownership is re-checked inside
+   * `cancelOrder` against the verified session (or the guest token in the
+   * URL); a lost race simply re-renders the current state.
+   */
+  async function cancelOrderAction() {
+    "use server";
+    const viewerUser = await getCurrentUser();
+    try {
+      await cancelOrder(orderId, {
+        userId: viewerUser?.id ?? null,
+        guestToken: token,
+      });
+    } catch (error) {
+      if (error instanceof OrderNotFoundError) {
+        notFound();
+      }
+      if (!(error instanceof OrderNotCancellableError)) {
+        throw error;
+      }
+    }
+    revalidatePath(`/orders/${orderId}`);
+    redirect(`/orders/${orderId}${token ? `?token=${token}` : ""}`);
   }
 
   return (
@@ -196,6 +233,21 @@ export default async function OrderDetailPage({
                 confirm this payment. No payment state is changed by viewing
                 this page.
               </p>
+            ) : null}
+
+            {cancellable ? (
+              <form action={cancelOrderAction} className="mt-4">
+                <button
+                  type="submit"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-red-500/30 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-500/10"
+                >
+                  Cancel order
+                </button>
+                <p className="mt-2 text-xs font-medium leading-relaxed text-gray-quaternary">
+                  Cancelling releases the held stock immediately. Paid, shipped,
+                  or delivered orders can&apos;t be cancelled here.
+                </p>
+              </form>
             ) : null}
 
             {order.payment ? (

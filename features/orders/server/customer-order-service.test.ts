@@ -41,9 +41,14 @@ const testPrisma = new PrismaClient({
 
 const TEST_DATABASE_LOCK_KEY = 728674001;
 
-const { getOrderForUser, getOrderForViewer, listOrdersForUser } = await import(
-  "./customer-order-service"
-);
+const {
+  cancelOrder,
+  getOrderForUser,
+  getOrderForViewer,
+  listOrdersForUser,
+  OrderNotCancellableError,
+  OrderNotFoundError,
+} = await import("./customer-order-service");
 
 const SHIPPING = {
   fullName: "Jane Doe",
@@ -225,6 +230,7 @@ beforeEach(async () => {
   await testPrisma.orderItem.deleteMany();
   await testPrisma.order.deleteMany();
   await testPrisma.webhookEvent.deleteMany();
+  await testPrisma.coupon.deleteMany();
   await testPrisma.productImage.deleteMany();
   await testPrisma.productVariant.deleteMany();
   await testPrisma.product.deleteMany();
@@ -428,5 +434,202 @@ describe("success return is read-only", () => {
     expect(detail?.status).toBe("PENDING");
     expect(detail?.payment?.status).toBe("PENDING");
     await expect(snapshot()).resolves.toEqual(before);
+  });
+});
+
+describe("cancelOrder", () => {
+  /**
+   * Real checkouts increment `ProductVariant.reserved` when the hold is
+   * created; the shared fixture only inserts the reservation row, so mirror
+   * production stock state before cancelling.
+   */
+  async function createCancellableOrder(userId: string) {
+    const order = await createOrder(userId, { withReservation: true });
+    const reservation = await testPrisma.reservation.findFirstOrThrow({
+      where: { orderId: order.id },
+    });
+    await testPrisma.productVariant.update({
+      where: { id: reservation.variantId },
+      data: { reserved: { increment: reservation.quantity } },
+    });
+    return { order, reservation };
+  }
+
+  // DB-backed cancellation tests each perform 10+ sequential round trips to the
+  // disposable database, so they carry an explicit timeout instead of relying
+  // on the 5s default (a hang/deadlock would still exceed this quickly).
+  const CANCEL_TEST_TIMEOUT = 30_000;
+
+  it("cancels a pending unfulfilled order: CANCELLED status, RELEASED holds, stock restored, payment cancelled, audit written", { timeout: CANCEL_TEST_TIMEOUT }, async () => {
+    const user = await createUser();
+    const { order, reservation } = await createCancellableOrder(user.id);
+    const couponCode = nextToken("coupon").toUpperCase();
+    await testPrisma.order.update({
+      where: { id: order.id },
+      data: { discountCents: 500, couponCode },
+    });
+    await testPrisma.coupon.create({
+      data: { code: couponCode, amountOffCents: 500, usedCount: 1 },
+    });
+
+    await cancelOrder(order.id, { userId: user.id });
+
+    const updated = await testPrisma.order.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(updated.status).toBe("CANCELLED");
+    expect(updated.fulfillmentStatus).toBe("CANCELLED");
+    // The coupon snapshot survives cancellation; usage is never returned here.
+    expect(updated.discountCents).toBe(500);
+    expect(updated.couponCode).toBe(couponCode);
+    await expect(
+      testPrisma.coupon.findUniqueOrThrow({ where: { code: couponCode } }),
+    ).resolves.toMatchObject({ usedCount: 1 });
+
+    await expect(
+      testPrisma.reservation.findUniqueOrThrow({
+        where: { id: reservation.id },
+      }),
+    ).resolves.toMatchObject({ status: "RELEASED" });
+    await expect(
+      testPrisma.productVariant.findUniqueOrThrow({
+        where: { id: reservation.variantId },
+      }),
+    ).resolves.toMatchObject({ reserved: 0 });
+    await expect(
+      testPrisma.payment.findUniqueOrThrow({ where: { orderId: order.id } }),
+    ).resolves.toMatchObject({ status: "CANCELLED" });
+
+    const audits = await testPrisma.orderAuditLog.findMany({
+      where: { orderId: order.id },
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({
+      actorId: user.id,
+      action: "ORDER_CANCELLED",
+      fromStatus: "PENDING",
+      toStatus: "CANCELLED",
+    });
+  });
+
+  it("rejects cancelling a PAID order and leaves every row untouched", { timeout: CANCEL_TEST_TIMEOUT }, async () => {
+    const user = await createUser();
+    const order = await createOrder(user.id, {
+      status: "PAID",
+      paymentStatus: "SUCCEEDED",
+      fulfillmentStatus: "PROCESSING",
+    });
+
+    await expect(cancelOrder(order.id, { userId: user.id })).rejects.toThrow(
+      OrderNotCancellableError,
+    );
+
+    await expect(
+      testPrisma.order.findUniqueOrThrow({ where: { id: order.id } }),
+    ).resolves.toMatchObject({ status: "PAID" });
+    await expect(
+      testPrisma.payment.findUniqueOrThrow({ where: { orderId: order.id } }),
+    ).resolves.toMatchObject({ status: "SUCCEEDED" });
+    await expect(
+      testPrisma.orderAuditLog.count({ where: { orderId: order.id } }),
+    ).resolves.toBe(0);
+  });
+
+  it("rejects cancelling SHIPPED or DELIVERED fulfillment and leaves every row untouched", { timeout: CANCEL_TEST_TIMEOUT }, async () => {
+    const user = await createUser();
+    const shipped = await createOrder(user.id, {
+      fulfillmentStatus: "SHIPPED",
+    });
+    const delivered = await createOrder(user.id, {
+      fulfillmentStatus: "DELIVERED",
+    });
+
+    await expect(
+      cancelOrder(shipped.id, { userId: user.id }),
+    ).rejects.toThrow(OrderNotCancellableError);
+    await expect(
+      cancelOrder(delivered.id, { userId: user.id }),
+    ).rejects.toThrow(OrderNotCancellableError);
+
+    await expect(
+      testPrisma.order.findUniqueOrThrow({ where: { id: shipped.id } }),
+    ).resolves.toMatchObject({ status: "PENDING" });
+    await expect(
+      testPrisma.order.findUniqueOrThrow({ where: { id: delivered.id } }),
+    ).resolves.toMatchObject({ status: "PENDING" });
+    await expect(
+      testPrisma.orderAuditLog.count({
+        where: { orderId: { in: [shipped.id, delivered.id] } },
+      }),
+    ).resolves.toBe(0);
+  });
+
+  it("lets a guest cancel with the right token (audit actor null) and rejects wrong tokens", { timeout: CANCEL_TEST_TIMEOUT }, async () => {
+    const token = nextToken("guest-cancel");
+    const order = await createGuestOrder(token);
+
+    await expect(
+      cancelOrder(order.id, { guestToken: "wrong-token" }),
+    ).rejects.toThrow(OrderNotFoundError);
+
+    await cancelOrder(order.id, { guestToken: token });
+
+    await expect(
+      testPrisma.order.findUniqueOrThrow({ where: { id: order.id } }),
+    ).resolves.toMatchObject({
+      status: "CANCELLED",
+      fulfillmentStatus: "CANCELLED",
+    });
+    const audits = await testPrisma.orderAuditLog.findMany({
+      where: { orderId: order.id },
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({
+      actorId: null,
+      action: "ORDER_CANCELLED",
+    });
+  });
+
+  it("rejects another user's order id and unknown ids without touching the owner's order", { timeout: CANCEL_TEST_TIMEOUT }, async () => {
+    const owner = await createUser();
+    const intruder = await createUser();
+    const order = await createOrder(owner.id);
+
+    await expect(
+      cancelOrder(order.id, { userId: intruder.id }),
+    ).rejects.toThrow(OrderNotFoundError);
+    await expect(
+      cancelOrder("missing-order", { userId: owner.id }),
+    ).rejects.toThrow(OrderNotFoundError);
+    await expect(cancelOrder(order.id, {})).rejects.toThrow(
+      OrderNotFoundError,
+    );
+
+    const token = nextToken("guest-cancel");
+    const guestOrder = await createGuestOrder(token);
+    await expect(
+      cancelOrder(guestOrder.id, { userId: owner.id }),
+    ).rejects.toThrow(OrderNotFoundError);
+
+    await expect(
+      testPrisma.order.findUniqueOrThrow({ where: { id: order.id } }),
+    ).resolves.toMatchObject({ status: "PENDING" });
+    await expect(
+      testPrisma.order.findUniqueOrThrow({ where: { id: guestOrder.id } }),
+    ).resolves.toMatchObject({ status: "PENDING" });
+  });
+
+  it("rejects a second cancel once the order is already CANCELLED", { timeout: CANCEL_TEST_TIMEOUT }, async () => {
+    const user = await createUser();
+    const { order } = await createCancellableOrder(user.id);
+
+    await cancelOrder(order.id, { userId: user.id });
+    await expect(cancelOrder(order.id, { userId: user.id })).rejects.toThrow(
+      OrderNotCancellableError,
+    );
+
+    await expect(
+      testPrisma.orderAuditLog.count({ where: { orderId: order.id } }),
+    ).resolves.toBe(1);
   });
 });
