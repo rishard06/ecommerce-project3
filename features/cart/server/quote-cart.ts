@@ -32,6 +32,12 @@ export type CartQuoteClient = Pick<typeof prisma, "productVariant" | "coupon">;
 /** Single-code coupon pricing. Invalid codes leave totals unchanged. */
 export interface QuoteCartOptions {
   couponCode?: string;
+  /**
+   * Reject an unusable code with `CouponError` instead of silently quoting
+   * the undiscounted cart. Checkout review uses this so the shopper sees the
+   * server's rejection message; order creation keeps the default behavior.
+   */
+  strictCoupon?: boolean;
 }
 
 /**
@@ -143,6 +149,9 @@ export async function quoteCart(
       couponCode = validated.code;
     } catch (error) {
       if (!(error instanceof CouponError)) {
+        throw error;
+      }
+      if (options.strictCoupon) {
         throw error;
       }
       discountCents = 0;

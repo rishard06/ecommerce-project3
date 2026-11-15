@@ -46,7 +46,10 @@ export async function quoteCheckoutAction(
 ): Promise<QuoteCheckoutActionResult> {
   try {
     const quote = couponCode?.trim()
-      ? await quoteCart(items, undefined, { couponCode })
+      ? await quoteCart(items, undefined, {
+          couponCode,
+          strictCoupon: true,
+        })
       : await quoteCart(items);
     return { success: true, quote };
   } catch (error) {

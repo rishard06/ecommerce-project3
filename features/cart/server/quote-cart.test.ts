@@ -16,6 +16,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
+import { CouponError } from "@/features/coupons/server/coupon-service";
 import { quoteCart } from "./quote-cart";
 import type { CartItemInput } from "../types";
 
@@ -360,6 +361,17 @@ describe("quoteCart", () => {
       expect(quote.discountCents).toBe(0);
       expect(quote.couponCode).toBeNull();
       expect(quote.totalCents).toBe(2029);
+    });
+
+    it("rejects an unusable coupon in strict mode so checkout can show the server message", async () => {
+      const client = couponClient(null);
+
+      await expect(
+        quoteCart([{ variantId: "variant-1", quantity: 1 }], client, {
+          couponCode: "NOPE",
+          strictCoupon: true,
+        }),
+      ).rejects.toBeInstanceOf(CouponError);
     });
 
     it("normalizes a lowercase coupon code before lookup", async () => {
