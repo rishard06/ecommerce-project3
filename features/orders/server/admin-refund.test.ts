@@ -73,6 +73,7 @@ const {
   InvalidFulfillmentTransitionError,
   OrderNotFoundError,
   OrderNotRefundableError,
+  canRefund,
   refundPayment,
   updateFulfillment,
 } = await import("./admin-order-service");
@@ -134,7 +135,7 @@ async function createVariant() {
 }
 
 interface PaidOrderFixtureOptions {
-  fulfillmentStatus?: "UNFULFILLED" | "PROCESSING" | "SHIPPED";
+  fulfillmentStatus?: "UNFULFILLED" | "PROCESSING" | "SHIPPED" | "CANCELLED";
   withIntent?: boolean;
   withReservation?: boolean;
 }
@@ -269,9 +270,11 @@ describe("refundPayment", () => {
     await expect(
       testPrisma.order.findUniqueOrThrow({ where: { id: order.id } }),
     ).resolves.toMatchObject({ status: "CANCELLED", fulfillmentStatus: "CANCELLED" });
+    // A refund is distinguishable from an expired hold: the payment reads
+    // REFUNDED, never CANCELLED.
     await expect(
       testPrisma.payment.findUniqueOrThrow({ where: { orderId: order.id } }),
-    ).resolves.toMatchObject({ status: "CANCELLED" });
+    ).resolves.toMatchObject({ status: "REFUNDED" });
 
     // The reversed sale restocks onHand and releases the hold.
     await expect(
@@ -399,6 +402,55 @@ describe("refundPayment", () => {
     ).resolves.toMatchObject({ status: "PAID", fulfillmentStatus: "SHIPPED" });
   });
 
+  it("refunds a PAID order whose fulfillment was already cancelled (never shipped)", { timeout: REFUND_TEST_TIMEOUT }, async () => {
+    const admin = await createUser("ADMIN");
+    const { order, reservation, variant } = await createPaidOrder({
+      fulfillmentStatus: "CANCELLED",
+    });
+    const payment = await testPrisma.payment.findUniqueOrThrow({
+      where: { orderId: order.id },
+    });
+
+    const result = await refundPayment(order.id, admin.id);
+
+    expect(result).toEqual({ refunded: true });
+    expect(mocks.refundsCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.refundsCreate).toHaveBeenCalledWith(
+      { payment_intent: payment.providerPaymentIntentId },
+      { idempotencyKey: `refund-${order.id}` },
+    );
+
+    await expect(
+      testPrisma.order.findUniqueOrThrow({ where: { id: order.id } }),
+    ).resolves.toMatchObject({ status: "CANCELLED", fulfillmentStatus: "CANCELLED" });
+    await expect(
+      testPrisma.payment.findUniqueOrThrow({ where: { orderId: order.id } }),
+    ).resolves.toMatchObject({ status: "REFUNDED" });
+
+    // The reversed sale restocks onHand and releases the hold.
+    await expect(
+      testPrisma.reservation.findUniqueOrThrow({
+        where: { id: reservation!.id },
+      }),
+    ).resolves.toMatchObject({ status: "RELEASED" });
+    await expect(
+      testPrisma.productVariant.findUniqueOrThrow({
+        where: { id: variant!.id },
+      }),
+    ).resolves.toMatchObject({ onHand: 10, reserved: 0 });
+
+    const audits = await testPrisma.orderAuditLog.findMany({
+      where: { orderId: order.id },
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({
+      actorId: admin.id,
+      action: "ORDER_REFUNDED",
+      fromStatus: "PAID",
+      toStatus: "CANCELLED",
+    });
+  });
+
   it("returns the coupon use on a successful admin refund", { timeout: REFUND_TEST_TIMEOUT }, async () => {
     const admin = await createUser("ADMIN");
     const { order } = await createPaidOrder({ withReservation: false });
@@ -435,6 +487,71 @@ describe("refundPayment", () => {
     ).rejects.toThrow(OrderNotFoundError);
 
     expect(mocks.refundsCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("canRefund (shared service + page predicate)", () => {
+  const succeededStripe = {
+    status: "SUCCEEDED",
+    provider: "stripe",
+    providerPaymentIntentId: "pi_123",
+  };
+
+  it("allows PAID + UNFULFILLED/PROCESSING with a succeeded Stripe intent", () => {
+    for (const fulfillmentStatus of ["UNFULFILLED", "PROCESSING"] as const) {
+      expect(
+        canRefund({ status: "PAID", fulfillmentStatus, payment: { ...succeededStripe } }),
+      ).toBe(true);
+    }
+  });
+
+  it("allows PAID + CANCELLED fulfillment (never shipped; stranded money)", () => {
+    expect(
+      canRefund({
+        status: "PAID",
+        fulfillmentStatus: "CANCELLED",
+        payment: { ...succeededStripe },
+      }),
+    ).toBe(true);
+  });
+
+  it("refuses shipped or delivered PAID orders", () => {
+    for (const fulfillmentStatus of ["SHIPPED", "DELIVERED"] as const) {
+      expect(
+        canRefund({ status: "PAID", fulfillmentStatus, payment: { ...succeededStripe } }),
+      ).toBe(false);
+    }
+  });
+
+  it("refuses non-PAID orders even with a succeeded payment", () => {
+    for (const status of ["PENDING", "CANCELLED"] as const) {
+      expect(
+        canRefund({ status, fulfillmentStatus: "UNFULFILLED", payment: { ...succeededStripe } }),
+      ).toBe(false);
+    }
+  });
+
+  it("refuses non-succeeded, missing, intent-less, or non-Stripe payments", () => {
+    const base = { status: "PAID", fulfillmentStatus: "UNFULFILLED" } as const;
+    expect(canRefund({ ...base, payment: null })).toBe(false);
+    expect(
+      canRefund({ ...base, payment: { ...succeededStripe, status: "PENDING" } }),
+    ).toBe(false);
+    expect(
+      canRefund({ ...base, payment: { ...succeededStripe, status: "CANCELLED" } }),
+    ).toBe(false);
+    expect(
+      canRefund({ ...base, payment: { ...succeededStripe, status: "REFUNDED" } }),
+    ).toBe(false);
+    expect(
+      canRefund({
+        ...base,
+        payment: { ...succeededStripe, providerPaymentIntentId: null },
+      }),
+    ).toBe(false);
+    expect(
+      canRefund({ ...base, payment: { ...succeededStripe, provider: "other" } }),
+    ).toBe(false);
   });
 });
 

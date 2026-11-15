@@ -100,6 +100,23 @@ export function allowedFulfillmentTransitions(
 }
 
 /**
+ * The transitions the admin detail page may render for an order. A
+ * `CANCELLED` order is terminal at the service layer
+ * (`updateFulfillment` rejects every transition on it), so the page renders
+ * no buttons instead of controls that always fail silently.
+ */
+export function visibleFulfillmentTransitions(order: {
+  status: OrderStatus;
+  fulfillmentStatus: FulfillmentStatus;
+}): FulfillmentStatus[] {
+  if (order.status === "CANCELLED") {
+    return [];
+  }
+
+  return allowedFulfillmentTransitions(order.fulfillmentStatus);
+}
+
+/**
  * Applies one explicit fulfillment transition.
  *
  * The order row and its audit entry are written in a single transaction. The
@@ -161,7 +178,7 @@ export async function updateFulfillment(
 
 interface RefundableOrderState {
   status: string;
-  fulfillmentStatus: FulfillmentStatus;
+  fulfillmentStatus: string;
   payment: {
     status: string;
     provider: string;
@@ -170,37 +187,66 @@ interface RefundableOrderState {
 }
 
 /**
- * Throws `OrderNotRefundableError` with an admin-facing message when the
- * observed state must never reach Stripe. Only PAID orders with a succeeded
- * Stripe payment intent may be refunded: PENDING, zero-total (which never
- * becomes PAID), intent-less, and already-fulfilled rows all stop here.
+ * Fulfillment states that may still be refunded. `CANCELLED` is included:
+ * cancelling fulfillment is only legal from `UNFULFILLED`/`PROCESSING`, so a
+ * `PAID` order with cancelled fulfillment was never shipped and the money is
+ * otherwise stranded.
  */
-function assertRefundable(order: RefundableOrderState): asserts order is RefundableOrderState & {
-  payment: { status: string; provider: string; providerPaymentIntentId: string };
-} {
+const REFUNDABLE_FULFILLMENT_STATUSES: FulfillmentStatus[] = [
+  "UNFULFILLED",
+  "PROCESSING",
+  "CANCELLED",
+];
+
+/**
+ * The single refund gate shared by the service and the admin refund card.
+ * Returns the admin-facing block reason, or `null` when the order may be
+ * refunded: `PAID` + unshipped fulfillment + a succeeded Stripe payment
+ * intent. `REFUNDED` payments never re-pass (status is no longer `SUCCEEDED`).
+ */
+export function refundBlockReason(order: RefundableOrderState): string | null {
   if (order.status !== "PAID") {
-    throw new OrderNotRefundableError("Only paid orders can be refunded.");
+    return "Only paid orders can be refunded.";
   }
   if (
-    order.fulfillmentStatus !== "UNFULFILLED" &&
-    order.fulfillmentStatus !== "PROCESSING"
+    !REFUNDABLE_FULFILLMENT_STATUSES.includes(
+      order.fulfillmentStatus as FulfillmentStatus,
+    )
   ) {
-    throw new OrderNotRefundableError(
-      "Only unfulfilled or processing orders can be refunded.",
-    );
+    return "Only unfulfilled or processing orders can be refunded.";
   }
   if (!order.payment || order.payment.status !== "SUCCEEDED") {
-    throw new OrderNotRefundableError(
-      "Only orders with a succeeded payment can be refunded.",
-    );
+    return "Only orders with a succeeded payment can be refunded.";
   }
   if (
     order.payment.provider !== "stripe" ||
     !order.payment.providerPaymentIntentId
   ) {
-    throw new OrderNotRefundableError(
-      "Only orders with a Stripe payment intent can be refunded.",
-    );
+    return "Only orders with a Stripe payment intent can be refunded.";
+  }
+  return null;
+}
+
+/**
+ * Shared predicate used by both the refund service gate and the admin page's
+ * refund card, so the card cannot outlive the guard.
+ */
+export function canRefund(order: RefundableOrderState): boolean {
+  return refundBlockReason(order) === null;
+}
+
+/**
+ * Throws `OrderNotRefundableError` with an admin-facing message when the
+ * observed state must never reach Stripe. Only PAID, unshipped orders with a
+ * succeeded Stripe payment intent may be refunded: PENDING, zero-total (which
+ * never becomes PAID), intent-less, and already-fulfilled rows all stop here.
+ */
+function assertRefundable(order: RefundableOrderState): asserts order is RefundableOrderState & {
+  payment: { status: string; provider: string; providerPaymentIntentId: string };
+} {
+  const reason = refundBlockReason(order);
+  if (reason) {
+    throw new OrderNotRefundableError(reason);
   }
 }
 
@@ -278,11 +324,14 @@ export async function refundPayment(
     }
 
     // A concurrent admin refund that won the race already cancelled the row;
-    // the Stripe call above is idempotent, so losing here is safe.
+    // the Stripe call above is idempotent, so losing here is safe. Cancelled
+    // fulfillment stays refundable (it was never shipped); only shipped or
+    // delivered rows are stranded from this path.
     if (
       current.status !== "PAID" ||
-      (current.fulfillmentStatus !== "UNFULFILLED" &&
-        current.fulfillmentStatus !== "PROCESSING")
+      !REFUNDABLE_FULFILLMENT_STATUSES.includes(
+        current.fulfillmentStatus as FulfillmentStatus,
+      )
     ) {
       throw new OrderNotRefundableError(
         "This order changed while the refund was processed.",
@@ -339,9 +388,13 @@ export async function refundPayment(
       }
     }
 
+    // A refund is recorded as REFUNDED, never CANCELLED: CANCELLED means the
+    // hold expired and no money moved, while REFUNDED means captured money
+    // was returned. The webhook only ever advances PENDING rows, so it can
+    // neither overwrite nor resurrect a refund.
     const paymentUpdated = await tx.payment.updateMany({
       where: { orderId, status: "SUCCEEDED" },
-      data: { status: "CANCELLED" },
+      data: { status: "REFUNDED" },
     });
 
     if (paymentUpdated.count !== 1) {
@@ -362,7 +415,7 @@ export async function refundPayment(
       where: {
         id: orderId,
         status: "PAID",
-        fulfillmentStatus: { in: ["UNFULFILLED", "PROCESSING"] },
+        fulfillmentStatus: { in: REFUNDABLE_FULFILLMENT_STATUSES },
       },
       data: { status: "CANCELLED", fulfillmentStatus: "CANCELLED" },
     });
@@ -413,6 +466,12 @@ export interface OrderAuditEntry {
 export interface AdminOrderDetail extends OrderDetail {
   customerEmail: string;
   auditLogs: OrderAuditEntry[];
+  payment:
+    | (OrderDetail["payment"] & {
+        /** Present so the page can use the shared `canRefund` gate. */
+        providerPaymentIntentId: string | null;
+      })
+    | null;
 }
 
 const adminOrderSummarySelect = {
@@ -512,6 +571,7 @@ export async function getOrderForAdmin(
           provider: order.payment.provider,
           amountCents: order.payment.amountCents,
           currency: order.payment.currency,
+          providerPaymentIntentId: order.payment.providerPaymentIntentId,
         }
       : null,
     auditLogs: order.auditLogs.map((entry) => ({

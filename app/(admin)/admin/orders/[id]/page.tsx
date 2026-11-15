@@ -2,13 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/features/identity/server/guards";
 import {
-  allowedFulfillmentTransitions,
+  canRefund,
   getOrderForAdmin,
+  visibleFulfillmentTransitions,
 } from "@/features/orders/server/admin-order-service";
-import {
-  refundOrderAction,
-  updateFulfillmentAction,
-} from "@/features/orders/server/fulfillment-actions";
 import {
   AdminFulfillmentStatusBadge,
   AdminOrderStatusBadge,
@@ -16,8 +13,11 @@ import {
 } from "@/features/orders/components/AdminStatusBadges";
 import type { FulfillmentStatus } from "@/features/orders/types";
 import { formatCents } from "@/lib/money";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  FulfillmentActionForm,
+  RefundActionForm,
+} from "./order-action-forms";
 
 export const metadata = { title: "Order · Admin" };
 
@@ -34,17 +34,6 @@ const transitionLabels: Record<FulfillmentStatus, string> = {
   CANCELLED: "Cancel fulfillment",
 };
 
-/** Form actions discard the result object; it exists for programmatic callers. */
-async function submitFulfillment(formData: FormData): Promise<void> {
-  "use server";
-  await updateFulfillmentAction(formData);
-}
-
-async function submitRefund(formData: FormData): Promise<void> {
-  "use server";
-  await refundOrderAction(formData);
-}
-
 export default async function AdminOrderDetailPage({
   params,
 }: {
@@ -60,7 +49,9 @@ export default async function AdminOrderDetailPage({
     notFound();
   }
 
-  const transitions = allowedFulfillmentTransitions(order.fulfillmentStatus);
+  // Cancelled orders are terminal: the service guard rejects every
+  // transition, so no buttons are rendered for them.
+  const transitions = visibleFulfillmentTransitions(order);
 
   return (
     <main className="grid gap-8">
@@ -257,21 +248,19 @@ export default async function AdminOrderDetailPage({
             <CardContent className="grid gap-3">
               {transitions.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  No further fulfillment transitions are available.
+                  {order.status === "CANCELLED"
+                    ? "Cancelled orders are terminal — no further fulfillment changes are possible."
+                    : "No further fulfillment transitions are available."}
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {transitions.map((next) => (
-                    <form key={next} action={submitFulfillment}>
-                      <input type="hidden" name="orderId" value={order.id} />
-                      <input type="hidden" name="next" value={next} />
-                      <Button
-                        type="submit"
-                        variant={next === "CANCELLED" ? "destructive" : "default"}
-                      >
-                        {transitionLabels[next]}
-                      </Button>
-                    </form>
+                    <FulfillmentActionForm
+                      key={next}
+                      orderId={order.id}
+                      next={next}
+                      label={transitionLabels[next]}
+                    />
                   ))}
                 </div>
               )}
@@ -282,26 +271,20 @@ export default async function AdminOrderDetailPage({
             </CardContent>
           </Card>
 
-          {order.status === "PAID" &&
-            order.payment?.status === "SUCCEEDED" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Refund</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-3">
-                  <p className="text-muted-foreground text-xs leading-relaxed">
-                    Issues a full Stripe refund and cancels the order. Only
-                    available before shipment.
-                  </p>
-                  <form action={submitRefund}>
-                    <input type="hidden" name="orderId" value={order.id} />
-                    <Button type="submit" variant="destructive">
-                      Refund and cancel order
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            )}
+          {canRefund(order) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Refund</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  Issues a full Stripe refund and cancels the order. Only
+                  available before shipment.
+                </p>
+                <RefundActionForm orderId={order.id} />
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

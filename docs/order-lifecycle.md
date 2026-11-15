@@ -53,16 +53,24 @@ resurrect a cancelled order.
 | --- | --- |
 | `PENDING` | Payment row created with the order. |
 | `SUCCEEDED` | Signed webhook reported a paid session; stock committed. |
-| `CANCELLED` | The checkout expired or the hold was reclaimed. |
+| `CANCELLED` | The checkout expired or the hold was reclaimed. No money moved. |
+| `REFUNDED` | An admin refund reversed a `SUCCEEDED` payment in full via Stripe. |
 | `FAILED` | Declared in the schema; no current code path writes it (reserved for future reconciliation/manual use). |
 
 ```text
 PENDING ──(paid webhook)──▶ SUCCEEDED
 PENDING ──(expired/cleanup)▶ CANCELLED
+SUCCEEDED ──(admin refund)──▶ REFUNDED
 ```
 
-A payment can never go `SUCCEEDED → CANCELLED`; releasing a paid order is a
-no-op by design.
+A payment never goes `SUCCEEDED → CANCELLED`: expiry and cleanup only touch
+`PENDING` rows, and the admin refund writes `SUCCEEDED → REFUNDED` instead.
+`CANCELLED` therefore always means “never paid”, while a refunded payment
+reads `REFUNDED` on every surface (admin list/detail badges, the customer
+success page). The refund is derived from `Payment.status`, not from the
+`ORDER_REFUNDED` audit row: the refund transaction writes both atomically, and
+the payment row is what all read paths already select. The Stripe webhook only
+ever marks `PENDING → SUCCEEDED`; it never overwrites `REFUNDED`.
 
 ### ReservationStatus (`Reservation.status`)
 

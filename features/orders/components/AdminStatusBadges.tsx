@@ -32,6 +32,7 @@ const paymentStatusMeta: Record<
   SUCCEEDED: { label: "Confirmed", variant: "default" },
   FAILED: { label: "Failed", variant: "destructive" },
   CANCELLED: { label: "Cancelled", variant: "outline" },
+  REFUNDED: { label: "Refunded", variant: "secondary" },
 };
 
 export function AdminPaymentStatusBadge({ status }: { status: PaymentStatus }) {

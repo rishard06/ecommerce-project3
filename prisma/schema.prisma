@@ -94,6 +94,7 @@ enum PaymentStatus {
   SUCCEEDED
   FAILED
   CANCELLED
+  REFUNDED
 }
 
 enum FulfillmentStatus {

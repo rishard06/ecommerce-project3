@@ -70,8 +70,9 @@ const {
   InvalidFulfillmentTransitionError,
   listOrdersForAdmin,
   updateFulfillment,
+  visibleFulfillmentTransitions,
 } = await import("./admin-order-service");
-const { updateFulfillmentAction } = await import("./fulfillment-actions");
+const { refundOrderAction, updateFulfillmentAction } = await import("./fulfillment-actions");
 const { ForbiddenError, UnauthorizedError, requireAdmin } = await import(
   "@/features/identity/server/guards"
 );
@@ -385,6 +386,67 @@ describe("updateFulfillmentAction cancellation", () => {
       expect(await testPrisma.orderAuditLog.count()).toBe(0);
     });
   }
+});
+
+describe("refundOrderAction error surfacing", () => {
+  it("returns the refund guard message instead of throwing for a PENDING order", async () => {
+    await signInAsAdmin();
+    const customer = await createUser();
+    const order = await createOrder(customer.id);
+
+    const result = await refundOrderAction(form({ orderId: order.id }));
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/only paid/i);
+    await expect(fulfillmentState(order.id)).resolves.toMatchObject({
+      status: "PENDING",
+    });
+    expect(await testPrisma.orderAuditLog.count()).toBe(0);
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a validation error for a missing order id", async () => {
+    await signInAsAdmin();
+
+    const result = await refundOrderAction(form({}));
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(await testPrisma.orderAuditLog.count()).toBe(0);
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("visibleFulfillmentTransitions (cancelled orders are terminal)", () => {
+  it("is empty for CANCELLED orders, so the page renders no buttons", () => {
+    expect(
+      visibleFulfillmentTransitions({
+        status: "CANCELLED",
+        fulfillmentStatus: "UNFULFILLED",
+      }),
+    ).toEqual([]);
+    expect(
+      visibleFulfillmentTransitions({
+        status: "CANCELLED",
+        fulfillmentStatus: "CANCELLED",
+      }),
+    ).toEqual([]);
+  });
+
+  it("delegates to the state machine for live orders", () => {
+    expect(
+      visibleFulfillmentTransitions({
+        status: "PAID",
+        fulfillmentStatus: "UNFULFILLED",
+      }),
+    ).toEqual(["PROCESSING", "CANCELLED"]);
+    expect(
+      visibleFulfillmentTransitions({
+        status: "PENDING",
+        fulfillmentStatus: "SHIPPED",
+      }),
+    ).toEqual(["DELIVERED"]);
+  });
 });
 
 describe("updateFulfillment state machine guards", () => {

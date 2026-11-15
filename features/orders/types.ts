@@ -8,7 +8,12 @@
 
 export type OrderStatus = "PENDING" | "PAID" | "CANCELLED";
 
-export type PaymentStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
+export type PaymentStatus =
+  | "PENDING"
+  | "SUCCEEDED"
+  | "FAILED"
+  | "CANCELLED"
+  | "REFUNDED";
 
 export type FulfillmentStatus =
   | "UNFULFILLED"
