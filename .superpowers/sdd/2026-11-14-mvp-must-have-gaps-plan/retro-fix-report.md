@@ -440,3 +440,121 @@ mutation, or validation was touched. Pre-existing dirty files
   variance: 2 failed then 1 failed, disjoint sets); CI local Postgres +
   `--no-file-parallelism` remains the mitigation (retro I8). No `test:ci` /
   `typecheck` scripts added (I8 owns that).
+
+---
+
+# Retro Batch 2 Fix Report — Wave D (I8)
+
+Scope: ONLY I8 from `retro-batch2.md`. Untouched: the other Important items
+(I1–I7, I9, completed in waves A–C), all minors and carried-over items, CI
+wiring, test timeouts/`hookTimeout`, all product code and test files.
+Pre-existing dirty files (`skills-lock.json`, `.agents/`) were not touched and
+not staged.
+
+## What changed
+
+### I8 — canonical serialized script, documented command, recorded evidence
+- `package.json`: added `"test:ci": "vitest run --no-file-parallelism"`
+  (the exact command CI runs) and `"typecheck": "tsc --noEmit"`. `npm test`
+  remains the parallel `vitest run`.
+- `README.md` Verification: now runs `npm run test:ci` + `npm run typecheck`
+  and explains that the database-backed suites share one test database and
+  serialize on an advisory lock, so parallel files can exceed the default
+  timeout against a remote database; `npm test` stays documented as fine for a
+  local database. Scripts table gains `test:ci` and `typecheck` rows.
+- `docs/production-setup.md` §10 launch checklist: the release commit must
+  pass `npm run test:ci`, `npm run typecheck`, `npx prisma validate`,
+  `npx prisma migrate status`, and `npm run build`; added the same
+  parallel-vs-serialized note.
+- Not changed: `.github/workflows/ci.yml` (already runs
+  `npm test -- --no-file-parallelism`, then `tsc --noEmit`, then build),
+  `vitest.config.ts` (no `testTimeout`/`hookTimeout` change), tests, source.
+  No infra fix attempted.
+
+## Full serialized run — exact output
+
+Command (repo root; `.env` `DATABASE_URL_TEST` points at the remote Prisma
+Postgres test database):
+
+```
+npm run test:ci
+```
+
+Complete-run summary:
+
+```
+Test Files  1 failed | 38 passed (39)
+     Tests  1 failed | 434 passed (435)
+  Start at  23:10:16
+  Duration  372.47s
+```
+
+Exit code: **1**.
+
+Only failure:
+- File: `features/inventory/server/release-expired-reservations.test.ts`
+  (13/14 tests in the file passed).
+- Test: `releaseExpiredReservations concurrency > releases each reservation
+  exactly once across concurrent runs`.
+- Error: `Test timed out in 5000ms.` at
+  `release-expired-reservations.test.ts:538`; Vitest reported the test at
+  5708 ms.
+- Classification: the exact pre-existing remote-DB 5 s-timeout flake waves
+  A/B/C recorded, in a file this wave did not touch.
+
+Zero skipped: 435 tests = 434 passed + 1 failed. All 8 advisory-lock DB suites
+(`create-pending-order`, `customer-order-service`, `admin-refund`,
+`fulfillment-actions`, `order-repository`, `process-stripe-event`,
+`release-expired-reservations`, `addresses`) acquired the lock and completed;
+no `beforeAll` hook timeout this run (better than the 6-suite hook-timeout
+runs cited in retro I8).
+
+## Per-file re-run proof
+
+```
+npx vitest run --no-file-parallelism features/inventory/server/release-expired-reservations.test.ts --testTimeout=60000
+```
+
+```
+Test Files  1 passed (1)
+     Tests  14 passed (14)
+  Duration  33.82s
+```
+
+Exit code: **0**.
+
+The only failing file is 14/14 green on isolated re-run with the default 5 s
+limit raised. `--testTimeout` was a CLI-only proof flag; no config or test
+change was made.
+
+## Typecheck and doc/script checks
+
+- `npx tsc --noEmit` → no output, exit code **0**.
+- `package.json` parses (`node -e "JSON.parse(...)"` → OK) and
+  `npm run` lists `test:ci` and `typecheck`.
+- `git diff --check` → clean.
+
+## Merge-gate statement (residual)
+
+This environment did **not** produce a fully green full serialized run at the
+final head: `npm run test:ci` = 38/39 files and 434/435 tests passed, and the
+single failure was proven green by isolated re-run with the extended timeout
+(pre-existing remote-DB latency, not this batch). The merge gate therefore
+remains: **CI must show `npm test -- --no-file-parallelism` green
+(39 files, 435 passed, 0 failed, 0 skipped) on the merge-head commit** against
+CI's local migrated Postgres, plus `npx tsc --noEmit` and `npm run build`.
+This report does not waive that gate.
+
+## Files (committed)
+- `package.json`
+- `README.md`
+- `docs/production-setup.md`
+- this report
+
+## Concerns / follow-ups (not fixed, by instruction)
+- Remote-DB 5 s-timeout flakes persist (1 this run; earlier waves saw 1–2
+  disjoint); raising `testTimeout`/`hookTimeout` or moving the DB suites to a
+  local database is the infra follow-up explicitly out of scope.
+- `CLAUDE.md:147` still documents only `npm test`; left untouched to keep the
+  I8 commit scope (README + runbook were the requested surfaces).
+- CI wiring was not modified and remains correct.

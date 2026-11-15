@@ -395,8 +395,10 @@ Treat dumps as secrets: they contain customer and order data.
   delivery succeeds from the dashboard.
 - [ ] `CRON_SECRET` set in Vercel; `vercel.json` deployed; manual cron call
   returns `200` with the bearer token and `401` without it.
-- [ ] `npx prisma validate`, `npx prisma migrate status`, `npm test`,
-  `npx tsc --noEmit`, and `npm run build` pass on the release commit.
+- [ ] `npx prisma validate`, `npx prisma migrate status`, `npm run test:ci`,
+  `npm run typecheck`, and `npm run build` pass on the release commit.
+  (`npm run test:ci` is the serialized run CI uses; on a remote test database
+  the parallel `npm test` can time out on advisory-lock contention.)
 - [ ] Staging smoke test: create a coupon at `/admin/coupons` → checkout with
   and without the coupon (discount row reconciles on both order pages) →
   signed webhook → order history → customer-cancel a second pending order →

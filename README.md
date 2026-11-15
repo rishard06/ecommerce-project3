@@ -120,14 +120,17 @@ suites read `.env`. `.env*` files are gitignored.
 ```bash
 npx prisma validate
 npx prisma migrate status
-npm test                 # requires DATABASE_URL_TEST (loaded from .env)
-npx tsc --noEmit
+npm run test:ci          # requires DATABASE_URL_TEST (loaded from .env)
+npm run typecheck
 npm run build
 ```
 
-`npm test` runs the full Vitest suite, including the database-backed service
-and route tests. Never point `DATABASE_URL_TEST` at a database you want to
-keep.
+`npm run test:ci` runs the full Vitest suite serially
+(`vitest run --no-file-parallelism`), matching CI. The database-backed service
+and route tests share one test database and serialize on an advisory lock;
+parallel files can exceed the default timeout against a remote database.
+`npm test` runs the same tests in parallel and is fine for a local database.
+Never point `DATABASE_URL_TEST` at a database you want to keep.
 
 ## Scripts
 
@@ -136,8 +139,10 @@ keep.
 | `npm run dev` | Next.js dev server with Turbopack. |
 | `npm run build` | Production build. |
 | `npm run start` | Serve the production build. |
-| `npm test` | Full Vitest run. |
+| `npm test` | Full Vitest run (parallel files). |
+| `npm run test:ci` | Full Vitest run serially (`--no-file-parallelism`), as CI runs it. |
 | `npm run test:watch` | Vitest watch mode. |
+| `npm run typecheck` | TypeScript check (`tsc --noEmit`). |
 
 ## Tech stack
 
