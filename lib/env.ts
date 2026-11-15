@@ -40,7 +40,7 @@ const optionalString = z.preprocess(
 const requiredUrl = z.string().trim().url();
 const optionalUrl = z.string().trim().url().optional();
 
-const serverEnvSchema: z.ZodType<ServerEnv> = z.object({
+const serverEnvSchema: z.ZodType<ServerEnv, z.ZodTypeDef, unknown> = z.object({
   // Prisma connection strings are not required to be http(s) URLs.
   DATABASE_URL: requiredString,
   BETTER_AUTH_SECRET: requiredString,
@@ -54,7 +54,7 @@ const serverEnvSchema: z.ZodType<ServerEnv> = z.object({
   EMAIL_FROM: optionalString,
 });
 
-const publicEnvSchema: z.ZodType<PublicEnv> = z.object({
+const publicEnvSchema: z.ZodType<PublicEnv, z.ZodTypeDef, unknown> = z.object({
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalString,
   NEXT_PUBLIC_APP_URL: optionalUrl,
 });
