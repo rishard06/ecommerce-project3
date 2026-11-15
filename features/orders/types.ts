@@ -101,6 +101,10 @@ export interface CreateOrderRecordInput {
   shippingCents: number;
   taxCents: number;
   totalCents: number;
+  /** Server-validated coupon discount snapshot (integer cents). */
+  discountCents?: number;
+  /** Normalized (uppercase) coupon code snapshot, if a coupon was applied. */
+  couponCode?: string | null;
   shipping: ShippingSnapshot;
   items: CreateOrderItemInput[];
 }

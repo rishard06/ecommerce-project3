@@ -89,6 +89,21 @@ export async function createCheckoutSession(
     });
   }
 
+  // Server-snapshotted coupon discount. The line keeps the existing
+  // line-item-total guard meaningful for discounted orders: items + tax +
+  // shipping - discount === totalCents. Coupon context travels in metadata;
+  // no client value is ever read.
+  if (order.discountCents > 0) {
+    lineItems.push({
+      price_data: {
+        currency: "usd",
+        unit_amount: -order.discountCents,
+        product_data: { name: `Discount (${order.couponCode ?? "coupon"})` },
+      },
+      quantity: 1,
+    });
+  }
+
   // Refuse to create a session that would charge a different amount than the
   // order snapshot. This guards against future drift in tax/shipping handling.
   const lineItemTotalCents = lineItems.reduce(
@@ -105,8 +120,21 @@ export async function createCheckoutSession(
       mode: "payment",
       line_items: lineItems,
       client_reference_id: order.id,
-      metadata: { orderId: order.id },
-      payment_intent_data: { metadata: { orderId: order.id } },
+      metadata: {
+        orderId: order.id,
+        ...(order.couponCode
+          ? {
+              couponCode: order.couponCode,
+              discountCents: String(order.discountCents),
+            }
+          : {}),
+      },
+      payment_intent_data: {
+        metadata: {
+          orderId: order.id,
+          ...(order.couponCode ? { couponCode: order.couponCode } : {}),
+        },
+      },
       success_url: `${appUrl}/checkout/success?orderId=${encodeURIComponent(order.id)}`,
       cancel_url: `${appUrl}/checkout/cancel?orderId=${encodeURIComponent(order.id)}`,
     },

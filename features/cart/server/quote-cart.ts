@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { getOrderTotals } from "@/lib/pricing";
+import {
+  CouponError,
+  validateCoupon,
+} from "@/features/coupons/server/coupon-service";
 import { cartItemsSchema } from "../schemas";
 import type { CartItemInput, CartQuote, CartQuoteItem } from "../types";
 
@@ -23,19 +27,27 @@ const MAX_CART_LINES = 50;
  * and a `Prisma.TransactionClient` satisfy it, so checkout can price a cart
  * using the same transaction that reserves stock.
  */
-export type CartQuoteClient = Pick<typeof prisma, "productVariant">;
+export type CartQuoteClient = Pick<typeof prisma, "productVariant" | "coupon">;
+
+/** Single-code coupon pricing. Invalid codes leave totals unchanged. */
+export interface QuoteCartOptions {
+  couponCode?: string;
+}
 
 /**
  * Prices a cart exclusively from the owned PostgreSQL catalog.
  *
- * The browser supplies only `{ variantId, quantity }`; every amount returned
- * comes from `ProductVariant.priceCents`. Duplicate variant lines are merged
- * before the per-line cap is re-checked. No writes occur here — stock
- * reservation belongs to the transactional order-creation service.
+ * The browser supplies only `{ variantId, quantity }` plus an optional
+ * single coupon code; every amount returned comes from
+ * `ProductVariant.priceCents` and the stored `Coupon` row. Duplicate variant
+ * lines are merged before the per-line cap is re-checked. No writes occur
+ * here — stock reservation belongs to the transactional order-creation
+ * service.
  */
 export async function quoteCart(
   items: CartItemInput[],
   client: CartQuoteClient = prisma,
+  options: QuoteCartOptions = {},
 ): Promise<CartQuote> {
   const parsed = cartItemsSchema.parse(items);
 
@@ -109,11 +121,45 @@ export async function quoteCart(
     (sum, item) => sum + item.lineTotalCents,
     0,
   );
-  const totals = getOrderTotals(subtotalCents);
+
+  // Single server-side coupon: PERCENT is floored to whole cents, FIXED is
+  // clamped to the subtotal, and any invalid/expired/exhausted code leaves
+  // the totals unchanged (discount 0, no code). Only CouponError is
+  // swallowed; infrastructure failures still propagate.
+  let discountCents = 0;
+  let couponCode: string | null = null;
+  if (options.couponCode?.trim()) {
+    try {
+      const validated = await validateCoupon(
+        options.couponCode,
+        subtotalCents,
+        client,
+      );
+      const computed =
+        validated.type === "PERCENT"
+          ? Math.floor((subtotalCents * validated.value) / 100)
+          : validated.value;
+      discountCents = Math.min(computed, subtotalCents);
+      couponCode = validated.code;
+    } catch (error) {
+      if (!(error instanceof CouponError)) {
+        throw error;
+      }
+      discountCents = 0;
+      couponCode = null;
+    }
+  }
+
+  // Tax and shipping are computed on the discounted subtotal, so the
+  // invariant subtotal - discount + tax + shipping === total always holds
+  // and the total can never drop below zero.
+  const totals = getOrderTotals(subtotalCents - discountCents);
 
   return {
     items: quoteItems,
-    subtotalCents: totals.subtotalCents,
+    subtotalCents,
+    discountCents,
+    couponCode,
     shippingCents: totals.shippingCents,
     taxCents: totals.taxCents,
     totalCents: totals.totalCents,

@@ -72,6 +72,8 @@ export async function createOrderRecord(
       shippingCents: input.shippingCents,
       taxCents: input.taxCents,
       totalCents: input.totalCents,
+      discountCents: input.discountCents ?? 0,
+      couponCode: input.couponCode ?? null,
       shippingFullName: input.shipping.fullName,
       shippingLine1: input.shipping.line1,
       shippingLine2: input.shipping.line2 ?? null,

@@ -348,4 +348,73 @@ describe("createCheckoutSession", () => {
     expect(mocks.stripeCreate).not.toHaveBeenCalled();
     expect(mocks.paymentUpdate).not.toHaveBeenCalled();
   });
+
+  describe("with a coupon discount (Task 10)", () => {
+    // subtotal 4498 - discount 450 = 4048; tax round(4048 * 0.015) = 61.
+    const DISCOUNTED_ORDER = {
+      ...ORDER,
+      subtotalCents: 4498,
+      discountCents: 450,
+      couponCode: "SAVE10",
+      taxCents: 61,
+      totalCents: 4109,
+      payment: { ...ORDER.payment, amountCents: 4109 },
+    };
+
+    it("adds a discount line so Stripe lines match the discounted total", async () => {
+      mocks.orderFindUnique.mockResolvedValue(DISCOUNTED_ORDER);
+
+      const result = await createCheckoutSession("order-1");
+
+      expect(result).toEqual({ url: SESSION.url });
+      const sentLineItems = mocks.stripeCreate.mock.calls[0][0].line_items;
+      expect(lineItemTotalCents(sentLineItems)).toBe(4109);
+      expect(sentLineItems).toContainEqual({
+        price_data: {
+          currency: "usd",
+          unit_amount: -450,
+          product_data: { name: "Discount (SAVE10)" },
+        },
+        quantity: 1,
+      });
+    });
+
+    it("passes coupon context via metadata and never trusts the client", async () => {
+      mocks.orderFindUnique.mockResolvedValue(DISCOUNTED_ORDER);
+
+      await createCheckoutSession("order-1");
+
+      const params = mocks.stripeCreate.mock.calls[0][0];
+      expect(params.metadata).toMatchObject({
+        orderId: "order-1",
+        couponCode: "SAVE10",
+        discountCents: "450",
+      });
+      expect(params.payment_intent_data.metadata).toMatchObject({
+        orderId: "order-1",
+        couponCode: "SAVE10",
+      });
+      // No client input reaches Stripe: every amount comes from the snapshot.
+      const amounts = mocks.stripeCreate.mock.calls[0][0].line_items.map(
+        (line: TestLineItem) => line.price_data?.unit_amount,
+      );
+      expect(amounts).toContain(-450);
+    });
+
+    it("still rejects a discounted order whose lines do not match its total", async () => {
+      mocks.orderFindUnique.mockResolvedValue({
+        ...DISCOUNTED_ORDER,
+        totalCents: DISCOUNTED_ORDER.totalCents + 1,
+        payment: {
+          ...DISCOUNTED_ORDER.payment,
+          amountCents: DISCOUNTED_ORDER.totalCents + 1,
+        },
+      });
+
+      await expect(createCheckoutSession("order-1")).rejects.toBeInstanceOf(
+        CheckoutSessionError,
+      );
+      expect(mocks.stripeCreate).not.toHaveBeenCalled();
+    });
+  });
 });

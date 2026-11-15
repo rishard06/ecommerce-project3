@@ -146,6 +146,8 @@ const QUOTE: CartQuote = {
     },
   ],
   subtotalCents: 4200,
+  discountCents: 0,
+  couponCode: null,
   shippingCents: 0,
   taxCents: 63,
   totalCents: 4263,

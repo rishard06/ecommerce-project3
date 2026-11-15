@@ -1,7 +1,13 @@
 import { z } from "zod";
+import type { Prisma } from "@/app/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { cartItemsSchema } from "@/features/cart/schemas";
 import { quoteCart } from "@/features/cart/server/quote-cart";
+import {
+  CouponError,
+  normalizeCouponCode,
+  validateCoupon,
+} from "@/features/coupons/server/coupon-service";
 import { InsufficientStockError } from "@/features/orders/types";
 import {
   createOrderRecord,
@@ -44,6 +50,16 @@ export const createPendingOrderBaseSchema = z.object({
     .max(128, "Idempotency key must be 128 characters or fewer"),
   items: cartItemsSchema,
   shipping: shippingInputSchema,
+  /**
+   * Single server-side coupon code. Blank input is treated as absent; the
+   * code is normalized to uppercase and re-validated inside the transaction
+   * before any discount is snapshotted. Browser prices are still ignored.
+   */
+  couponCode: z
+    .string()
+    .trim()
+    .max(64, "Coupon code must be 64 characters or fewer")
+    .optional(),
 });
 
 export const createPendingOrderInputSchema = createPendingOrderBaseSchema.refine(
@@ -65,6 +81,30 @@ function isUniqueConstraintError(error: unknown): boolean {
     "code" in error &&
     (error as { code?: unknown }).code === "P2002"
   );
+}
+
+/**
+ * Atomically consumes one coupon use inside the order transaction.
+ *
+ * The `maxUses` predicate is evaluated by PostgreSQL under the row lock, so
+ * two concurrent checkouts cannot both take the last use (same pattern as
+ * `reserveVariantStock`). Because this runs inside the order's transaction,
+ * the increment commits if and only if the order does — a later failure
+ * rolls both back, and idempotent retries return before reaching this.
+ */
+async function incrementCouponUsage(
+  tx: Prisma.TransactionClient,
+  code: string,
+): Promise<void> {
+  const affected = await tx.$executeRaw`
+    UPDATE "Coupon"
+    SET "usedCount" = "usedCount" + 1
+    WHERE "code" = ${code} AND ("maxUses" IS NULL OR "usedCount" < "maxUses")
+  `;
+
+  if (affected !== 1) {
+    throw new CouponError("Coupon usage limit has been reached.");
+  }
 }
 
 async function findExistingOrderId(
@@ -93,8 +133,10 @@ async function findExistingOrderId(
  *
  * 1. Return an existing order for a repeated user-scoped idempotency key.
  * 2. Quote the cart from the database inside the same transaction.
- * 3. Atomically reserve stock with conditional updates (last-unit safe).
- * 4. Snapshot the order, its lines, the payment, and active reservations.
+ * 3. Atomically consume one coupon use (conditional update, last-use safe).
+ * 4. Atomically reserve stock with conditional updates (last-unit safe).
+ * 5. Snapshot the order (incl. discountCents/couponCode), its lines, the
+ *    payment, and active reservations.
  *
  * Any failure rolls back every prior write, so no partial order or reservation
  * can survive. Browser-supplied prices are never read; totals come only from
@@ -103,8 +145,17 @@ async function findExistingOrderId(
 export async function createPendingOrder(
   input: CreatePendingOrderInput,
 ): Promise<{ orderId: string }> {
-  const { userId, guestToken, idempotencyKey, items, shipping } =
-    createPendingOrderInputSchema.parse(input);
+  const {
+    userId,
+    guestToken,
+    idempotencyKey,
+    items,
+    shipping,
+    couponCode: rawCouponCode,
+  } = createPendingOrderInputSchema.parse(input);
+  const couponCode = rawCouponCode?.trim()
+    ? normalizeCouponCode(rawCouponCode)
+    : undefined;
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -120,7 +171,25 @@ export async function createPendingOrder(
         return { orderId: existing.id };
       }
 
-      const quote = await quoteCart(items, tx);
+      const quote = await quoteCart(
+        items,
+        tx,
+        couponCode ? { couponCode } : undefined,
+      );
+
+      // An invalid/expired/exhausted code must fail loudly — never silently
+      // charge the full price. Re-running validation surfaces the specific
+      // reason; it always throws here because the quote applied nothing.
+      if (couponCode && !quote.couponCode) {
+        await validateCoupon(couponCode, quote.subtotalCents, tx);
+        throw new CouponError("Coupon code is not valid.");
+      }
+
+      // Consume one use atomically: the conditional update fails when a
+      // concurrent checkout took the last use after our validation read.
+      if (quote.couponCode) {
+        await incrementCouponUsage(tx, quote.couponCode);
+      }
 
       // Reserve every line inside the transaction; a shortfall throws and
       // rolls back increments made for earlier lines.
@@ -137,6 +206,8 @@ export async function createPendingOrder(
         shippingCents: quote.shippingCents,
         taxCents: quote.taxCents,
         totalCents: quote.totalCents,
+        discountCents: quote.discountCents,
+        couponCode: quote.couponCode,
         shipping,
         items: quote.items,
       });
