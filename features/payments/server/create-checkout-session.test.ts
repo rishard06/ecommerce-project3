@@ -361,22 +361,62 @@ describe("createCheckoutSession", () => {
       payment: { ...ORDER.payment, amountCents: 4109 },
     };
 
-    it("adds a discount line so Stripe lines match the discounted total", async () => {
+    it("distributes the discount across item lines with no negative amounts", async () => {
       mocks.orderFindUnique.mockResolvedValue(DISCOUNTED_ORDER);
 
       const result = await createCheckoutSession("order-1");
 
       expect(result).toEqual({ url: SESSION.url });
       const sentLineItems = mocks.stripeCreate.mock.calls[0][0].line_items;
-      expect(lineItemTotalCents(sentLineItems)).toBe(4109);
-      expect(sentLineItems).toContainEqual({
-        price_data: {
-          currency: "usd",
-          unit_amount: -450,
-          product_data: { name: "Discount (SAVE10)" },
+      // Sequential per-unit distribution: first 1999-unit absorbs the 450.
+      expect(sentLineItems).toEqual([
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: 1549,
+            product_data: {
+              name: "Wireless Headphones",
+              description: "SKU-HEADPHONES",
+            },
+          },
+          quantity: 1,
         },
-        quantity: 1,
-      });
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: 1999,
+            product_data: {
+              name: "Wireless Headphones",
+              description: "SKU-HEADPHONES",
+            },
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: 500,
+            product_data: {
+              name: "USB-C Cable",
+              description: "SKU-CABLE",
+            },
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: 61,
+            product_data: { name: "Tax" },
+          },
+          quantity: 1,
+        },
+      ]);
+      for (const line of sentLineItems as TestLineItem[]) {
+        expect(line.price_data?.unit_amount).toBeGreaterThanOrEqual(0);
+        expect(Number.isInteger(line.price_data?.unit_amount)).toBe(true);
+      }
+      expect(lineItemTotalCents(sentLineItems)).toBe(4109);
     });
 
     it("passes coupon context via metadata and never trusts the client", async () => {
@@ -394,11 +434,15 @@ describe("createCheckoutSession", () => {
         orderId: "order-1",
         couponCode: "SAVE10",
       });
-      // No client input reaches Stripe: every amount comes from the snapshot.
+      // No client input reaches Stripe and no line goes negative: every
+      // amount comes from the snapshot with the discount netted into items.
       const amounts = mocks.stripeCreate.mock.calls[0][0].line_items.map(
         (line: TestLineItem) => line.price_data?.unit_amount,
       );
-      expect(amounts).toContain(-450);
+      for (const amount of amounts) {
+        expect(amount).toBeGreaterThanOrEqual(0);
+      }
+      expect(amounts).not.toContain(-450);
     });
 
     it("still rejects a discounted order whose lines do not match its total", async () => {
@@ -415,6 +459,25 @@ describe("createCheckoutSession", () => {
         CheckoutSessionError,
       );
       expect(mocks.stripeCreate).not.toHaveBeenCalled();
+    });
+
+    it("refuses a fully discounted zero-total order instead of calling Stripe", async () => {
+      mocks.orderFindUnique.mockResolvedValue({
+        ...ORDER,
+        subtotalCents: 1999,
+        discountCents: 1999,
+        couponCode: "FLAT",
+        taxCents: 0,
+        shippingCents: 0,
+        totalCents: 0,
+        payment: { ...ORDER.payment, amountCents: 0 },
+      });
+
+      await expect(createCheckoutSession("order-1")).rejects.toThrow(
+        /fully covered|no payment/i,
+      );
+      expect(mocks.stripeCreate).not.toHaveBeenCalled();
+      expect(mocks.paymentUpdate).not.toHaveBeenCalled();
     });
   });
 });
