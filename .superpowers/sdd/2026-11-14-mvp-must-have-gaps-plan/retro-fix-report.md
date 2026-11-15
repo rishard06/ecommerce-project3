@@ -306,3 +306,137 @@ customer-cancel change, no increment-on-webhook. Pre-existing dirty files
 - Remote-DB 5 s-timeout flakes persist for DB suites (same class Wave A
   reported); CI local Postgres + `--no-file-parallelism` remains the
   mitigation (retro I8).
+
+---
+
+# Retro Batch 2 Fix Report — Wave C (I2, I6, I7)
+
+Scope: ONLY Important items I2 / I6 / I7 from `retro-batch2.md`. Untouched:
+I1, I3–I5, I8–I9, all minors, all carried-over/deferred items. No behavior
+changes beyond I2's display additions: no state machine, query predicate,
+mutation, or validation was touched. Pre-existing dirty files
+(`skills-lock.json`, `.agents/`) were not touched and not staged.
+
+## What changed
+
+### I2 — Discount/coupon snapshot in every order view contract + both detail pages + admin list
+- `features/orders/types.ts`: `OrderTotalsSnapshot` gains `discountCents:
+  number` + `couponCode: string | null` (propagates to
+  `OrderSummary`/`OrderDetail`); `AdminOrderSummary` (standalone interface)
+  gains the same two fields.
+- `features/orders/server/customer-order-service.ts`: `orderSummarySelect`
+  += both columns; `OrderDetailRow` += both; `toDetail` maps them. Guest
+  viewer path shares `toDetail`, so it is covered too.
+- `features/orders/server/admin-order-service.ts`: `adminOrderSummarySelect`
+  += both; `listOrdersForAdmin` maps them; `getOrderForAdmin` returns them.
+- New display-only `features/orders/components/OrderDiscount.tsx` (shared by
+  both pages so they cannot diverge): `OrderDiscountRow` renders
+  `Discount (CODE) −$X.XX` and returns `null` when `discountCents` is 0 (full-
+  price orders visually unchanged; a codeless positive discount falls back to
+  a plain `Discount` label); `AdminOrderCouponCell` renders `CODE (−$X.XX)` or
+  `—`; `auditActionLabel` maps `ORDER_CANCELLED → "Order cancelled"`,
+  `ORDER_REFUNDED → "Refund issued"` (keeps the existing
+  `FULFILLMENT_UPDATED` label; unknown tokens pass through).
+- `app/(shop)/orders/[id]/page.tsx` + `app/(admin)/admin/orders/[id]/page.tsx`:
+  `OrderDiscountRow` inserted between Subtotal and Shipping in each page's own
+  totals markup. Admin detail audit list uses `auditActionLabel` (the allowed
+  small same-area touch; `OrderAuditLog` has no reason column, so there was no
+  cancel/refund reason to surface — documented instead of schema-changed).
+- `app/(admin)/admin/orders/page.tsx`: new `Coupon` column between Fulfillment
+  and Total using `AdminOrderCouponCell`. Decision: a list column (not just the
+  detail header) — it is one `<th>`/`<td>`, keeps the admin from opening every
+  order to audit coupon usage, and the detail totals row covers the
+  per-order view.
+
+### I6 — `docs/order-lifecycle.md` matches the code (docs only)
+- OrderStatus table: `CANCELLED` now covers both terminal shapes (never-paid
+  via expiry/customer-cancel; money-returned via admin refund with payment
+  `REFUNDED`); added `PENDING → CANCELLED` (customer cancel, `UNFULFILLED`
+  only) and `PAID → CANCELLED` (admin full refund) edges; `PAID` marked
+  refundable, `CANCELLED` solely terminal (verified: fulfillment guard rejects
+  it, refund is a no-op on it, re-cancel is rejected).
+- Fulfillment section: notes a `PAID` order with pre-shipment-cancelled
+  fulfillment is still refundable, and that the refund transaction lands
+  fulfillment on `CANCELLED` itself.
+- Step 1: coupon validation/increment + `discountCents`/`couponCode` snapshot +
+  $0-coupon pre-write rejection; intro totals formula amended (tax on
+  `subtotal − discount`; verified in `quote-cart.ts:165`).
+- Step 5: "never mutate" replaced with the exact rule (customers may cancel
+  own `PENDING` + `UNFULFILLED` orders incl. guest-token path; only the signed
+  webhook marks paid).
+- Step 6: refund pointer; Step 7: expiry returns one coupon use; new Step 8
+  (customer cancel) + Step 9 (admin refund) with edges, audit actions,
+  restock direction (`ACTIVE` → release `reserved`; `COMMITTED` → `onHand` +),
+  and the full `usedCount` policy in one place (increment at creation, kept on
+  customer cancel, returned on expiry + admin refund, admin Set/Reset on
+  `/admin/coupons`).
+- §5: `ORDER_CANCELLED`/`ORDER_REFUNDED` ops query with actor semantics
+  (`NULL` actor = guest cancel; refund actor = admin) and the
+  `CANCELLED`-payment vs `REFUNDED`-payment invariant.
+
+### I7 — Runbook/README (docs only, kept short)
+- `docs/production-setup.md` §4: `/admin/coupons` added (incl. usage
+  Set/Reset). §9: new "In-app refund procedure" (full-only; `PAID` +
+  `SUCCEEDED` + unshipped/`CANCELLED`-pre-shipment; `STRIPE_SECRET_KEY` needs
+  `refunds:write` on restricted keys; writes `ORDER_REFUNDED`, returns one
+  coupon use, restocks; dashboard refunds/chargebacks NOT synced — manual
+  reconciliation). §10: smoke test extended (coupon create → checkout with/
+  without coupon → discount-row check → customer cancel → fulfillment → admin
+  refund → cleanup).
+- `README.md`: three bullets for the four features (coupons admin +
+  discounted checkout, customer cancel, admin full refund).
+
+### Tests (TDD: written failing first, RED confirmed pre-fix)
+- RED: new `OrderDiscount.test.tsx` (import error, 0 tests ran);
+  `customer-order-service -t "discount snapshot mapping"` 3 failed;
+  `fulfillment-actions -t "coupon snapshot"` 1 failed.
+- GREEN post-fix: `OrderDiscount.test.tsx` 8 passed (discount row text/order/
+  both markups, hidden at 0, codeless fallback, coupon cell + em dash, audit
+  labels + passthrough); customer 3 passed; admin 1 passed. (One self-inflicted
+  test bug fixed during RED→GREEN: newest-first ordering in the list
+  assertion; implementation was correct.)
+
+## Tests run + output
+- Focused: `OrderDiscount.test.tsx` → 8 passed. `tsc --noEmit` → clean
+  (0 errors).
+- Focused DB: `customer-order-service` 3/3 new + `fulfillment-actions` admin
+  1/1 new pass; full 4-file focused run (`customer-order-service`,
+  `fulfillment-actions`, `OrderDiscount`, `admin-refund`,
+  `--no-file-parallelism`) → 69 passed, 2 failed, both 5 s-timeout flakes in
+  untouched tests — each re-run green with `--testTimeout=60000` (infra
+  latency, same class Waves A/B reported).
+- Full: `npx vitest run --no-file-parallelism` run twice. Run 1: 433 passed,
+  2 failed (both 5 s-timeout flakes, files this wave did NOT touch). Run 2:
+  **434 passed, 1 failed** — `release-expired-reservations` concurrency 5 s
+  timeout (the exact pre-existing flake Wave B reported); re-run of that file
+  with `--testTimeout=60000` → 14/14 passed. Every suite this wave touched is
+  green in both full runs.
+
+## Files (committed)
+- `features/orders/types.ts`
+- `features/orders/components/OrderDiscount.tsx` (new),
+  `features/orders/components/__tests__/OrderDiscount.test.tsx` (new)
+- `features/orders/server/customer-order-service.ts`,
+  `features/orders/server/admin-order-service.ts`
+- `features/orders/server/customer-order-service.test.ts`,
+  `features/orders/server/fulfillment-actions.test.ts`
+- `app/(shop)/orders/[id]/page.tsx`,
+  `app/(admin)/admin/orders/[id]/page.tsx`,
+  `app/(admin)/admin/orders/page.tsx`
+- `docs/order-lifecycle.md`, `docs/production-setup.md`, `README.md`
+- this report
+
+## Concerns / follow-ups (not fixed, by instruction)
+- No audit reason exists to surface: `OrderAuditLog` has only
+  action/from/to/actor, so I2's "optionally surface cancel/refund audit
+  reason" reduced to the action-label map. A structured reason would need a
+  schema migration — out of scope.
+- `AdminOrderDetail.payment` still carries `providerPaymentIntentId` (Wave A);
+  untouched.
+- `discountCents > 0` with `couponCode = null` cannot occur from current
+  writers (quote always pairs them; clamping keeps them paired), but the row
+  handles it with a codeless `Discount` label rather than crashing.
+- Full-suite 5 s-timeout flakes persist on this remote DB (run-to-run
+  variance: 2 failed then 1 failed, disjoint sets); CI local Postgres +
+  `--no-file-parallelism` remains the mitigation (retro I8). No `test:ci` /
+  `typecheck` scripts added (I8 owns that).

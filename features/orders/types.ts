@@ -62,6 +62,10 @@ export interface OrderItemSnapshot {
 export interface OrderTotalsSnapshot {
   currency: string;
   subtotalCents: number;
+  /** Server-validated coupon discount snapshot (integer cents, 0 when none). */
+  discountCents: number;
+  /** Normalized (uppercase) coupon code snapshot, null when no coupon applied. */
+  couponCode: string | null;
   shippingCents: number;
   taxCents: number;
   totalCents: number;

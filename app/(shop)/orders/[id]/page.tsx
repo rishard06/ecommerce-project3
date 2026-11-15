@@ -23,6 +23,7 @@ import {
   PaymentStatusPill,
 } from "@/features/orders/components/OrderStatusBadges";
 import { formatCents } from "@/lib/money";
+import { OrderDiscountRow } from "@/features/orders/components/OrderDiscount";
 
 export const metadata = {
   title: "Order details | venn.",
@@ -279,6 +280,13 @@ export default async function OrderDetailPage({
                   {formatCents(order.subtotalCents)}
                 </dd>
               </div>
+              <OrderDiscountRow
+                discountCents={order.discountCents}
+                couponCode={order.couponCode}
+                rowClassName="flex items-center justify-between"
+                termClassName="font-medium text-gray-tertiary"
+                valueClassName="font-semibold tabular-nums text-gray-secondary"
+              />
               <div className="flex items-center justify-between">
                 <dt className="font-medium text-gray-tertiary">Shipping</dt>
                 <dd className="font-semibold tabular-nums text-gray-secondary">

@@ -136,6 +136,8 @@ interface OrderFixtureOptions {
   status?: "PENDING" | "PAID" | "CANCELLED";
   paymentStatus?: "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
   fulfillmentStatus?: FulfillmentStatus;
+  discountCents?: number;
+  couponCode?: string | null;
 }
 
 async function createOrder(userId: string, options: OrderFixtureOptions = {}) {
@@ -150,6 +152,8 @@ async function createOrder(userId: string, options: OrderFixtureOptions = {}) {
       shippingCents: 500,
       taxCents: 320,
       totalCents: 4818,
+      discountCents: options.discountCents ?? 0,
+      couponCode: options.couponCode ?? null,
       shippingFullName: SHIPPING.fullName,
       shippingLine1: SHIPPING.line1,
       shippingLine2: SHIPPING.line2,
@@ -707,6 +711,30 @@ describe("admin order reads", () => {
 
   it("returns null for a missing order", async () => {
     await expect(getOrderForAdmin("missing-order")).resolves.toBeNull();
+  });
+
+  it("lists and loads the coupon snapshot so discounted totals reconcile", async () => {
+    const user = await createUser();
+    const discounted = await createOrder(user.id, {
+      discountCents: 500,
+      couponCode: "SAVE10",
+    });
+    const full = await createOrder(user.id);
+
+    const orders = await listOrdersForAdmin();
+    const discountedRow = orders.find((order) => order.id === discounted.id);
+    const fullRow = orders.find((order) => order.id === full.id);
+    expect(discountedRow).toMatchObject({
+      discountCents: 500,
+      couponCode: "SAVE10",
+    });
+    expect(fullRow).toMatchObject({ discountCents: 0, couponCode: null });
+
+    await expect(getOrderForAdmin(discounted.id)).resolves.toMatchObject({
+      id: discounted.id,
+      discountCents: 500,
+      couponCode: "SAVE10",
+    });
   });
 });
 

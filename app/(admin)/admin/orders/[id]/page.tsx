@@ -11,6 +11,10 @@ import {
   AdminOrderStatusBadge,
   AdminPaymentStatusBadge,
 } from "@/features/orders/components/AdminStatusBadges";
+import {
+  auditActionLabel,
+  OrderDiscountRow,
+} from "@/features/orders/components/OrderDiscount";
 import type { FulfillmentStatus } from "@/features/orders/types";
 import { formatCents } from "@/lib/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -180,9 +184,7 @@ export default async function AdminOrderDetailPage({
                     <li key={entry.id} className="grid gap-1 py-3 first:pt-0 last:pb-0">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-medium">
-                          {entry.action === "FULFILLMENT_UPDATED"
-                            ? "Fulfillment updated"
-                            : entry.action}
+                          {auditActionLabel(entry.action)}
                         </span>
                         <span className="text-muted-foreground text-xs tabular-nums">
                           {dateFormatter.format(entry.createdAt)}
@@ -298,6 +300,13 @@ export default async function AdminOrderDetailPage({
                     {formatCents(order.subtotalCents)}
                   </dd>
                 </div>
+                <OrderDiscountRow
+                  discountCents={order.discountCents}
+                  couponCode={order.couponCode}
+                  rowClassName="flex items-center justify-between gap-3"
+                  termClassName="text-muted-foreground"
+                  valueClassName="tabular-nums"
+                />
                 <div className="flex items-center justify-between gap-3">
                   <dt className="text-muted-foreground">Shipping</dt>
                   <dd className="tabular-nums">

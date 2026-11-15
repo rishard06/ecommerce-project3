@@ -180,9 +180,10 @@ Or use Prisma Studio:
 npx prisma studio
 ```
 
-Demote with `role = 'CUSTOMER'`. Admin pages live at `/admin/products` and
-`/admin/orders`; anonymous visitors are redirected to `/login`, and signed-in
-customers receive a 404.
+Demote with `role = 'CUSTOMER'`. Admin pages live at `/admin/products`,
+`/admin/orders`, and `/admin/coupons` (coupon create/update/delete plus
+per-coupon usage Set/Reset); anonymous visitors are redirected to `/login`,
+and signed-in customers receive a 404.
 
 ---
 
@@ -357,6 +358,22 @@ Treat dumps as secrets: they contain customer and order data.
   resend the event, and reconcile with a refund/void if necessary. Manual SQL
   changes bypass stock commits and audit history.
 
+### In-app refund procedure
+
+- Full refunds only, issued from the Refund card on `/admin/orders/[id]`.
+  Allowed only for `PAID` orders with a `SUCCEEDED` Stripe payment whose
+  fulfillment is still unshipped (`UNFULFILLED`, `PROCESSING`, or a
+  pre-shipment `CANCELLED` fulfillment).
+- `STRIPE_SECRET_KEY` must be allowed to create refunds (restricted keys need
+  `refunds:write`); otherwise the call fails and nothing is written.
+- The refund writes `ORDER_REFUNDED` (`PAID → CANCELLED`), moves the payment to
+  `REFUNDED`, returns one coupon use, and restocks (sold lines go back to
+  `onHand`, held lines release `reserved`).
+- Refunds or chargebacks made in the Stripe dashboard are **not** synced back:
+  `Payment.status` stays `SUCCEEDED` and the order stays `PAID`. Reconcile
+  those manually (cancel/fulfillment action plus a note) instead of editing
+  payment state by hand.
+
 ---
 
 ## 10. Production launch checklist
@@ -380,9 +397,12 @@ Treat dumps as secrets: they contain customer and order data.
   returns `200` with the bearer token and `401` without it.
 - [ ] `npx prisma validate`, `npx prisma migrate status`, `npm test`,
   `npx tsc --noEmit`, and `npm run build` pass on the release commit.
-- [ ] Staging smoke test: admin product update → checkout → signed webhook →
-  order history → admin fulfillment → cleanup. In production, use a low-value
-  live purchase and refund, or rely on Stripe's test clocks before go-live.
+- [ ] Staging smoke test: create a coupon at `/admin/coupons` → checkout with
+  and without the coupon (discount row reconciles on both order pages) →
+  signed webhook → order history → customer-cancel a second pending order →
+  admin fulfillment → admin full refund of the paid order (payment `REFUNDED`,
+  coupon use returned) → cleanup. In production, use a low-value live purchase
+  and refund, or rely on Stripe's test clocks before go-live.
 - [ ] Automated backups enabled and a restore drill recorded (§8).
 - [ ] Observe the pre-webhook state once: the success page must show
   “processing”, not “paid”, proving the redirect does not confirm payment.

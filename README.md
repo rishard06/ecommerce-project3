@@ -32,6 +32,17 @@ DummyJSON is only a seed-time source.
 - **Admin fulfillment with audit** — `UNFULFILLED → PROCESSING → SHIPPED →
   DELIVERED` plus an explicit cancellation branch, at `/admin/orders`. Every
   change writes an `OrderAuditLog` entry.
+- **Coupon admin and discounted checkout** — create/update/delete coupons at
+  `/admin/coupons` (with usage Set/Reset). Checkout quotes discounts
+  server-side; orders snapshot `discountCents`/`couponCode`, and coupons that
+  would zero the total are rejected before anything is written.
+- **Customer order cancellation** — shoppers (and guests via token) can cancel
+  their own `PENDING` + `UNFULFILLED` orders; stock is released immediately
+  and the coupon use stays consumed.
+- **Admin full refunds** — the Refund card on an order refunds the Stripe
+  payment in full and cancels the order (`REFUNDED` payment, `ORDER_REFUNDED`
+  audit, coupon use returned, stock restocked). Dashboard refunds are not
+  synced back.
 - **Protected reservation cleanup** — Vercel Cron calls
   `/api/cron/release-reservations` every five minutes with
   `Authorization: Bearer $CRON_SECRET`.

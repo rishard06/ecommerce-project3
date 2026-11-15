@@ -22,6 +22,8 @@ const orderSummarySelect = {
   fulfillmentStatus: true,
   currency: true,
   subtotalCents: true,
+  discountCents: true,
+  couponCode: true,
   shippingCents: true,
   taxCents: true,
   totalCents: true,
@@ -275,6 +277,8 @@ type OrderDetailRow = {
   fulfillmentStatus: FulfillmentStatus;
   currency: string;
   subtotalCents: number;
+  discountCents: number;
+  couponCode: string | null;
   shippingCents: number;
   taxCents: number;
   totalCents: number;
@@ -311,6 +315,8 @@ function toDetail(order: OrderDetailRow): OrderDetail {
     fulfillmentStatus: order.fulfillmentStatus,
     currency: order.currency,
     subtotalCents: order.subtotalCents,
+    discountCents: order.discountCents,
+    couponCode: order.couponCode,
     shippingCents: order.shippingCents,
     taxCents: order.taxCents,
     totalCents: order.totalCents,

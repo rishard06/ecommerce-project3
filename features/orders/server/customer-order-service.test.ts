@@ -116,6 +116,8 @@ interface OrderFixtureOptions {
     | "DELIVERED"
     | "CANCELLED";
   withReservation?: boolean;
+  discountCents?: number;
+  couponCode?: string | null;
 }
 
 async function createOrder(userId: string, options: OrderFixtureOptions = {}) {
@@ -132,6 +134,8 @@ async function createOrder(userId: string, options: OrderFixtureOptions = {}) {
       shippingCents: 500,
       taxCents: 320,
       totalCents: 4818,
+      discountCents: options.discountCents ?? 0,
+      couponCode: options.couponCode ?? null,
       shippingFullName: SHIPPING.fullName,
       shippingLine1: SHIPPING.line1,
       shippingLine2: SHIPPING.line2,
@@ -343,6 +347,65 @@ describe("getOrderForUser detail", () => {
       unitPriceCents: 1999,
       quantity: 2,
       lineTotalCents: 3998,
+    });
+  });
+});
+
+describe("discount snapshot mapping", () => {
+  it("lists orders with the coupon snapshot so totals reconcile", async () => {
+    const user = await createUser();
+    const discounted = await createOrder(user.id, {
+      discountCents: 500,
+      couponCode: "SAVE10",
+    });
+    const full = await createOrder(user.id);
+
+    const orders = await listOrdersForUser(user.id);
+
+    expect(orders).toHaveLength(2);
+    const discountedRow = orders.find((order) => order.id === discounted.id);
+    const fullRow = orders.find((order) => order.id === full.id);
+    expect(discountedRow).toMatchObject({
+      discountCents: 500,
+      couponCode: "SAVE10",
+    });
+    expect(fullRow).toMatchObject({ discountCents: 0, couponCode: null });
+  });
+
+  it("returns the coupon snapshot on the order detail", async () => {
+    const user = await createUser();
+    const order = await createOrder(user.id, {
+      discountCents: 500,
+      couponCode: "SAVE10",
+    });
+    const plain = await createOrder(user.id);
+
+    await expect(getOrderForUser(order.id, user.id)).resolves.toMatchObject({
+      id: order.id,
+      discountCents: 500,
+      couponCode: "SAVE10",
+    });
+    await expect(getOrderForUser(plain.id, user.id)).resolves.toMatchObject({
+      id: plain.id,
+      discountCents: 0,
+      couponCode: null,
+    });
+  });
+
+  it("returns the coupon snapshot for a guest viewer", async () => {
+    const token = nextToken("guest-viewer");
+    const guest = await createGuestOrder(token);
+    await testPrisma.order.update({
+      where: { id: guest.id },
+      data: { discountCents: 250, couponCode: "GUEST5" },
+    });
+
+    await expect(
+      getOrderForViewer(guest.id, { guestToken: token }),
+    ).resolves.toMatchObject({
+      id: guest.id,
+      discountCents: 250,
+      couponCode: "GUEST5",
     });
   });
 });

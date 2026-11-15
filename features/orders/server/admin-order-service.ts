@@ -448,6 +448,8 @@ export interface AdminOrderSummary {
   customerEmail: string;
   currency: string;
   subtotalCents: number;
+  discountCents: number;
+  couponCode: string | null;
   shippingCents: number;
   taxCents: number;
   totalCents: number;
@@ -481,6 +483,8 @@ const adminOrderSummarySelect = {
   fulfillmentStatus: true,
   currency: true,
   subtotalCents: true,
+  discountCents: true,
+  couponCode: true,
   shippingCents: true,
   taxCents: true,
   totalCents: true,
@@ -503,6 +507,8 @@ export async function listOrdersForAdmin(): Promise<AdminOrderSummary[]> {
     customerEmail: order.user?.email ?? "guest",
     currency: order.currency,
     subtotalCents: order.subtotalCents,
+    discountCents: order.discountCents,
+    couponCode: order.couponCode,
     shippingCents: order.shippingCents,
     taxCents: order.taxCents,
     totalCents: order.totalCents,
@@ -559,6 +565,8 @@ export async function getOrderForAdmin(
     fulfillmentStatus: order.fulfillmentStatus,
     currency: order.currency,
     subtotalCents: order.subtotalCents,
+    discountCents: order.discountCents,
+    couponCode: order.couponCode,
     shippingCents: order.shippingCents,
     taxCents: order.taxCents,
     totalCents: order.totalCents,
