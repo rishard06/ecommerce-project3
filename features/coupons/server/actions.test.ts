@@ -34,6 +34,7 @@ import { prisma } from "@/lib/prisma";
 import {
   createCouponAction,
   deleteCouponAction,
+  setCouponUsageAction,
   updateCouponAction,
 } from "./actions";
 
@@ -151,6 +152,84 @@ describe("updateCouponAction error mapping", () => {
     updateMock.mockRejectedValue(new Error("connection reset"));
 
     const result = await updateCouponAction(form(validUpdate));
+
+    expect(result).toEqual({
+      success: false,
+      error: "Database unavailable. Please try again.",
+    });
+  });
+});
+
+describe("setCouponUsageAction", () => {
+  it("rejects non-admin callers before any write", async () => {
+    requireAdminMock.mockRejectedValue(new ForbiddenError());
+
+    await expect(
+      setCouponUsageAction(form({ couponId: "coupon-1", usedCount: "0" })),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("sets an exact value", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    updateMock.mockResolvedValue({ id: "coupon-1", usedCount: 3 } as never);
+
+    const result = await setCouponUsageAction(
+      form({ couponId: "coupon-1", usedCount: "3" }),
+    );
+
+    expect(result).toEqual({ success: true });
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: "coupon-1" },
+      data: { usedCount: 3 },
+    });
+  });
+
+  it("resets the count to zero", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    updateMock.mockResolvedValue({ id: "coupon-1", usedCount: 0 } as never);
+
+    const result = await setCouponUsageAction(
+      form({ couponId: "coupon-1", usedCount: "0" }),
+    );
+
+    expect(result).toEqual({ success: true });
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: "coupon-1" },
+      data: { usedCount: 0 },
+    });
+  });
+
+  it("rejects negative and non-integer values without touching the database", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+
+    for (const usedCount of ["-1", "2.5", "many"]) {
+      const result = await setCouponUsageAction(
+        form({ couponId: "coupon-1", usedCount }),
+      );
+      expect(result.success).toBe(false);
+    }
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("maps missing rows (P2025) to the not-found message", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    updateMock.mockRejectedValue(prismaError("P2025"));
+
+    const result = await setCouponUsageAction(
+      form({ couponId: "coupon-1", usedCount: "0" }),
+    );
+
+    expect(result).toEqual({ success: false, error: "Coupon not found." });
+  });
+
+  it("maps unexpected persistence failures to the generic outage message", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    updateMock.mockRejectedValue(new Error("connection reset"));
+
+    const result = await setCouponUsageAction(
+      form({ couponId: "coupon-1", usedCount: "0" }),
+    );
 
     expect(result).toEqual({
       success: false,

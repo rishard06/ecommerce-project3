@@ -126,6 +126,23 @@ async function createVariant(options: VariantOptions = {}) {
   return variant;
 }
 
+async function createCoupon(overrides: Record<string, unknown> = {}) {
+  const token = nextToken("coupon");
+  const { ...rest } = overrides;
+  return testPrisma.coupon.create({
+    data: {
+      code: token.toUpperCase(),
+      percentOff: 10,
+      amountOffCents: null,
+      minSubtotalCents: 0,
+      expiresAt: null,
+      maxUses: null,
+      usedCount: 0,
+      ...rest,
+    } as never,
+  });
+}
+
 type ReservationStatus = "ACTIVE" | "COMMITTED" | "RELEASED";
 type OrderStatus = "PENDING" | "PAID" | "CANCELLED";
 type PaymentStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
@@ -141,6 +158,7 @@ interface OrderFixtureOptions {
   reservations: ReservationInput[];
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
+  couponCode?: string;
 }
 
 async function createOrderFixture(options: OrderFixtureOptions) {
@@ -162,6 +180,7 @@ async function createOrderFixture(options: OrderFixtureOptions) {
       shippingCents: 0,
       taxCents: 0,
       totalCents,
+      couponCode: options.couponCode ?? null,
       idempotencyKey: `key-${token}`,
       shippingFullName: "Jane Doe",
       shippingLine1: "123 Main Street",
@@ -239,6 +258,7 @@ beforeEach(async () => {
   await testPrisma.product.deleteMany();
   await testPrisma.category.deleteMany();
   await testPrisma.user.deleteMany();
+  await testPrisma.coupon.deleteMany();
 });
 
 afterEach(() => {
@@ -331,6 +351,94 @@ describe("releaseExpiredReservations eligibility", () => {
       });
     expect(variantAfterRetry.onHand).toBe(5);
     expect(variantAfterRetry.reserved).toBe(0);
+  });
+
+  it("returns one coupon use when expiry cancels a discounted order", async () => {
+    const now = new Date();
+    const variant = await createVariant({ onHand: 5, reserved: 1 });
+    const coupon = await createCoupon({ usedCount: 1 });
+    const { order } = await createOrderFixture({
+      couponCode: coupon.code,
+      reservations: [
+        {
+          variant,
+          quantity: 1,
+          expiresAt: new Date(now.getTime() - 1_000),
+        },
+      ],
+    });
+
+    await expect(releaseExpiredReservations(now)).resolves.toEqual({
+      released: 1,
+    });
+
+    const state = await loadState(order.id);
+    expect(state.order.status).toBe("CANCELLED");
+    expect(
+      (await testPrisma.coupon.findUniqueOrThrow({ where: { code: coupon.code } }))
+        .usedCount,
+    ).toBe(0);
+
+    // A retry must not return the use a second time.
+    await expect(releaseExpiredReservations(now)).resolves.toEqual({
+      released: 0,
+    });
+    expect(
+      (await testPrisma.coupon.findUniqueOrThrow({ where: { code: coupon.code } }))
+        .usedCount,
+    ).toBe(0);
+  });
+
+  it("keeps the coupon use when the order was already cancelled", async () => {
+    const now = new Date();
+    const variant = await createVariant({ onHand: 5, reserved: 1 });
+    const coupon = await createCoupon({ usedCount: 1 });
+    const { order } = await createOrderFixture({
+      status: "CANCELLED",
+      paymentStatus: "CANCELLED",
+      couponCode: coupon.code,
+      reservations: [
+        {
+          variant,
+          quantity: 1,
+          expiresAt: new Date(now.getTime() - 1_000),
+        },
+      ],
+    });
+
+    await expect(releaseExpiredReservations(now)).resolves.toEqual({
+      released: 1,
+    });
+
+    const state = await loadState(order.id);
+    expect(state.order.status).toBe("CANCELLED");
+    expect(
+      (await testPrisma.coupon.findUniqueOrThrow({ where: { code: coupon.code } }))
+        .usedCount,
+    ).toBe(1);
+  });
+
+  it("cancels an expired order whose coupon was deleted without failing", async () => {
+    const now = new Date();
+    const variant = await createVariant({ onHand: 5, reserved: 1 });
+    const { order } = await createOrderFixture({
+      couponCode: "DELETED-CODE",
+      reservations: [
+        {
+          variant,
+          quantity: 1,
+          expiresAt: new Date(now.getTime() - 1_000),
+        },
+      ],
+    });
+
+    await expect(releaseExpiredReservations(now)).resolves.toEqual({
+      released: 1,
+    });
+
+    const state = await loadState(order.id);
+    expect(state.order.status).toBe("CANCELLED");
+    expect(state.payment.status).toBe("CANCELLED");
   });
 
   it("never releases a committed reservation even with a past expiry", async () => {

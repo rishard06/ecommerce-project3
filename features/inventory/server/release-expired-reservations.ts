@@ -38,6 +38,13 @@ interface ExpiredReservation {
  * only reservations actually released by this invocation. Paid orders are
  * skipped entirely because their reservations must have been committed by the
  * payment webhook; releasing them would corrupt stock.
+ *
+ * When an order is cancelled here, one coupon use is returned (`usedCount -
+ * 1`, guarded `usedCount > 0`, matched by the order's coupon-code snapshot):
+ * unlike the customer self-cancel, which keeps the use consumed as an abuse
+ * guard, an abandoned cart must not permanently burn a limited coupon. Orders
+ * already cancelled by another path keep their use untouched, and a deleted
+ * coupon simply matches zero rows.
  */
 export async function releaseExpiredReservations(
   now: Date = new Date(),
@@ -91,7 +98,7 @@ export async function releaseExpiredReservations(
       // order after the initial candidate query.
       const order = await tx.order.findUnique({
         where: { id: orderId },
-        select: { status: true },
+        select: { status: true, couponCode: true },
       });
 
       if (order?.status === "PAID") {
@@ -141,10 +148,21 @@ export async function releaseExpiredReservations(
           data: { status: "CANCELLED" },
         });
 
-        await tx.order.updateMany({
+        const orderUpdated = await tx.order.updateMany({
           where: { id: orderId, status: "PENDING" },
           data: { status: "CANCELLED" },
         });
+
+        // Return one coupon use only when this invocation actually cancelled
+        // the order. An already-cancelled order (customer cancel, prior run)
+        // keeps its use; a deleted coupon matches zero rows and is ignored.
+        if (orderUpdated.count === 1 && order?.couponCode) {
+          await tx.$executeRaw`
+            UPDATE "Coupon"
+            SET "usedCount" = "usedCount" - 1
+            WHERE "code" = ${order.couponCode} AND "usedCount" > 0
+          `;
+        }
       }
 
       return claimedCount;

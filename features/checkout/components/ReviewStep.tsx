@@ -54,8 +54,11 @@ export function ReviewStep({
 }: ReviewStepProps) {
   const shipping = toShippingInput(form);
   const totals = quote ? getReviewTotalsDisplay(quote) : null;
+  // A fully discounted order cannot be paid (no $0 Stripe session and no
+  // free-order path), so block submit until the coupon is changed/removed.
+  const isZeroTotal = quote !== null && quote.totalCents === 0;
   const submitDisabled =
-    isQuoting || isApplyingCoupon || isProcessing || !quote;
+    isQuoting || isApplyingCoupon || isProcessing || !quote || isZeroTotal;
 
   return (
     <section
@@ -282,6 +285,16 @@ export function ReviewStep({
           className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-700"
         >
           {error}
+        </p>
+      ) : null}
+
+      {isZeroTotal ? (
+        <p
+          role="alert"
+          className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-700"
+        >
+          This coupon covers the full order, so there is nothing to pay. Remove
+          the coupon or lower the discount so at least $0.01 remains.
         </p>
       ) : null}
 

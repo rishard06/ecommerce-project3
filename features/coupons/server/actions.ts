@@ -8,6 +8,7 @@ import { normalizeCouponCode } from "@/features/coupons/server/coupon-service";
 import {
   createCouponSchema,
   deleteCouponSchema,
+  setCouponUsageSchema,
   updateCouponSchema,
 } from "@/features/coupons/schemas";
 
@@ -155,6 +156,42 @@ export async function updateCouponAction(
     }
     return { success: false, error: DATABASE_UNAVAILABLE };
   }
+}
+
+/**
+ * Sets a coupon's consumed-use count to an exact value (0 resets a burned
+ * coupon). Operator correction lever: `usedCount` counts checkouts created,
+ * so abandoned carts used to strand uses until expiry cleanup returned them.
+ * No audit row or reason is recorded — kept minimal by decision.
+ */
+export async function setCouponUsageAction(
+  formData: FormData,
+): Promise<CouponActionResult> {
+  await requireAdmin();
+
+  const parsed = setCouponUsageSchema.safeParse({
+    couponId: text(formData, "couponId"),
+    usedCount: number(formData, "usedCount"),
+  });
+
+  if (!parsed.success) {
+    return { success: false, error: firstError(parsed.error) };
+  }
+
+  try {
+    await prisma.coupon.update({
+      where: { id: parsed.data.couponId },
+      data: { usedCount: parsed.data.usedCount },
+    });
+  } catch (error) {
+    if (isNotFound(error)) {
+      return { success: false, error: "Coupon not found." };
+    }
+    return { success: false, error: DATABASE_UNAVAILABLE };
+  }
+
+  revalidatePath("/admin/coupons");
+  return { success: true };
 }
 
 /**

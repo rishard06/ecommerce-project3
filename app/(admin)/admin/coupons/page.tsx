@@ -3,6 +3,8 @@ import { listCoupons } from "@/features/coupons/server/coupon-service";
 import {
   CreateCouponForm,
   DeleteCouponForm,
+  ResetCouponUsageForm,
+  SetCouponUsageForm,
   UpdateCouponForm,
 } from "./coupon-forms";
 import { formatCents } from "@/lib/money";
@@ -65,7 +67,10 @@ export default async function AdminCouponsPage() {
           <CardTitle>Coupons</CardTitle>
           <CardDescription>
             Deleting a coupon never rewrites order history: orders keep a plain
-            coupon-code snapshot.
+            coupon-code snapshot. Uses counts checkouts created, not payments:
+            one use is consumed at order creation, kept when the customer
+            cancels, returned on expiry cleanup and admin refund. Correct a
+            stranded count with Set, or restore it fully with Reset.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -97,6 +102,10 @@ export default async function AdminCouponsPage() {
                     <td className="text-muted-foreground py-3 pr-4 tabular-nums">
                       {coupon.usedCount}
                       {coupon.maxUses !== null ? ` / ${coupon.maxUses}` : ""}
+                      <div className="mt-1 flex items-start gap-1">
+                        <SetCouponUsageForm coupon={coupon} />
+                        <ResetCouponUsageForm coupon={coupon} />
+                      </div>
                     </td>
                     <td className="py-3">
                       <div className="flex items-start gap-1">

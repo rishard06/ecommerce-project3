@@ -545,7 +545,7 @@ describe("createPendingOrder with couponCode (Task 10)", () => {
     ).toBe(1);
   });
 
-  it("clamps a FIXED coupon so the order total never drops below zero", { timeout: 60000 }, async () => {
+  it("rejects a coupon that covers the full order without writing anything", { timeout: 60000 }, async () => {
     const user = await createUser();
     const { variant } = await createVariant({ onHand: 5, priceCents: 1999 });
     const coupon = await createCoupon({
@@ -553,25 +553,50 @@ describe("createPendingOrder with couponCode (Task 10)", () => {
       amountOffCents: 5000,
     });
 
-    const result = await createPendingOrder({
-      userId: user.id,
-      items: [{ variantId: variant.id, quantity: 1 }],
-      shipping: SHIPPING,
-      idempotencyKey: "key-coupon-fixed-clamp",
-      couponCode: coupon.code,
-    });
+    await expect(
+      createPendingOrder({
+        userId: user.id,
+        items: [{ variantId: variant.id, quantity: 1 }],
+        shipping: SHIPPING,
+        idempotencyKey: "key-coupon-fixed-clamp",
+        couponCode: coupon.code,
+      }),
+    ).rejects.toThrow(/covers the full order/i);
 
-    const order = await testPrisma.order.findUniqueOrThrow({
-      where: { id: result.orderId },
-      include: { payment: true },
-    });
-    expect(order).toMatchObject({
-      subtotalCents: 1999,
-      discountCents: 1999,
-      couponCode: coupon.code,
-      totalCents: 0,
-    });
-    expect(order.payment).toMatchObject({ amountCents: 0 });
+    await expectNoOrderRows();
+    expect(
+      (await testPrisma.coupon.findUniqueOrThrow({ where: { code: coupon.code } }))
+        .usedCount,
+    ).toBe(0);
+    expect(
+      (
+        await testPrisma.productVariant.findUniqueOrThrow({
+          where: { id: variant.id },
+        })
+      ).reserved,
+    ).toBe(0);
+  });
+
+  it("rejects a 100% coupon without writing anything", { timeout: 60000 }, async () => {
+    const user = await createUser();
+    const { variant } = await createVariant({ onHand: 5, priceCents: 2000 });
+    const coupon = await createCoupon({ percentOff: 100 });
+
+    await expect(
+      createPendingOrder({
+        userId: user.id,
+        items: [{ variantId: variant.id, quantity: 1 }],
+        shipping: SHIPPING,
+        idempotencyKey: "key-coupon-percent-100",
+        couponCode: coupon.code,
+      }),
+    ).rejects.toThrow(/covers the full order/i);
+
+    await expectNoOrderRows();
+    expect(
+      (await testPrisma.coupon.findUniqueOrThrow({ where: { code: coupon.code } }))
+        .usedCount,
+    ).toBe(0);
   });
 
   it("normalizes a lowercase coupon code before snapshotting", { timeout: 60000 }, async () => {

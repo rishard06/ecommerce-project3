@@ -69,5 +69,20 @@ export const deleteCouponSchema = z.object({
   couponId: z.string().min(1, "Coupon id is required"),
 });
 
+/**
+ * Operator correction lever for `usedCount`. Sets the exact consumed-use
+ * count; resetting to 0 restores a fully burned coupon. Integer counts
+ * end-to-end, never negative.
+ */
+export const setCouponUsageSchema = z.object({
+  couponId: z.string().min(1, "Coupon id is required"),
+  usedCount: z
+    .number()
+    .int("Usage must be a whole number")
+    .min(0, "Usage must not be negative"),
+});
+
+export type SetCouponUsageInput = z.infer<typeof setCouponUsageSchema>;
+
 export type CreateCouponInput = z.infer<typeof createCouponSchema>;
 export type UpdateCouponInput = z.infer<typeof updateCouponSchema>;

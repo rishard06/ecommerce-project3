@@ -185,6 +185,15 @@ export async function createPendingOrder(
         throw new CouponError("Coupon code is not valid.");
       }
 
+      // A coupon that wipes the total cannot be paid: Stripe Checkout has no
+      // $0 session and there is no free-order fulfillment path. Reject before
+      // consuming the coupon use or holding stock, so nothing is written.
+      if (quote.couponCode && quote.totalCents === 0) {
+        throw new CouponError(
+          "This coupon covers the full order; a minimum of $0.01 must remain",
+        );
+      }
+
       // Consume one use atomically: the conditional update fails when a
       // concurrent checkout took the last use after our validation read.
       if (quote.couponCode) {

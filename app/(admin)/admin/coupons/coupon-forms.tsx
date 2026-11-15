@@ -5,6 +5,7 @@ import type { Coupon } from "@/app/generated/prisma";
 import {
   createCouponAction,
   deleteCouponAction,
+  setCouponUsageAction,
   updateCouponAction,
   type CouponActionResult,
 } from "@/features/coupons/server/actions";
@@ -135,6 +136,7 @@ type EditableCoupon = Pick<
   | "minSubtotalCents"
   | "expiresAt"
   | "maxUses"
+  | "usedCount"
 >;
 
 /** Row editor for minimum, expiry, and cap; legs ride along unchanged. */
@@ -189,6 +191,61 @@ export function UpdateCouponForm({ coupon }: { coupon: EditableCoupon }) {
           Save
         </Button>
       </div>
+      <ActionError result={state} />
+    </form>
+  );
+}
+
+/** Row usage editor: set the exact consumed-use count (0 restores the coupon). */
+export function SetCouponUsageForm({ coupon }: { coupon: EditableCoupon }) {
+  const [state, formAction] = useActionState(
+    (_prev: CouponActionResult, formData: FormData) =>
+      setCouponUsageAction(formData),
+    IDLE,
+  );
+
+  return (
+    <form action={formAction} className="grid gap-1">
+      <div className="flex items-center gap-1">
+        <input type="hidden" name="couponId" value={coupon.id} />
+        <Input
+          name="usedCount"
+          type="number"
+          min={0}
+          step={1}
+          defaultValue={coupon.usedCount}
+          aria-label={`Used count for ${coupon.code}`}
+          className="w-20"
+        />
+        <Button type="submit" variant="ghost" size="sm">
+          Set
+        </Button>
+      </div>
+      <ActionError result={state} />
+    </form>
+  );
+}
+
+/** One-click reset of the consumed-use count to zero. */
+export function ResetCouponUsageForm({ coupon }: { coupon: EditableCoupon }) {
+  const [state, formAction] = useActionState(
+    (_prev: CouponActionResult, formData: FormData) =>
+      setCouponUsageAction(formData),
+    IDLE,
+  );
+
+  return (
+    <form action={formAction} className="grid gap-1">
+      <input type="hidden" name="couponId" value={coupon.id} />
+      <input type="hidden" name="usedCount" value="0" />
+      <Button
+        type="submit"
+        variant="ghost"
+        size="sm"
+        aria-label={`Reset usage for ${coupon.code}`}
+      >
+        Reset
+      </Button>
       <ActionError result={state} />
     </form>
   );
