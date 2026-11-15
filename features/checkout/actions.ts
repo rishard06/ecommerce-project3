@@ -91,6 +91,8 @@ export async function startCheckoutAction(
 
     const guestToken = user ? undefined : randomUUID();
 
+    const guestToken = user ? undefined : randomUUID();
+
     const { orderId } = await createPendingOrder({
       userId: user?.id,
       guestToken,
