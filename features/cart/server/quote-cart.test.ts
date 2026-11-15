@@ -16,6 +16,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
+import { CouponError } from "@/features/coupons/server/coupon-service";
 import { quoteCart } from "./quote-cart";
 import type { CartItemInput } from "../types";
 
@@ -266,5 +267,129 @@ describe("quoteCart", () => {
     expect(createVariant).not.toHaveBeenCalled();
     expect(updateVariant).not.toHaveBeenCalled();
     expect(transaction).not.toHaveBeenCalled();
+  });
+
+  describe("with couponCode (Task 10)", () => {
+    function couponRow(overrides: Record<string, unknown> = {}) {
+      return {
+        id: "coupon-1",
+        code: "SAVE10",
+        percentOff: 10,
+        amountOffCents: null,
+        minSubtotalCents: 0,
+        expiresAt: null,
+        maxUses: null,
+        usedCount: 0,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        updatedAt: new Date("2026-01-01T00:00:00Z"),
+        ...overrides,
+      };
+    }
+
+    function couponClient(row: unknown) {
+      return {
+        productVariant: { findMany: vi.fn().mockResolvedValue([variant()]) },
+        coupon: { findUnique: vi.fn().mockResolvedValue(row) },
+      } as never;
+    }
+
+    it("applies a PERCENT coupon: discount off subtotal, tax on the remainder", async () => {
+      const client = couponClient(couponRow({ percentOff: 10 }));
+
+      const quote = await quoteCart(
+        [{ variantId: "variant-1", quantity: 1 }],
+        client,
+        { couponCode: "SAVE10" },
+      );
+
+      // subtotal 1999; 10% -> floor(199.9) = 199; tax on 1800 -> 27.
+      expect(quote.subtotalCents).toBe(1999);
+      expect(quote.discountCents).toBe(199);
+      expect(quote.couponCode).toBe("SAVE10");
+      expect(quote.taxCents).toBe(27);
+      expect(quote.totalCents).toBe(1999 - 199 + 0 + 27);
+      expect(
+        quote.subtotalCents - quote.discountCents + quote.taxCents,
+      ).toBe(quote.totalCents);
+    });
+
+    it("clamps a FIXED coupon so the total never drops below zero", async () => {
+      const client = couponClient(
+        couponRow({ code: "FLAT", percentOff: null, amountOffCents: 5000 }),
+      );
+
+      const quote = await quoteCart(
+        [{ variantId: "variant-1", quantity: 1 }],
+        client,
+        { couponCode: "FLAT" },
+      );
+
+      expect(quote.subtotalCents).toBe(1999);
+      expect(quote.discountCents).toBe(1999);
+      expect(quote.couponCode).toBe("FLAT");
+      expect(quote.taxCents).toBe(0);
+      expect(quote.totalCents).toBe(0);
+    });
+
+    it("leaves totals unchanged for an unknown coupon code", async () => {
+      const client = couponClient(null);
+
+      const quote = await quoteCart(
+        [{ variantId: "variant-1", quantity: 1 }],
+        client,
+        { couponCode: "NOPE" },
+      );
+
+      expect(quote.discountCents).toBe(0);
+      expect(quote.couponCode).toBeNull();
+      expect(quote.subtotalCents).toBe(1999);
+      expect(quote.taxCents).toBe(30);
+      expect(quote.totalCents).toBe(2029);
+    });
+
+    it("leaves totals unchanged for an expired coupon", async () => {
+      const client = couponClient(
+        couponRow({ expiresAt: new Date("2020-01-01T00:00:00Z") }),
+      );
+
+      const quote = await quoteCart(
+        [{ variantId: "variant-1", quantity: 1 }],
+        client,
+        { couponCode: "SAVE10" },
+      );
+
+      expect(quote.discountCents).toBe(0);
+      expect(quote.couponCode).toBeNull();
+      expect(quote.totalCents).toBe(2029);
+    });
+
+    it("rejects an unusable coupon in strict mode so checkout can show the server message", async () => {
+      const client = couponClient(null);
+
+      await expect(
+        quoteCart([{ variantId: "variant-1", quantity: 1 }], client, {
+          couponCode: "NOPE",
+          strictCoupon: true,
+        }),
+      ).rejects.toBeInstanceOf(CouponError);
+    });
+
+    it("normalizes a lowercase coupon code before lookup", async () => {
+      const findUnique = vi.fn().mockResolvedValue(couponRow());
+      const client = {
+        productVariant: { findMany: vi.fn().mockResolvedValue([variant()]) },
+        coupon: { findUnique },
+      } as never;
+
+      const quote = await quoteCart(
+        [{ variantId: "variant-1", quantity: 1 }],
+        client,
+        { couponCode: "  save10 " },
+      );
+
+      expect(findUnique).toHaveBeenCalledWith({ where: { code: "SAVE10" } });
+      expect(quote.discountCents).toBe(199);
+      expect(quote.couponCode).toBe("SAVE10");
+    });
   });
 });

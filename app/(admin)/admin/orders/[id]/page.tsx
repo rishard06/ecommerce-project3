@@ -2,19 +2,26 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/features/identity/server/guards";
 import {
-  allowedFulfillmentTransitions,
+  canRefund,
   getOrderForAdmin,
+  visibleFulfillmentTransitions,
 } from "@/features/orders/server/admin-order-service";
-import { updateFulfillmentAction } from "@/features/orders/server/fulfillment-actions";
 import {
   AdminFulfillmentStatusBadge,
   AdminOrderStatusBadge,
   AdminPaymentStatusBadge,
 } from "@/features/orders/components/AdminStatusBadges";
+import {
+  auditActionLabel,
+  OrderDiscountRow,
+} from "@/features/orders/components/OrderDiscount";
 import type { FulfillmentStatus } from "@/features/orders/types";
 import { formatCents } from "@/lib/money";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  FulfillmentActionForm,
+  RefundActionForm,
+} from "./order-action-forms";
 
 export const metadata = { title: "Order · Admin" };
 
@@ -31,12 +38,6 @@ const transitionLabels: Record<FulfillmentStatus, string> = {
   CANCELLED: "Cancel fulfillment",
 };
 
-/** Form actions discard the result object; it exists for programmatic callers. */
-async function submitFulfillment(formData: FormData): Promise<void> {
-  "use server";
-  await updateFulfillmentAction(formData);
-}
-
 export default async function AdminOrderDetailPage({
   params,
 }: {
@@ -52,7 +53,9 @@ export default async function AdminOrderDetailPage({
     notFound();
   }
 
-  const transitions = allowedFulfillmentTransitions(order.fulfillmentStatus);
+  // Cancelled orders are terminal: the service guard rejects every
+  // transition, so no buttons are rendered for them.
+  const transitions = visibleFulfillmentTransitions(order);
 
   return (
     <main className="grid gap-8">
@@ -181,9 +184,7 @@ export default async function AdminOrderDetailPage({
                     <li key={entry.id} className="grid gap-1 py-3 first:pt-0 last:pb-0">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-medium">
-                          {entry.action === "FULFILLMENT_UPDATED"
-                            ? "Fulfillment updated"
-                            : entry.action}
+                          {auditActionLabel(entry.action)}
                         </span>
                         <span className="text-muted-foreground text-xs tabular-nums">
                           {dateFormatter.format(entry.createdAt)}
@@ -249,21 +250,19 @@ export default async function AdminOrderDetailPage({
             <CardContent className="grid gap-3">
               {transitions.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  No further fulfillment transitions are available.
+                  {order.status === "CANCELLED"
+                    ? "Cancelled orders are terminal — no further fulfillment changes are possible."
+                    : "No further fulfillment transitions are available."}
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {transitions.map((next) => (
-                    <form key={next} action={submitFulfillment}>
-                      <input type="hidden" name="orderId" value={order.id} />
-                      <input type="hidden" name="next" value={next} />
-                      <Button
-                        type="submit"
-                        variant={next === "CANCELLED" ? "destructive" : "default"}
-                      >
-                        {transitionLabels[next]}
-                      </Button>
-                    </form>
+                    <FulfillmentActionForm
+                      key={next}
+                      orderId={order.id}
+                      next={next}
+                      label={transitionLabels[next]}
+                    />
                   ))}
                 </div>
               )}
@@ -273,6 +272,21 @@ export default async function AdminOrderDetailPage({
               </p>
             </CardContent>
           </Card>
+
+          {canRefund(order) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Refund</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  Issues a full Stripe refund and cancels the order. Only
+                  available before shipment.
+                </p>
+                <RefundActionForm orderId={order.id} />
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -286,6 +300,13 @@ export default async function AdminOrderDetailPage({
                     {formatCents(order.subtotalCents)}
                   </dd>
                 </div>
+                <OrderDiscountRow
+                  discountCents={order.discountCents}
+                  couponCode={order.couponCode}
+                  rowClassName="flex items-center justify-between gap-3"
+                  termClassName="text-muted-foreground"
+                  valueClassName="tabular-nums"
+                />
                 <div className="flex items-center justify-between gap-3">
                   <dt className="text-muted-foreground">Shipping</dt>
                   <dd className="tabular-nums">

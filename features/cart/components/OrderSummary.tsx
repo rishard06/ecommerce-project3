@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ArrowRight, CreditCard, Wallet, Landmark } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { getOrderTotals } from "@/lib/pricing";
 import { formatCents } from "@/lib/money";
 
@@ -47,19 +46,9 @@ export function OrderSummary() {
         </dl>
 
         <div className="space-y-3">
-          <div className="relative">
-            <label htmlFor="cart-promo" className="sr-only">
-              Promo code
-            </label>
-            <Input
-              id="cart-promo"
-              className="h-11 rounded-full border-transparent bg-white/60 px-5 pr-24 text-sm placeholder:text-gray-quaternary focus-visible:bg-white/90"
-              placeholder="Promo code"
-            />
-            <Button className="absolute right-1 top-1 h-9 rounded-full bg-gray-primary px-4 text-xs font-semibold text-white hover:bg-gray-secondary">
-              Apply
-            </Button>
-          </div>
+          <p className="rounded-2xl border border-white/40 bg-white/30 px-4 py-3 text-xs font-medium leading-relaxed text-gray-tertiary">
+            Promo codes are applied at checkout against live server pricing.
+          </p>
           <Link href="/checkout" className="block w-full">
             <Button className="group h-12 w-full rounded-full bg-accent-500 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600">
               Proceed to checkout

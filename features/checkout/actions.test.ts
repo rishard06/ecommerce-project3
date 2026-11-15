@@ -77,6 +77,7 @@ import {
 } from "@/features/identity/server/guards";
 import { CartQuoteError, quoteCart } from "@/features/cart/server/quote-cart";
 import type { CartQuote } from "@/features/cart/types";
+import { CouponError } from "@/features/coupons/server/coupon-service";
 import {
   createPendingOrder,
   InsufficientStockError,
@@ -146,6 +147,8 @@ const QUOTE: CartQuote = {
     },
   ],
   subtotalCents: 4200,
+  discountCents: 0,
+  couponCode: null,
   shippingCents: 0,
   taxCents: 63,
   totalCents: 4263,
@@ -440,6 +443,21 @@ describe("quoteCheckoutAction", () => {
     expect(result).toEqual({
       success: false,
       error: "Variant variant-1 is not available",
+    });
+  });
+
+  it("rejects an unusable coupon with the server message instead of a silent no-discount quote", async () => {
+    quoteCartMock.mockRejectedValue(new CouponError("Coupon code is not valid."));
+
+    const result = await quoteCheckoutAction(INPUT.items, "NOPE");
+
+    expect(result).toEqual({
+      success: false,
+      error: "Coupon code is not valid.",
+    });
+    expect(quoteCartMock).toHaveBeenCalledWith(INPUT.items, undefined, {
+      couponCode: "NOPE",
+      strictCoupon: true,
     });
   });
 });

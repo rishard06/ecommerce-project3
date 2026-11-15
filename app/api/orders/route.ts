@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { CartQuoteError } from "@/features/cart/server/quote-cart";
+import { CouponError } from "@/features/coupons/server/coupon-service";
 import {
   ForbiddenError,
   requireUser,
@@ -28,15 +29,15 @@ export async function POST(req: Request) {
     const user = await requireUser();
 
     const body = await req.json().catch(() => null);
-    const { items, shipping, idempotencyKey } = checkoutInputSchema.parse(
-      body ?? {},
-    );
+    const { items, shipping, idempotencyKey, couponCode } =
+      checkoutInputSchema.parse(body ?? {});
 
     const { orderId } = await createPendingOrder({
       userId: user.id,
       items,
       shipping,
       idempotencyKey,
+      couponCode,
     });
 
     return NextResponse.json({ orderId }, { status: 201 });
@@ -48,6 +49,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     if (error instanceof CartQuoteError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof CouponError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     if (error instanceof InsufficientStockError) {

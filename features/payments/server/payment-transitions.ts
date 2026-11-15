@@ -174,7 +174,7 @@ export async function markCheckoutPaid(
     });
 
     // An already-succeeded payment is an idempotent no-op; any other status
-    // (notably CANCELLED) must never be overwritten with success.
+    // (notably CANCELLED or REFUNDED) must never be overwritten with success.
     if (currentPayment?.status !== "SUCCEEDED") {
       throw new PaymentTransitionError("Unable to mark payment succeeded");
     }

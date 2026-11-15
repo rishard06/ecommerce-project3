@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { CartQuoteError, quoteCart } from "@/features/cart/server/quote-cart";
 import type { CartItemInput } from "@/features/cart/types";
+import { CouponError } from "@/features/coupons/server/coupon-service";
 import {
   ForbiddenError,
   getCurrentUser,
@@ -41,9 +42,15 @@ const checkoutInputSchema = createPendingOrderBaseSchema.omit({
  */
 export async function quoteCheckoutAction(
   items: CartItemInput[],
+  couponCode?: string,
 ): Promise<QuoteCheckoutActionResult> {
   try {
-    const quote = await quoteCart(items);
+    const quote = couponCode?.trim()
+      ? await quoteCart(items, undefined, {
+          couponCode,
+          strictCoupon: true,
+        })
+      : await quoteCart(items);
     return { success: true, quote };
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -53,6 +60,10 @@ export async function quoteCheckoutAction(
       };
     }
     if (error instanceof CartQuoteError) {
+      return { success: false, error: error.message };
+    }
+    // Invalid/expired/exhausted coupons carry safe user-facing messages.
+    if (error instanceof CouponError) {
       return { success: false, error: error.message };
     }
     return {
@@ -75,7 +86,8 @@ export async function startCheckoutAction(
     // Authenticated path wins; guests fall through with a fresh token.
     const user = await getCurrentUser();
 
-    const { items, shipping, idempotencyKey } = checkoutInputSchema.parse(input);
+    const { items, shipping, idempotencyKey, couponCode } =
+      checkoutInputSchema.parse(input);
 
     const guestToken = user ? undefined : randomUUID();
 
@@ -85,6 +97,7 @@ export async function startCheckoutAction(
       items,
       shipping,
       idempotencyKey,
+      couponCode,
     });
 
     const { url } = await createCheckoutSession(orderId);
@@ -107,6 +120,9 @@ export async function startCheckoutAction(
       error instanceof CartQuoteError ||
       error instanceof InsufficientStockError
     ) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof CouponError) {
       return { success: false, error: error.message };
     }
     if (error instanceof CheckoutSessionError) {

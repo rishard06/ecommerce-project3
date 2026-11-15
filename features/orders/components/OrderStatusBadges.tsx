@@ -73,6 +73,7 @@ const paymentStatusMeta: Record<PaymentStatus, { label: string; tone: Tone }> = 
   SUCCEEDED: { label: "Confirmed", tone: "success" },
   FAILED: { label: "Failed", tone: "danger" },
   CANCELLED: { label: "Cancelled", tone: "neutral" },
+  REFUNDED: { label: "Refunded", tone: "info" },
 };
 
 export function PaymentStatusPill({ status }: { status: PaymentStatus }) {

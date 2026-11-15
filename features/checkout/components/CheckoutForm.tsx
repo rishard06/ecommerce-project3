@@ -55,6 +55,9 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
   const [quote, setQuote] = useState<CartQuote | null>(null);
   const [isQuoting, setIsQuoting] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // One attempt, one idempotency key. The guard also blocks a second click
@@ -112,6 +115,9 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
     let active = true;
     setQuote(null);
     setQuoteError(null);
+    // A new cart/step starts a fresh coupon attempt against fresh prices.
+    setCouponCode("");
+    setCouponError(null);
     setIsQuoting(true);
 
     quoteCheckoutAction(
@@ -218,8 +224,43 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
     goToStep("review");
   };
 
+  const handleApplyCoupon = async () => {
+    if (isQuoting || isApplyingCoupon) {
+      return;
+    }
+
+    const code = couponCode.trim();
+    setIsApplyingCoupon(true);
+    setCouponError(null);
+
+    try {
+      // The server reprices the whole cart with the code; the browser never
+      // computes a discount and only renders the returned quote.
+      const result = await quoteCheckoutAction(
+        items.map((item) => ({
+          variantId: item.variantId,
+          quantity: item.quantity,
+        })),
+        code || undefined,
+      );
+
+      if (!result.success) {
+        // Keep the last server quote (and its total) on screen.
+        setCouponError(result.error);
+        return;
+      }
+
+      setQuote(result.quote);
+      setCouponCode(result.quote.couponCode ?? "");
+    } catch {
+      setCouponError("Unable to apply this coupon. Please try again.");
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
   const handlePlaceOrder = async () => {
-    if (isQuoting || !quote) {
+    if (isQuoting || isApplyingCoupon || !quote) {
       return;
     }
 
@@ -240,6 +281,9 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
         })),
         shipping: toShippingInput(shippingForm),
         idempotencyKey: attempt.idempotencyKey,
+        // The order snapshots the same server-validated code the shopper
+        // reviewed; the server revalidates and reprices it again.
+        couponCode: quote.couponCode ?? undefined,
       });
 
       if (result.success) {
@@ -271,8 +315,14 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
         savedAddressName={savedAddressName}
         isQuoting={isQuoting}
         quoteError={quoteError}
+        couponCode={couponCode}
+        appliedCouponCode={quote?.couponCode ?? null}
+        isApplyingCoupon={isApplyingCoupon}
+        couponError={couponError}
         isProcessing={isProcessing}
         error={error}
+        onCouponCodeChange={setCouponCode}
+        onApplyCoupon={handleApplyCoupon}
         onBack={() => goToStep("shipping")}
         onSubmit={handlePlaceOrder}
       />

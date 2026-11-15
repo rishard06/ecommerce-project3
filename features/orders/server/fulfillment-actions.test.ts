@@ -70,8 +70,9 @@ const {
   InvalidFulfillmentTransitionError,
   listOrdersForAdmin,
   updateFulfillment,
+  visibleFulfillmentTransitions,
 } = await import("./admin-order-service");
-const { updateFulfillmentAction } = await import("./fulfillment-actions");
+const { refundOrderAction, updateFulfillmentAction } = await import("./fulfillment-actions");
 const { ForbiddenError, UnauthorizedError, requireAdmin } = await import(
   "@/features/identity/server/guards"
 );
@@ -135,6 +136,8 @@ interface OrderFixtureOptions {
   status?: "PENDING" | "PAID" | "CANCELLED";
   paymentStatus?: "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
   fulfillmentStatus?: FulfillmentStatus;
+  discountCents?: number;
+  couponCode?: string | null;
 }
 
 async function createOrder(userId: string, options: OrderFixtureOptions = {}) {
@@ -149,6 +152,8 @@ async function createOrder(userId: string, options: OrderFixtureOptions = {}) {
       shippingCents: 500,
       taxCents: 320,
       totalCents: 4818,
+      discountCents: options.discountCents ?? 0,
+      couponCode: options.couponCode ?? null,
       shippingFullName: SHIPPING.fullName,
       shippingLine1: SHIPPING.line1,
       shippingLine2: SHIPPING.line2,
@@ -385,6 +390,67 @@ describe("updateFulfillmentAction cancellation", () => {
       expect(await testPrisma.orderAuditLog.count()).toBe(0);
     });
   }
+});
+
+describe("refundOrderAction error surfacing", () => {
+  it("returns the refund guard message instead of throwing for a PENDING order", async () => {
+    await signInAsAdmin();
+    const customer = await createUser();
+    const order = await createOrder(customer.id);
+
+    const result = await refundOrderAction(form({ orderId: order.id }));
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/only paid/i);
+    await expect(fulfillmentState(order.id)).resolves.toMatchObject({
+      status: "PENDING",
+    });
+    expect(await testPrisma.orderAuditLog.count()).toBe(0);
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a validation error for a missing order id", async () => {
+    await signInAsAdmin();
+
+    const result = await refundOrderAction(form({}));
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBeTruthy();
+    expect(await testPrisma.orderAuditLog.count()).toBe(0);
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("visibleFulfillmentTransitions (cancelled orders are terminal)", () => {
+  it("is empty for CANCELLED orders, so the page renders no buttons", () => {
+    expect(
+      visibleFulfillmentTransitions({
+        status: "CANCELLED",
+        fulfillmentStatus: "UNFULFILLED",
+      }),
+    ).toEqual([]);
+    expect(
+      visibleFulfillmentTransitions({
+        status: "CANCELLED",
+        fulfillmentStatus: "CANCELLED",
+      }),
+    ).toEqual([]);
+  });
+
+  it("delegates to the state machine for live orders", () => {
+    expect(
+      visibleFulfillmentTransitions({
+        status: "PAID",
+        fulfillmentStatus: "UNFULFILLED",
+      }),
+    ).toEqual(["PROCESSING", "CANCELLED"]);
+    expect(
+      visibleFulfillmentTransitions({
+        status: "PENDING",
+        fulfillmentStatus: "SHIPPED",
+      }),
+    ).toEqual(["DELIVERED"]);
+  });
 });
 
 describe("updateFulfillment state machine guards", () => {
@@ -645,6 +711,123 @@ describe("admin order reads", () => {
 
   it("returns null for a missing order", async () => {
     await expect(getOrderForAdmin("missing-order")).resolves.toBeNull();
+  });
+
+  it("lists and loads the coupon snapshot so discounted totals reconcile", async () => {
+    const user = await createUser();
+    const discounted = await createOrder(user.id, {
+      discountCents: 500,
+      couponCode: "SAVE10",
+    });
+    const full = await createOrder(user.id);
+
+    const orders = await listOrdersForAdmin();
+    const discountedRow = orders.find((order) => order.id === discounted.id);
+    const fullRow = orders.find((order) => order.id === full.id);
+    expect(discountedRow).toMatchObject({
+      discountCents: 500,
+      couponCode: "SAVE10",
+    });
+    expect(fullRow).toMatchObject({ discountCents: 0, couponCode: null });
+
+    await expect(getOrderForAdmin(discounted.id)).resolves.toMatchObject({
+      id: discounted.id,
+      discountCents: 500,
+      couponCode: "SAVE10",
+    });
+  });
+});
+
+describe("guest orders (null user)", () => {
+  async function createGuestOrder(options: OrderFixtureOptions = {}) {
+    return testPrisma.order.create({
+      data: {
+        userId: null,
+        guestToken: nextToken("guest"),
+        createdAt: options.createdAt ?? new Date(),
+        status: options.status ?? "PENDING",
+        fulfillmentStatus: options.fulfillmentStatus ?? "UNFULFILLED",
+        currency: "USD",
+        subtotalCents: 3998,
+        shippingCents: 500,
+        taxCents: 320,
+        totalCents: 4818,
+        shippingFullName: SHIPPING.fullName,
+        shippingLine1: SHIPPING.line1,
+        shippingLine2: SHIPPING.line2,
+        shippingCity: SHIPPING.city,
+        shippingRegion: SHIPPING.region,
+        shippingPostalCode: SHIPPING.postalCode,
+        shippingCountry: SHIPPING.country,
+        items: {
+          create: [
+            {
+              variantId: null,
+              productSlug: "product-slug",
+              sku: "sku-1",
+              title: "Snapshot product",
+              unitPriceCents: 1999,
+              quantity: 2,
+              lineTotalCents: 3998,
+            },
+          ],
+        },
+        payment: {
+          create: {
+            status: options.paymentStatus ?? "PENDING",
+            provider: "stripe",
+            amountCents: 4818,
+            currency: "USD",
+          },
+        },
+      },
+    });
+  }
+
+  it("lists a guest order with a guest fallback email", async () => {
+    const order = await createGuestOrder({
+      status: "PAID",
+      paymentStatus: "SUCCEEDED",
+    });
+
+    const orders = await listOrdersForAdmin();
+
+    expect(orders).toHaveLength(1);
+    expect(orders[0]).toMatchObject({
+      id: order.id,
+      customerEmail: "guest",
+      status: "PAID",
+      paymentStatus: "SUCCEEDED",
+    });
+  });
+
+  it("returns guest order detail with a guest fallback email", async () => {
+    const order = await createGuestOrder();
+
+    const detail = await getOrderForAdmin(order.id);
+
+    expect(detail).toMatchObject({ id: order.id, customerEmail: "guest" });
+  });
+
+  it("applies a fulfillment transition to a guest order with an admin audit actor", async () => {
+    const admin = await createUser("ADMIN");
+    const order = await createGuestOrder();
+
+    await updateFulfillment(order.id, "PROCESSING", admin.id);
+
+    const state = await fulfillmentState(order.id);
+    expect(state.fulfillmentStatus).toBe("PROCESSING");
+
+    const auditLogs = await testPrisma.orderAuditLog.findMany({
+      where: { orderId: order.id },
+    });
+    expect(auditLogs).toHaveLength(1);
+    expect(auditLogs[0]).toMatchObject({
+      actorId: admin.id,
+      action: "FULFILLMENT_UPDATED",
+      fromStatus: "UNFULFILLED",
+      toStatus: "PROCESSING",
+    });
   });
 });
 

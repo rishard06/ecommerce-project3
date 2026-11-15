@@ -8,7 +8,12 @@
 
 export type OrderStatus = "PENDING" | "PAID" | "CANCELLED";
 
-export type PaymentStatus = "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
+export type PaymentStatus =
+  | "PENDING"
+  | "SUCCEEDED"
+  | "FAILED"
+  | "CANCELLED"
+  | "REFUNDED";
 
 export type FulfillmentStatus =
   | "UNFULFILLED"
@@ -57,6 +62,10 @@ export interface OrderItemSnapshot {
 export interface OrderTotalsSnapshot {
   currency: string;
   subtotalCents: number;
+  /** Server-validated coupon discount snapshot (integer cents, 0 when none). */
+  discountCents: number;
+  /** Normalized (uppercase) coupon code snapshot, null when no coupon applied. */
+  couponCode: string | null;
   shippingCents: number;
   taxCents: number;
   totalCents: number;
@@ -101,6 +110,10 @@ export interface CreateOrderRecordInput {
   shippingCents: number;
   taxCents: number;
   totalCents: number;
+  /** Server-validated coupon discount snapshot (integer cents). */
+  discountCents?: number;
+  /** Normalized (uppercase) coupon code snapshot, if a coupon was applied. */
+  couponCode?: string | null;
   shipping: ShippingSnapshot;
   items: CreateOrderItemInput[];
 }

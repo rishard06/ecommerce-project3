@@ -59,26 +59,39 @@ export default async function CheckoutSuccessPage({
   // query string can never make an order paid.
   const paymentConfirmed =
     order.status === "PAID" && order.payment?.status === "SUCCEEDED";
-  const orderCancelled = order.status === "CANCELLED";
-  const awaitingConfirmation = !paymentConfirmed && !orderCancelled;
+  // A refunded order is derived from the payment row (REFUNDED), not the
+  // ORDER_REFUNDED audit trail: the refund transaction writes both atomically,
+  // and the payment row is what every other surface (badges, admin list)
+  // already reads.
+  const orderRefunded =
+    order.status === "CANCELLED" && order.payment?.status === "REFUNDED";
+  const orderCancelled = order.status === "CANCELLED" && !orderRefunded;
+  const awaitingConfirmation =
+    !paymentConfirmed && !orderCancelled && !orderRefunded;
 
   const heading = paymentConfirmed
     ? "Payment confirmed"
-    : orderCancelled
-      ? "Payment was not completed"
-      : "Payment is processing";
+    : orderRefunded
+      ? "Payment refunded"
+      : orderCancelled
+        ? "Payment was not completed"
+        : "Payment is processing";
 
   const description = paymentConfirmed
     ? "Stripe has confirmed your payment and your order is paid. We'll keep the fulfillment status below up to date."
-    : orderCancelled
-      ? "This order is cancelled, so no payment is due. If you believe a payment was taken, contact support with the order number below."
-      : "We're waiting for Stripe's signed webhook to confirm your payment. This can take a moment — there is no need to pay again. The status shown here always comes from our database, not from the link you followed.";
+    : orderRefunded
+      ? "This order was cancelled and its payment was refunded in full. Refunds can take a few business days to appear on your statement — contact support with the order number below if it does not arrive."
+      : orderCancelled
+        ? "This order is cancelled, so no payment is due. If you believe a payment was taken, contact support with the order number below."
+        : "We're waiting for Stripe's signed webhook to confirm your payment. This can take a moment — there is no need to pay again. The status shown here always comes from our database, not from the link you followed.";
 
   const Icon = paymentConfirmed
     ? CheckCircle2
-    : orderCancelled
-      ? XCircle
-      : Clock3;
+    : orderRefunded
+      ? CheckCircle2
+      : orderCancelled
+        ? XCircle
+        : Clock3;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 md:py-16 lg:px-8">
@@ -86,7 +99,7 @@ export default async function CheckoutSuccessPage({
         <div className="flex flex-col items-center text-center">
           <div
             className={`flex size-16 items-center justify-center rounded-full border shadow-soft ${
-              paymentConfirmed
+              paymentConfirmed || orderRefunded
                 ? "border-green-600/20 bg-green-500/10"
                 : orderCancelled
                   ? "border-red-500/20 bg-red-500/10"
@@ -95,7 +108,7 @@ export default async function CheckoutSuccessPage({
           >
             <Icon
               className={`size-8 ${
-                paymentConfirmed
+                paymentConfirmed || orderRefunded
                   ? "text-green-600"
                   : orderCancelled
                     ? "text-red-500"

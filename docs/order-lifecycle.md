@@ -15,10 +15,13 @@ cleanup. This document mirrors the code in:
 - `app/api/cron/release-reservations/route.ts`
 
 All money is an integer number of USD cents. The order stores immutable
-snapshots of line items, prices, totals, and shipping; later catalog edits do
-not rewrite existing orders. Tax is 1.5% of the subtotal rounded to cents,
-shipping is 0, and the total is `subtotal + tax + shipping`
-(`lib/pricing.ts`).
+snapshots of line items, prices, totals, shipping, and any coupon discount;
+later catalog edits do not rewrite existing orders. Tax is 1.5% of the subtotal
+rounded to cents, shipping is 0, and the total is `subtotal + tax + shipping`
+(`lib/pricing.ts`). When a coupon is applied, tax is computed on
+`subtotal − discount` and the total is `subtotal − discount + tax + shipping`;
+the `discountCents`/`couponCode` snapshot is stored on the order
+(`features/cart/server/quote-cart.ts`).
 
 ---
 
@@ -32,19 +35,23 @@ fulfillment, and an admin fulfillment change never touches payment truth.
 | Value | Meaning |
 | --- | --- |
 | `PENDING` | Created at checkout; stock is reserved; awaiting a signed payment result or expiry. |
-| `PAID` | A signed Stripe webhook confirmed payment and stock was committed. |
-| `CANCELLED` | Checkout expired or the reservation was reclaimed. No payment is due. |
+| `PAID` | A signed Stripe webhook confirmed payment and stock was committed. Refundable in full by an admin (→ `CANCELLED`). |
+| `CANCELLED` | Terminal. Reached from `PENDING` when no money moved (checkout expired, reservation reclaimed, or the customer cancelled) or from `PAID` via an admin refund (money returned; `Payment.status` reads `REFUNDED`). |
 
 Allowed transitions:
 
 ```text
 PENDING ──(checkout.session.completed + paid)──▶ PAID
 PENDING ──(checkout.session.expired)───────────▶ CANCELLED
-PENDING ──(cleanup after reservation TTL)─────▶ CANCELLED
+PENDING ──(cleanup after reservation TTL)──────▶ CANCELLED
+PENDING ──(customer cancel, UNFULFILLED only)──▶ CANCELLED
+PAID ──(admin full refund)─────────────────────▶ CANCELLED
 ```
 
-`PAID` and `CANCELLED` are terminal for the implemented services. Every write
-is conditional on the observed status, so a late or duplicate webhook cannot
+`CANCELLED` is terminal for the implemented services: fulfillment changes on
+a cancelled order are rejected, an already-cancelled order is a no-op for
+refunds, and a second cancel is rejected. Every write is conditional on the
+status observed inside the transaction, so a late or duplicate webhook cannot
 resurrect a cancelled order.
 
 ### PaymentStatus (`Payment.status`)
@@ -53,16 +60,24 @@ resurrect a cancelled order.
 | --- | --- |
 | `PENDING` | Payment row created with the order. |
 | `SUCCEEDED` | Signed webhook reported a paid session; stock committed. |
-| `CANCELLED` | The checkout expired or the hold was reclaimed. |
+| `CANCELLED` | The checkout expired or the hold was reclaimed. No money moved. |
+| `REFUNDED` | An admin refund reversed a `SUCCEEDED` payment in full via Stripe. |
 | `FAILED` | Declared in the schema; no current code path writes it (reserved for future reconciliation/manual use). |
 
 ```text
 PENDING ──(paid webhook)──▶ SUCCEEDED
 PENDING ──(expired/cleanup)▶ CANCELLED
+SUCCEEDED ──(admin refund)──▶ REFUNDED
 ```
 
-A payment can never go `SUCCEEDED → CANCELLED`; releasing a paid order is a
-no-op by design.
+A payment never goes `SUCCEEDED → CANCELLED`: expiry and cleanup only touch
+`PENDING` rows, and the admin refund writes `SUCCEEDED → REFUNDED` instead.
+`CANCELLED` therefore always means “never paid”, while a refunded payment
+reads `REFUNDED` on every surface (admin list/detail badges, the customer
+success page). The refund is derived from `Payment.status`, not from the
+`ORDER_REFUNDED` audit row: the refund transaction writes both atomically, and
+the payment row is what all read paths already select. The Stripe webhook only
+ever marks `PENDING → SUCCEEDED`; it never overwrites `REFUNDED`.
 
 ### ReservationStatus (`Reservation.status`)
 
@@ -103,7 +118,10 @@ Allowed transitions (`features/orders/server/admin-order-service.ts`):
 
 Fulfillment cancellation is a separate branch, not a step in the linear
 sequence. It does **not** cancel the order, cancel the payment, refund Stripe,
-or release reservations; those are payment/order concerns. The transition is
+or release reservations; those are payment/order concerns. A `PAID` order whose
+fulfillment was cancelled before shipment is still refundable in-app (see
+Step 9); conversely, the refund transaction itself lands fulfillment on
+`CANCELLED` as part of voiding the order. The transition is
 applied only when the row still has the status observed inside the transaction,
 and every successful change writes an `OrderAuditLog` entry with
 `action = "FULFILLMENT_UPDATED"`, the actor id from the admin session, and the
@@ -131,6 +149,13 @@ shipping unpaid orders belongs to the operator.
 4. Create the `Order` (`PENDING`, `UNFULFILLED`), immutable `OrderItem`
    snapshots, one `Payment` (`PENDING`, amount = order total), and one
    `Reservation` per line (`ACTIVE`, `expiresAt = now + 30 minutes`).
+
+When a coupon code is supplied, it is validated against the database quote and
+its use is incremented (`Coupon.usedCount + 1`) in the same transaction; the
+order snapshots `discountCents`/`couponCode`. A coupon that would price the
+order to $0 is rejected with a `CouponError` before anything is written, so no
+dead pending order, reservation, or coupon use is created
+(`features/checkout/server/create-pending-order.ts`).
 
 The idempotency key is unique per user (`Order_userId_idempotencyKey_key`).
 A concurrent duplicate either loses the unique constraint or runs out of stock;
@@ -198,9 +223,13 @@ stripe events resend evt_xxxxxxxxxxxxx --webhook-endpoint we_xxxxxxxxxxxxx
 
 `listOrdersForUser(userId)` and `getOrderForUser(orderId, userId)` put ownership
 in the SQL predicate (`where: { userId }` / `where: { id, userId }`). Another
-customer's id is indistinguishable from a missing one (`null` → 404). Pages
-call `requireUser()` first; anonymous visitors are redirected to `/login`.
-Customers can only read their own orders and never mutate payment state.
+customer's id is indistinguishable from a missing one (`null` → 404). Guests
+read their own orders by unguessable token (`getOrderForViewer`). Pages call
+`requireUser()` first; anonymous visitors are redirected to `/login`.
+Customers can only cancel their own orders, and only while the order is still
+`PENDING` + `UNFULFILLED` (see Step 8); paid, shipped, delivered, or
+already-cancelled orders are rejected untouched. Customers never mark an order
+paid — only a signed Stripe webhook does that.
 
 ### Step 6 — Admin fulfillment
 
@@ -209,7 +238,9 @@ route-group layout and each page call `requireAdmin()`. `updateFulfillmentAction
 runs the same guard before parsing input and takes the actor id from the
 session, never from the form. `updateFulfillment` applies only the transitions
 in §1 and records the audit entry in the same transaction. Non-admins get a
-404 from the layout; anonymous users are redirected to login.
+404 from the layout; anonymous users are redirected to login. Issuing a refund
+is also an admin action (see Step 9): it is full-only and writes
+`ORDER_REFUNDED`, returns one coupon use, and restocks.
 
 ### Step 7 — Expiry and cleanup
 
@@ -237,6 +268,60 @@ no-ops.
 `onHand` is never changed by release because nothing was sold. The conditional
 claim and guards make concurrent/repeated runs safe: a second run releases
 nothing and returns `{"released":0}`.
+
+When this cleanup actually cancels an order, it returns one coupon use
+(`Coupon.usedCount − 1`, guarded `usedCount > 0`, matched by the order's
+`couponCode` snapshot): an abandoned cart must not permanently burn a limited
+coupon. A deleted coupon matches zero rows and never fails cleanup
+(`features/inventory/server/release-expired-reservations.ts`).
+
+### Step 8 — Customer cancel
+
+`cancelOrder` (`features/orders/server/customer-order-service.ts`) cancels only
+an order that is still `PENDING` + `UNFULFILLED` and owned by the caller
+(session user id, or the guest token from the URL). In one transaction it claims
+each `ACTIVE` reservation `ACTIVE → RELEASED` and decrements
+`ProductVariant.reserved` (nothing was sold, so `onHand` is untouched), moves a
+`PENDING` payment to `CANCELLED`, moves the order to
+`CANCELLED`/`CANCELLED`, and writes an `ORDER_CANCELLED` audit row (actor is
+the user id, or `null` for a guest cancelling with their token).
+
+Anything else is rejected with no writes: paid, shipped, delivered, or
+already-cancelled orders throw `OrderNotCancellableError`, and another
+viewer's id throws `OrderNotFoundError`. If a reservation is already
+`COMMITTED`, the payment webhook won the race and the cancel is refused instead
+of corrupting sold stock. The coupon snapshot is preserved and `usedCount` is
+never returned here — a self-service cancel keeps the use consumed as an abuse
+guard; only expiry (Step 7) and admin refund (Step 9) return it.
+
+### Step 9 — Admin refund
+
+`refundPayment` (`features/orders/server/admin-order-service.ts`) refunds a
+paid order in full and cancels it. Eligibility is one shared gate used by both
+the service and the admin refund card (`refundBlockReason`/`canRefund`): the
+order must be `PAID`, fulfillment must be unshipped (`UNFULFILLED`,
+`PROCESSING`, or `CANCELLED` — cancelling fulfillment is only legal before
+shipment, so that shape was never shipped), and the payment must be a
+`SUCCEEDED` Stripe intent. `SHIPPED`/`DELIVERED` orders and non-Stripe or
+intent-less payments are refused.
+
+Stripe is called first (`refunds.create` on the payment intent, full amount,
+`idempotencyKey: refund-{orderId}`); then one transaction restocks (each
+`ACTIVE` hold is released and `reserved` decremented; each `COMMITTED` hold had
+its sale recorded by the webhook, so `onHand` is incremented instead), moves
+the payment `SUCCEEDED → REFUNDED`, returns one coupon use (`usedCount − 1`,
+floored at 0, by `couponCode` snapshot), moves the order to
+`CANCELLED`/`CANCELLED`, and writes an `ORDER_REFUNDED` audit row
+(`PAID → CANCELLED`). An already-cancelled order is an idempotent no-op that
+never touches Stripe. See `docs/production-setup.md` §9 for the operator
+procedure (restricted keys need `refunds:write`; dashboard refunds are not
+synced back).
+
+Coupon `usedCount` policy, in one place: incremented when a checkout order is
+created; kept on customer cancel; returned on expiry cleanup and on admin
+refund; adjustable by an admin at any time via the Set/Reset usage controls on
+`/admin/coupons` (`setCouponUsageAction`). `usedCount` therefore counts
+checkouts created, not completed sales.
 
 ---
 
@@ -347,6 +432,22 @@ FROM "OrderAuditLog"
 WHERE "action" IN ('PAYMENT_AFTER_RELEASE', 'PAYMENT_AFTER_CANCELLATION')
 ORDER BY "createdAt" DESC;
 ```
+
+Customer cancels and admin refunds are audited the same way:
+
+```sql
+SELECT "orderId", "action", "fromStatus", "toStatus", "actorId", "createdAt"
+FROM "OrderAuditLog"
+WHERE "action" IN ('ORDER_CANCELLED', 'ORDER_REFUNDED')
+ORDER BY "createdAt" DESC;
+```
+
+`ORDER_CANCELLED` rows have `fromStatus = 'PENDING'`, `toStatus = 'CANCELLED'`
+(actor is the user id, or `NULL` for a guest cancelling with their token);
+`ORDER_REFUNDED` rows have `fromStatus = 'PAID'`, `toStatus = 'CANCELLED'`
+(actor is the refunding admin). A refunded order additionally reads
+`Payment.status = 'REFUNDED'`; a cancelled-but-never-paid order reads
+`Payment.status = 'CANCELLED'`.
 
 Useful checks:
 

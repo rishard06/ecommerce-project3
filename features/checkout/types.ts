@@ -16,6 +16,8 @@ export interface CreateOrderActionInput {
   items: Array<{ variantId: string; quantity: number }>;
   shipping: ShippingInput;
   idempotencyKey: string;
+  /** Optional single coupon code; validated server-side, never trusted. */
+  couponCode?: string;
 }
 
 export type StartCheckoutActionResult =

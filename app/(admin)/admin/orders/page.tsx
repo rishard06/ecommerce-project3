@@ -6,6 +6,7 @@ import {
   AdminOrderStatusBadge,
   AdminPaymentStatusBadge,
 } from "@/features/orders/components/AdminStatusBadges";
+import { AdminOrderCouponCell } from "@/features/orders/components/OrderDiscount";
 import { formatCents } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,6 +72,9 @@ export default async function AdminOrdersPage() {
                     Fulfillment
                   </th>
                   <th scope="col" className="py-2 pr-4 font-medium">
+                    Coupon
+                  </th>
+                  <th scope="col" className="py-2 pr-4 font-medium">
                     Total
                   </th>
                   <th scope="col" className="py-2 font-medium">
@@ -107,6 +111,12 @@ export default async function AdminOrdersPage() {
                     <td className="py-3 pr-4">
                       <AdminFulfillmentStatusBadge
                         status={order.fulfillmentStatus}
+                      />
+                    </td>
+                    <td className="text-muted-foreground py-3 pr-4 text-sm">
+                      <AdminOrderCouponCell
+                        couponCode={order.couponCode}
+                        discountCents={order.discountCents}
                       />
                     </td>
                     <td className="py-3 pr-4 font-medium tabular-nums">

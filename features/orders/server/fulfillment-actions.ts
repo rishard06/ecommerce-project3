@@ -6,6 +6,8 @@ import { requireAdmin } from "@/features/identity/server/guards";
 import {
   InvalidFulfillmentTransitionError,
   OrderNotFoundError,
+  OrderNotRefundableError,
+  refundPayment,
   updateFulfillment,
 } from "@/features/orders/server/admin-order-service";
 
@@ -25,6 +27,10 @@ const fulfillmentInputSchema = z.object({
     ["UNFULFILLED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"],
     { message: "Unknown fulfillment status" },
   ),
+});
+
+const refundInputSchema = z.object({
+  orderId: z.string().min(1, "Order id is required"),
 });
 
 function text(formData: FormData, key: string): string {
@@ -64,6 +70,44 @@ export async function updateFulfillmentAction(
     await updateFulfillment(parsed.data.orderId, parsed.data.next, user.id);
   } catch (error) {
     if (
+      error instanceof InvalidFulfillmentTransitionError ||
+      error instanceof OrderNotFoundError
+    ) {
+      return { success: false, error: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  return { success: true };
+}
+
+/**
+ * Refunds a paid order in full and cancels it from admin form data.
+ *
+ * The admin guard runs before parsing or touching Stripe. Only
+ * refund/transition state failures are returned to the form; Stripe
+ * infrastructure failures still propagate.
+ */
+export async function refundOrderAction(
+  formData: FormData,
+): Promise<FulfillmentActionResult> {
+  const user = await requireAdmin();
+
+  const parsed = refundInputSchema.safeParse({
+    orderId: text(formData, "orderId"),
+  });
+
+  if (!parsed.success) {
+    return { success: false, error: firstError(parsed.error) };
+  }
+
+  try {
+    await refundPayment(parsed.data.orderId, user.id);
+  } catch (error) {
+    if (
+      error instanceof OrderNotRefundableError ||
       error instanceof InvalidFulfillmentTransitionError ||
       error instanceof OrderNotFoundError
     ) {
