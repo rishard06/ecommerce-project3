@@ -535,6 +535,42 @@ describe("cancelOrder", () => {
     ).resolves.toBe(0);
   });
 
+  it("rejects cancelling a PENDING order whose hold was already committed (webhook won the race)", { timeout: CANCEL_TEST_TIMEOUT }, async () => {
+    const user = await createUser();
+    const { order, reservation } = await createCancellableOrder(user.id);
+    await testPrisma.reservation.update({
+      where: { id: reservation.id },
+      data: { status: "COMMITTED" },
+    });
+
+    await expect(cancelOrder(order.id, { userId: user.id })).rejects.toThrow(
+      OrderNotCancellableError,
+    );
+
+    await expect(
+      testPrisma.order.findUniqueOrThrow({ where: { id: order.id } }),
+    ).resolves.toMatchObject({
+      status: "PENDING",
+      fulfillmentStatus: "UNFULFILLED",
+    });
+    await expect(
+      testPrisma.payment.findUniqueOrThrow({ where: { orderId: order.id } }),
+    ).resolves.toMatchObject({ status: "PENDING" });
+    await expect(
+      testPrisma.reservation.findUniqueOrThrow({
+        where: { id: reservation.id },
+      }),
+    ).resolves.toMatchObject({ status: "COMMITTED" });
+    await expect(
+      testPrisma.productVariant.findUniqueOrThrow({
+        where: { id: reservation.variantId },
+      }),
+    ).resolves.toMatchObject({ reserved: reservation.quantity });
+    await expect(
+      testPrisma.orderAuditLog.count({ where: { orderId: order.id } }),
+    ).resolves.toBe(0);
+  });
+
   it("rejects cancelling SHIPPED or DELIVERED fulfillment and leaves every row untouched", { timeout: CANCEL_TEST_TIMEOUT }, async () => {
     const user = await createUser();
     const shipped = await createOrder(user.id, {
