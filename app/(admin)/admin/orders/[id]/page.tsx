@@ -5,7 +5,10 @@ import {
   allowedFulfillmentTransitions,
   getOrderForAdmin,
 } from "@/features/orders/server/admin-order-service";
-import { updateFulfillmentAction } from "@/features/orders/server/fulfillment-actions";
+import {
+  refundOrderAction,
+  updateFulfillmentAction,
+} from "@/features/orders/server/fulfillment-actions";
 import {
   AdminFulfillmentStatusBadge,
   AdminOrderStatusBadge,
@@ -35,6 +38,11 @@ const transitionLabels: Record<FulfillmentStatus, string> = {
 async function submitFulfillment(formData: FormData): Promise<void> {
   "use server";
   await updateFulfillmentAction(formData);
+}
+
+async function submitRefund(formData: FormData): Promise<void> {
+  "use server";
+  await refundOrderAction(formData);
 }
 
 export default async function AdminOrderDetailPage({
@@ -273,6 +281,27 @@ export default async function AdminOrderDetailPage({
               </p>
             </CardContent>
           </Card>
+
+          {order.status === "PAID" &&
+            order.payment?.status === "SUCCEEDED" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Refund</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3">
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    Issues a full Stripe refund and cancels the order. Only
+                    available before shipment.
+                  </p>
+                  <form action={submitRefund}>
+                    <input type="hidden" name="orderId" value={order.id} />
+                    <Button type="submit" variant="destructive">
+                      Refund and cancel order
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
 
           <Card>
             <CardHeader>

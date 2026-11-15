@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getStripe } from "@/features/payments/server/stripe-client";
 import type {
   FulfillmentStatus,
   OrderDetail,
@@ -37,8 +38,22 @@ export class OrderNotFoundError extends Error {
   }
 }
 
+/**
+ * Raised when an admin refund cannot proceed. The message is safe to show to
+ * the admin: it never contains provider secrets or customer data.
+ */
+export class OrderNotRefundableError extends Error {
+  constructor(message = "This order cannot be refunded.") {
+    super(message);
+    this.name = "OrderNotRefundableError";
+  }
+}
+
 /** Action label persisted in the immutable audit trail. */
 export const FULFILLMENT_UPDATED_ACTION = "FULFILLMENT_UPDATED";
+
+/** Audit marker for an admin-initiated refund + cancellation. Plain string. */
+export const ORDER_REFUNDED_ACTION = "ORDER_REFUNDED";
 
 /**
  * The only forward edges of the linear state machine. Cancellation is handled
@@ -102,11 +117,19 @@ export async function updateFulfillment(
   await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
-      select: { fulfillmentStatus: true },
+      select: { status: true, fulfillmentStatus: true },
     });
 
     if (!order) {
       throw new OrderNotFoundError();
+    }
+
+    // Terminal orders never move again. This accepts both cancelled shapes —
+    // legacy expiry rows (CANCELLED + UNFULFILLED) and full cancels
+    // (CANCELLED + CANCELLED) — and refuses to ship either. PAID orders stay
+    // fulfillable: advancing a paid order is the core admin flow.
+    if (order.status === "CANCELLED") {
+      throw new InvalidFulfillmentTransitionError(order.fulfillmentStatus, next);
     }
 
     const current = order.fulfillmentStatus;
@@ -134,6 +157,234 @@ export async function updateFulfillment(
       },
     });
   });
+}
+
+interface RefundableOrderState {
+  status: string;
+  fulfillmentStatus: FulfillmentStatus;
+  payment: {
+    status: string;
+    provider: string;
+    providerPaymentIntentId: string | null;
+  } | null;
+}
+
+/**
+ * Throws `OrderNotRefundableError` with an admin-facing message when the
+ * observed state must never reach Stripe. Only PAID orders with a succeeded
+ * Stripe payment intent may be refunded: PENDING, zero-total (which never
+ * becomes PAID), intent-less, and already-fulfilled rows all stop here.
+ */
+function assertRefundable(order: RefundableOrderState): asserts order is RefundableOrderState & {
+  payment: { status: string; provider: string; providerPaymentIntentId: string };
+} {
+  if (order.status !== "PAID") {
+    throw new OrderNotRefundableError("Only paid orders can be refunded.");
+  }
+  if (
+    order.fulfillmentStatus !== "UNFULFILLED" &&
+    order.fulfillmentStatus !== "PROCESSING"
+  ) {
+    throw new OrderNotRefundableError(
+      "Only unfulfilled or processing orders can be refunded.",
+    );
+  }
+  if (!order.payment || order.payment.status !== "SUCCEEDED") {
+    throw new OrderNotRefundableError(
+      "Only orders with a succeeded payment can be refunded.",
+    );
+  }
+  if (
+    order.payment.provider !== "stripe" ||
+    !order.payment.providerPaymentIntentId
+  ) {
+    throw new OrderNotRefundableError(
+      "Only orders with a Stripe payment intent can be refunded.",
+    );
+  }
+}
+
+/**
+ * Refunds a paid order in full and cancels it.
+ *
+ * Stripe is called first with `idempotencyKey: refund-{orderId}`; the order,
+ * payment, reservations, coupon usage, and audit row then commit in one
+ * transaction. If the transaction fails after a successful refund, a retry
+ * reuses the same idempotency key, so Stripe returns the original refund
+ * instead of issuing a second one. An already-cancelled order is an
+ * idempotent no-op that never touches Stripe.
+ *
+ * Reservation reversal mirrors the Task 12 pattern: ACTIVE holds are claimed
+ * ACTIVE → RELEASED before `reserved` is decremented (nothing was sold, so
+ * `onHand` is untouched), while COMMITTED holds had their sale recorded by
+ * the payment webhook, so the refund restocks `onHand` instead. Coupon usage
+ * is returned (`usedCount - 1`, floored at zero): unlike the customer
+ * self-service cancel, which keeps the use consumed as an abuse guard, the
+ * trusted admin path voids the order completely and must not permanently
+ * burn a limited coupon.
+ *
+ * Returns `{ refunded: true }` when a refund was issued and `{ refunded:
+ * false }` when the order was already cancelled.
+ */
+export async function refundPayment(
+  orderId: string,
+  actorId: string,
+): Promise<{ refunded: boolean }> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      status: true,
+      fulfillmentStatus: true,
+      payment: {
+        select: {
+          status: true,
+          provider: true,
+          providerPaymentIntentId: true,
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    throw new OrderNotFoundError();
+  }
+
+  if (order.status === "CANCELLED") {
+    return { refunded: false };
+  }
+
+  assertRefundable(order);
+
+  await getStripe().refunds.create(
+    { payment_intent: order.payment.providerPaymentIntentId },
+    { idempotencyKey: `refund-${orderId}` },
+  );
+
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.order.findUnique({
+      where: { id: orderId },
+      select: {
+        status: true,
+        fulfillmentStatus: true,
+        couponCode: true,
+        reservations: {
+          select: { id: true, variantId: true, quantity: true, status: true },
+        },
+      },
+    });
+
+    if (!current) {
+      throw new OrderNotFoundError();
+    }
+
+    // A concurrent admin refund that won the race already cancelled the row;
+    // the Stripe call above is idempotent, so losing here is safe.
+    if (
+      current.status !== "PAID" ||
+      (current.fulfillmentStatus !== "UNFULFILLED" &&
+        current.fulfillmentStatus !== "PROCESSING")
+    ) {
+      throw new OrderNotRefundableError(
+        "This order changed while the refund was processed.",
+      );
+    }
+
+    // Deterministic claim order (variantId, then id) matches the payment and
+    // expiry paths so concurrent workers take row locks in the same order.
+    const sorted = [...current.reservations].sort(
+      (left, right) =>
+        left.variantId.localeCompare(right.variantId) ||
+        left.id.localeCompare(right.id),
+    );
+
+    for (const reservation of sorted) {
+      if (reservation.status === "RELEASED") {
+        continue;
+      }
+
+      // The conditional claim is the idempotency boundary: a concurrent
+      // worker that already moved the row makes this return 0.
+      const claimed = await tx.reservation.updateMany({
+        where: { id: reservation.id, status: reservation.status },
+        data: { status: "RELEASED" },
+      });
+
+      if (claimed.count !== 1) {
+        throw new OrderNotRefundableError(
+          "This order changed while the refund was processed.",
+        );
+      }
+
+      if (reservation.status === "ACTIVE") {
+        const affected = await tx.$executeRaw`
+          UPDATE "product_variant"
+          SET "reserved" = "reserved" - ${reservation.quantity}
+          WHERE "id" = ${reservation.variantId}
+            AND "reserved" >= ${reservation.quantity}
+        `;
+
+        if (affected !== 1) {
+          throw new Error("Unable to release reserved stock");
+        }
+      } else {
+        const affected = await tx.$executeRaw`
+          UPDATE "product_variant"
+          SET "onHand" = "onHand" + ${reservation.quantity}
+          WHERE "id" = ${reservation.variantId}
+        `;
+
+        if (affected !== 1) {
+          throw new Error("Unable to restock refunded items");
+        }
+      }
+    }
+
+    const paymentUpdated = await tx.payment.updateMany({
+      where: { orderId, status: "SUCCEEDED" },
+      data: { status: "CANCELLED" },
+    });
+
+    if (paymentUpdated.count !== 1) {
+      throw new OrderNotRefundableError(
+        "This order changed while the refund was processed.",
+      );
+    }
+
+    if (current.couponCode) {
+      await tx.$executeRaw`
+        UPDATE "Coupon"
+        SET "usedCount" = "usedCount" - 1
+        WHERE "code" = ${current.couponCode} AND "usedCount" > 0
+      `;
+    }
+
+    const orderUpdated = await tx.order.updateMany({
+      where: {
+        id: orderId,
+        status: "PAID",
+        fulfillmentStatus: { in: ["UNFULFILLED", "PROCESSING"] },
+      },
+      data: { status: "CANCELLED", fulfillmentStatus: "CANCELLED" },
+    });
+
+    if (orderUpdated.count !== 1) {
+      throw new OrderNotRefundableError(
+        "This order changed while the refund was processed.",
+      );
+    }
+
+    await tx.orderAuditLog.create({
+      data: {
+        orderId,
+        actorId,
+        action: ORDER_REFUNDED_ACTION,
+        fromStatus: "PAID",
+        toStatus: "CANCELLED",
+      },
+    });
+  });
+
+  return { refunded: true };
 }
 
 export interface AdminOrderSummary {
