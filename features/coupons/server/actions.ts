@@ -46,6 +46,27 @@ function firstError(error: z.ZodError): string {
   return `${path}${issue.message}`;
 }
 
+/** Prisma unique-constraint violation (duplicate coupon code). */
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: string }).code === "P2002"
+  );
+}
+
+/** Prisma record-not-found (stale id / already deleted). */
+function isNotFound(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: string }).code === "P2025"
+  );
+}
+
+/** Generic message for unexpected persistence failures (never masks outages). */
+const DATABASE_UNAVAILABLE = "Database unavailable. Please try again.";
+
 /** Raw coupon fields shared by the create and update actions. */
 function couponFields(formData: FormData) {
   const expiresAt = text(formData, "expiresAt");
@@ -87,8 +108,11 @@ export async function createCouponAction(
 
     revalidatePath("/admin/coupons");
     return { success: true, couponId: coupon.id };
-  } catch {
-    return { success: false, error: "A coupon with that code already exists." };
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return { success: false, error: "A coupon with that code already exists." };
+    }
+    return { success: false, error: DATABASE_UNAVAILABLE };
   }
 }
 
@@ -122,8 +146,14 @@ export async function updateCouponAction(
 
     revalidatePath("/admin/coupons");
     return { success: true };
-  } catch {
-    return { success: false, error: "Coupon not found or code already in use." };
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return { success: false, error: "That code is already in use." };
+    }
+    if (isNotFound(error)) {
+      return { success: false, error: "Coupon not found." };
+    }
+    return { success: false, error: DATABASE_UNAVAILABLE };
   }
 }
 
@@ -146,8 +176,11 @@ export async function deleteCouponAction(
 
   try {
     await prisma.coupon.delete({ where: { id: parsed.data.couponId } });
-  } catch {
-    return { success: false, error: "Coupon not found." };
+  } catch (error) {
+    if (isNotFound(error)) {
+      return { success: false, error: "Coupon not found." };
+    }
+    return { success: false, error: DATABASE_UNAVAILABLE };
   }
 
   revalidatePath("/admin/coupons");
