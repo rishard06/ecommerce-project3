@@ -127,6 +127,11 @@ model Order {
   taxCents      Int
   totalCents    Int
 
+  // Coupon snapshot captured at order creation (Task 9 owns this shape;
+  // Task 10 computes it). Never floats: integer cents.
+  discountCents Int     @default(0)
+  couponCode    String?
+
   // Scalar shipping snapshot captured at order creation.
   shippingFullName   String
   shippingLine1      String
@@ -146,6 +151,26 @@ model Order {
   @@unique([userId, idempotencyKey])
   @@unique([guestToken, idempotencyKey])
   @@index([userId, createdAt])
+}
+
+model Coupon {
+  id String @id @default(uuid())
+
+  // Uppercase code (e.g. "SAVE10"). Normalized to uppercase on read/write.
+  code String @unique
+
+  // Exactly one discount leg is set. Percent is a whole number 1-100;
+  // fixed amounts are integer cents. Never floats.
+  percentOff     Int?
+  amountOffCents Int?
+
+  minSubtotalCents Int       @default(0)
+  expiresAt        DateTime?
+  maxUses          Int?
+  usedCount        Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model OrderItem {
