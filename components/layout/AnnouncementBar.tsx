@@ -11,9 +11,10 @@ export const ANNOUNCEMENT_MESSAGE = "Free shipping on every order.";
 
 /**
  * Dismissal is remembered per browser. Bump the key suffix whenever the
- * message changes so a new announcement is shown again to everyone.
+ * message changes — or to force a re-show — so the bar appears again for
+ * everyone. (v2: owner-requested re-show.)
  */
-export const ANNOUNCEMENT_STORAGE_KEY = "tended.announcement.dismissed";
+export const ANNOUNCEMENT_STORAGE_KEY = "tended.announcement.dismissed.v2";
 
 const isDismissed = () => {
   try {
