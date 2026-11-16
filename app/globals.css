@@ -165,6 +165,10 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    /* Kill any stray horizontal scrollbar from decorative overflow
+       (rotated deck, blurred gradients). `clip` — not `hidden` — so the
+       sticky navbar keeps working. */
+    overflow-x: clip;
   }
 
   body {
