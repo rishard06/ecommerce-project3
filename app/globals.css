@@ -105,6 +105,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces), Georgia, serif;
 
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);

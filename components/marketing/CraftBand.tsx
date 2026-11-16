@@ -29,7 +29,7 @@ export default function CraftBand() {
           </p>
           <h2
             id="craft-heading"
-            className="mb-4 text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl"
+            className="mb-4 font-display text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl"
           >
             Made to be kept, not replaced
           </h2>

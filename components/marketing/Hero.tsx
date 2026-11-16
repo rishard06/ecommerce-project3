@@ -50,7 +50,7 @@ export default function Hero() {
               animateBy="words"
               direction="top"
               as="h1"
-              className="mb-5 max-w-xl text-4xl font-semibold leading-[1.05] tracking-tight text-gray-primary sm:text-5xl xl:text-6xl"
+              className="mb-5 max-w-xl font-display text-4xl font-semibold leading-[1.05] tracking-tight text-gray-primary sm:text-5xl xl:text-6xl"
             />
           </Reveal>
           <Reveal trigger="load" index={1}>

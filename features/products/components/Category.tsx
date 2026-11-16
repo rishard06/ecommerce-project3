@@ -46,7 +46,7 @@ export default function Category() {
     <section className="w-full px-4 py-20 sm:px-6 md:py-28">
       <div className="mx-auto w-full max-w-7xl">
         <div className="mb-10 text-center md:mb-14">
-          <h2 className="mb-3 text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl">
+          <h2 className="mb-3 font-display text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl">
             Shop by category
           </h2>
           <p className="mx-auto max-w-2xl text-gray-secondary">
