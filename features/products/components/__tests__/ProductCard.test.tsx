@@ -134,3 +134,13 @@ describe("ProductCard tactile feedback", () => {
     expect(container.textContent).toContain("$68.00");
   });
 });
+
+describe("ProductCard prices", () => {
+  it("renders the price with tabular figures", () => {
+    const { getByText } = renderCard();
+
+    // Tabular figures keep prices from jittering as digits change and align
+    // price columns across cards.
+    expect(getByText("$68.00").className).toContain("tabular-nums");
+  });
+});
