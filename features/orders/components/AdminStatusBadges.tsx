@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import type { ReturnStatus } from "@/app/generated/prisma";
 import type {
   FulfillmentStatus,
   OrderStatus,
@@ -57,5 +58,20 @@ export function AdminFulfillmentStatusBadge({
   status: FulfillmentStatus;
 }) {
   const meta = fulfillmentStatusMeta[status];
+  return <Badge variant={meta.variant}>{meta.label}</Badge>;
+}
+
+const returnStatusMeta: Record<
+  ReturnStatus,
+  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+> = {
+  PENDING: { label: "Return pending", variant: "secondary" },
+  APPROVED: { label: "Return approved", variant: "default" },
+  REJECTED: { label: "Return rejected", variant: "outline" },
+};
+
+/** Compact return-request badge for the admin orders list. */
+export function AdminReturnStatusBadge({ status }: { status: ReturnStatus }) {
+  const meta = returnStatusMeta[status];
   return <Badge variant={meta.variant}>{meta.label}</Badge>;
 }

@@ -24,6 +24,14 @@ export function shippingUpdateHtml(orderId: string, status: string): string {
   return `<div><h1>Order update #${escapeHtml(orderId.slice(0, 8).toUpperCase())}</h1><p>Status: ${escapeHtml(status)}</p></div>`;
 }
 
+export function fulfillmentEmailSubject(
+  orderId: string,
+  status: "SHIPPED" | "DELIVERED",
+): string {
+  const label = status === "SHIPPED" ? "shipped" : "delivered";
+  return `Order ${label} #${orderId.slice(0, 8).toUpperCase()}`;
+}
+
 export function passwordResetHtml(resetUrl: string): string {
   return `<div><p>Reset your password:</p><a href="${escapeHtml(resetUrl)}">${escapeHtml(resetUrl)}</a></div>`;
 }

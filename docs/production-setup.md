@@ -58,8 +58,8 @@ Next.js only (and overrides `.env`), so keep database URLs and secrets in
 | `STRIPE_SECRET_KEY` | **Required** (server) | Server-side Stripe key used to create Checkout sessions and verify webhooks. Use `sk_test_...` locally, `sk_live_...` only in production. | `sk_test_your-secret-key` |
 | `STRIPE_WEBHOOK_SECRET` | **Required** (server) | Signing secret for the `/api/webhooks/stripe` endpoint. Locally this is the `whsec_...` printed by `stripe listen`; in production it comes from the dashboard endpoint. | `whsec_your-webhook-signing-secret` |
 | `CRON_SECRET` | **Required** (server) | Bearer secret that authenticates the Vercel Cron call to `/api/cron/release-reservations`. | `replace-with-a-random-cron-secret` |
-| `RESEND_API_KEY` | Optional (server) | Resend API key for order-confirmation + auth emails. When unset, emails use the dev-log fallback; set in production to send. | `re_your-api-key` |
-| `EMAIL_FROM` | Optional (server) | Sender address for order-confirmation + auth emails. When unset, defaults to the app fallback; set in production. | `venn. <orders@example.com>` |
+| `RESEND_API_KEY` | Optional (server) | Resend API key for order-confirmation + auth + shipment/delivery emails. When unset, emails use the dev-log fallback; set in production to send. No refund or return-decision email exists — refunds are a synchronous Stripe API call, not a webhook, and approve/reject send nothing. | `re_your-api-key` |
+| `EMAIL_FROM` | Optional (server) | Sender address for order-confirmation + auth + shipment/delivery emails. When unset, defaults to the app fallback; set in production. | `venn. <orders@example.com>` |
 | `NEXT_PUBLIC_APP_URL` | Optional (public) | Base URL used for Stripe success/cancel redirects. Defaults to `http://localhost:3000` when unset. | `https://store.example.com` |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Optional (public) | Publishable key. Hosted Checkout does not read it today; it is reserved for client-side Stripe.js. | `pk_test_your-publishable-key` |
 | `DATABASE_URL_TEST` | Test-only (required for `npm test`) | Disposable database used by the database-backed suites. Must differ from `DATABASE_URL`; the suites refuse to run if they match. | `postgresql://postgres:postgres@localhost:5432/ecommerce_test` |
@@ -181,7 +181,9 @@ npx prisma studio
 ```
 
 Demote with `role = 'CUSTOMER'`. Admin pages live at `/admin/products`,
-`/admin/orders`, and `/admin/coupons` (coupon create/update/delete plus
+`/admin/orders` (with a `Return` column for pending/approved/rejected triage;
+per-order approve/reject + refund card at `/admin/orders/[id]`), and
+`/admin/coupons` (coupon create/update/delete plus
 per-coupon usage Set/Reset); anonymous visitors are redirected to `/login`,
 and signed-in customers receive a 404.
 
@@ -361,9 +363,18 @@ Treat dumps as secrets: they contain customer and order data.
 ### In-app refund procedure
 
 - Full refunds only, issued from the Refund card on `/admin/orders/[id]`.
-  Allowed only for `PAID` orders with a `SUCCEEDED` Stripe payment whose
+  Allowed for `PAID` orders with a `SUCCEEDED` Stripe payment whose
   fulfillment is still unshipped (`UNFULFILLED`, `PROCESSING`, or a
-  pre-shipment `CANCELLED` fulfillment).
+  pre-shipment `CANCELLED` fulfillment) — **or** whose fulfillment is
+  `DELIVERED` with an `APPROVED` return request. `SHIPPED` orders and
+  `DELIVERED` orders without an approved return stay refused on the generic
+  card; only the return approve flow refunds delivered orders.
+- Return decisions live on the same detail page: approve a `PENDING` request
+  to claim `APPROVED` and refund in one flow (claim-before-charge; an
+  `APPROVED` request whose order is still `PAID` means a previous approve
+  died mid-refund, so the generic Refund card is the retry path under the
+  same `refund-{orderId}` idempotency key), or reject it with no money
+  moving. Triage pending requests via the `Return` column on `/admin/orders`.
 - `STRIPE_SECRET_KEY` must be allowed to create refunds (restricted keys need
   `refunds:write`); otherwise the call fails and nothing is written.
 - The refund writes `ORDER_REFUNDED` (`PAID → CANCELLED`), moves the payment to
@@ -401,9 +412,18 @@ Treat dumps as secrets: they contain customer and order data.
   the parallel `npm test` can time out on advisory-lock contention.)
 - [ ] Staging smoke test: create a coupon at `/admin/coupons` → checkout with
   and without the coupon (discount row reconciles on both order pages) →
-  signed webhook → order history → customer-cancel a second pending order →
-  admin fulfillment → admin full refund of the paid order (payment `REFUNDED`,
-  coupon use returned) → cleanup. In production, use a low-value live purchase
+  signed webhook → confirmation email received → order history → customer-cancel a second pending order →
+  admin fulfillment (`SHIPPED`, then `DELIVERED`, each firing a best-effort
+  status email to registered users; guest orders get none) → customer return
+  request on the delivered order with status-block + `RETURN_REQUESTED` audit
+  visible → admin approve on `/admin/orders/[id]` (order `CANCELLED`,
+  payment `REFUNDED`, `ORDER_REFUNDED` + `RETURN_APPROVED` audits, coupon use
+  returned) → invoice still reachable with the "Refunded" marker
+  (`/orders/[id]/invoice`, guest via `?token=`) → admin fulfillment →
+  admin full refund of an unshipped paid order (payment `REFUNDED`,
+  coupon use returned) → cleanup. Assert only emails that exist
+  (confirmation + auth + shipment/delivery); there is no refund or
+  return-decision email and no refund webhook. In production, use a low-value live purchase
   and refund, or rely on Stripe's test clocks before go-live.
 - [ ] Automated backups enabled and a restore drill recorded (§8).
 - [ ] Observe the pre-webhook state once: the success page must show

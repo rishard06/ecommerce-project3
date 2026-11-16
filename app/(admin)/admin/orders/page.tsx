@@ -5,6 +5,7 @@ import {
   AdminFulfillmentStatusBadge,
   AdminOrderStatusBadge,
   AdminPaymentStatusBadge,
+  AdminReturnStatusBadge,
 } from "@/features/orders/components/AdminStatusBadges";
 import { AdminOrderCouponCell } from "@/features/orders/components/OrderDiscount";
 import { formatCents } from "@/lib/money";
@@ -72,6 +73,9 @@ export default async function AdminOrdersPage() {
                     Fulfillment
                   </th>
                   <th scope="col" className="py-2 pr-4 font-medium">
+                    Return
+                  </th>
+                  <th scope="col" className="py-2 pr-4 font-medium">
                     Coupon
                   </th>
                   <th scope="col" className="py-2 pr-4 font-medium">
@@ -112,6 +116,17 @@ export default async function AdminOrdersPage() {
                       <AdminFulfillmentStatusBadge
                         status={order.fulfillmentStatus}
                       />
+                    </td>
+                    <td className="py-3 pr-4">
+                      {order.returnRequestStatus ? (
+                        <AdminReturnStatusBadge
+                          status={order.returnRequestStatus}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground text-xs">
+                          —
+                        </span>
+                      )}
                     </td>
                     <td className="text-muted-foreground py-3 pr-4 text-sm">
                       <AdminOrderCouponCell

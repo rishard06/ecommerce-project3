@@ -1,7 +1,10 @@
 /**
  * Thin account-shell wrapper around the canonical `/orders/[id]` detail page.
  *
- * Ownership, snapshots, and status pills stay defined in the canonical route;
- * re-exporting avoids maintaining a second order-detail implementation.
+ * Ownership, snapshots, status pills, and the invoice download entry point all
+ * stay defined in the canonical route; re-exporting avoids maintaining a
+ * second order-detail implementation. The invoice link is absolute
+ * (`/orders/[id]/invoice`) and preserves the guest `?token=`, so it works from
+ * both the `/orders/[id]` and `/account/orders/[id]` entry points.
  */
 export { default, metadata } from "../../../orders/[id]/page";

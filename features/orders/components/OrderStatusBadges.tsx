@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ReturnStatus } from "@/app/generated/prisma";
 import type {
   FulfillmentStatus,
   OrderStatus,
@@ -98,5 +99,17 @@ export function FulfillmentStatusPill({
   status: FulfillmentStatus;
 }) {
   const meta = fulfillmentStatusMeta[status];
+  return <StatusPill tone={meta.tone}>{meta.label}</StatusPill>;
+}
+
+const returnStatusMeta: Record<ReturnStatus, { label: string; tone: Tone }> = {
+  PENDING: { label: "Return requested", tone: "warning" },
+  APPROVED: { label: "Return approved", tone: "success" },
+  REJECTED: { label: "Return rejected", tone: "neutral" },
+};
+
+/** Customer-facing pill for the return request state on an order. */
+export function ReturnStatusPill({ status }: { status: ReturnStatus }) {
+  const meta = returnStatusMeta[status];
   return <StatusPill tone={meta.tone}>{meta.label}</StatusPill>;
 }

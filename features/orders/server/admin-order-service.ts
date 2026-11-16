@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/features/payments/server/stripe-client";
+import type { ReturnStatus } from "@/app/generated/prisma";
 import type {
   FulfillmentStatus,
   OrderDetail,
@@ -49,11 +50,25 @@ export class OrderNotRefundableError extends Error {
   }
 }
 
+/** Raised when an admin return decision targets an order with no request. */
+export class ReturnRequestNotFoundError extends Error {
+  constructor() {
+    super("No return request exists for this order.");
+    this.name = "ReturnRequestNotFoundError";
+  }
+}
+
 /** Action label persisted in the immutable audit trail. */
 export const FULFILLMENT_UPDATED_ACTION = "FULFILLMENT_UPDATED";
 
 /** Audit marker for an admin-initiated refund + cancellation. Plain string. */
 export const ORDER_REFUNDED_ACTION = "ORDER_REFUNDED";
+
+/** Audit marker for an admin return approval. Plain string, no migration. */
+export const RETURN_APPROVED_ACTION = "RETURN_APPROVED";
+
+/** Audit marker for an admin return rejection. Plain string, no migration. */
+export const RETURN_REJECTED_ACTION = "RETURN_REJECTED";
 
 /**
  * The only forward edges of the linear state machine. Cancellation is handled
@@ -179,6 +194,7 @@ export async function updateFulfillment(
 interface RefundableOrderState {
   status: string;
   fulfillmentStatus: string;
+  returnRequest?: { status: string } | null;
   payment: {
     status: string;
     provider: string;
@@ -202,13 +218,24 @@ const REFUNDABLE_FULFILLMENT_STATUSES: FulfillmentStatus[] = [
  * The single refund gate shared by the service and the admin refund card.
  * Returns the admin-facing block reason, or `null` when the order may be
  * refunded: `PAID` + unshipped fulfillment + a succeeded Stripe payment
- * intent. `REFUNDED` payments never re-pass (status is no longer `SUCCEEDED`).
+ * intent, or `PAID` + `DELIVERED` with an approved return request (Task 15).
+ * `REFUNDED` payments never re-pass (status is no longer `SUCCEEDED`).
+ *
+ * Delivered orders are refundable only through an approved return: request
+ * decisions only ever leave `PENDING`, so `APPROVED` is terminal and this
+ * exception cannot regress or be bypassed by re-requesting. The generic
+ * refund card keeps refusing delivered orders because its order shape
+ * carries no approved request.
  */
 export function refundBlockReason(order: RefundableOrderState): string | null {
   if (order.status !== "PAID") {
     return "Only paid orders can be refunded.";
   }
+  const approvedReturn =
+    order.fulfillmentStatus === "DELIVERED" &&
+    order.returnRequest?.status === "APPROVED";
   if (
+    !approvedReturn &&
     !REFUNDABLE_FULFILLMENT_STATUSES.includes(
       order.fulfillmentStatus as FulfillmentStatus,
     )
@@ -258,7 +285,9 @@ function assertRefundable(order: RefundableOrderState): asserts order is Refunda
  * transaction. If the transaction fails after a successful refund, a retry
  * reuses the same idempotency key, so Stripe returns the original refund
  * instead of issuing a second one. An already-cancelled order is an
- * idempotent no-op that never touches Stripe.
+ * idempotent no-op that never touches Stripe. A delivered order is refunded
+ * only when its return request is already APPROVED (Task 15 approve path);
+ * without that, delivered and shipped orders stay stranded.
  *
  * Reservation reversal mirrors the Task 12 pattern: ACTIVE holds are claimed
  * ACTIVE → RELEASED before `reserved` is decremented (nothing was sold, so
@@ -281,6 +310,7 @@ export async function refundPayment(
     select: {
       status: true,
       fulfillmentStatus: true,
+      returnRequest: { select: { status: true } },
       payment: {
         select: {
           status: true,
@@ -313,6 +343,7 @@ export async function refundPayment(
         status: true,
         fulfillmentStatus: true,
         couponCode: true,
+        returnRequest: { select: { status: true } },
         reservations: {
           select: { id: true, variantId: true, quantity: true, status: true },
         },
@@ -325,11 +356,18 @@ export async function refundPayment(
 
     // A concurrent admin refund that won the race already cancelled the row;
     // the Stripe call above is idempotent, so losing here is safe. Cancelled
-    // fulfillment stays refundable (it was never shipped); only shipped or
-    // delivered rows are stranded from this path.
+    // fulfillment stays refundable (it was never shipped); shipped rows stay
+    // stranded. DELIVERED is refundable only with an approved return request
+    // (Task 15): APPROVED is terminal, so a request observed as approved
+    // before the Stripe call cannot regress while the refund is in flight.
+    const approvedReturn = current.returnRequest?.status === "APPROVED";
+    const refundableStatuses: FulfillmentStatus[] = approvedReturn
+      ? [...REFUNDABLE_FULFILLMENT_STATUSES, "DELIVERED"]
+      : REFUNDABLE_FULFILLMENT_STATUSES;
+
     if (
       current.status !== "PAID" ||
-      !REFUNDABLE_FULFILLMENT_STATUSES.includes(
+      !refundableStatuses.includes(
         current.fulfillmentStatus as FulfillmentStatus,
       )
     ) {
@@ -415,7 +453,7 @@ export async function refundPayment(
       where: {
         id: orderId,
         status: "PAID",
-        fulfillmentStatus: { in: REFUNDABLE_FULFILLMENT_STATUSES },
+        fulfillmentStatus: { in: refundableStatuses },
       },
       data: { status: "CANCELLED", fulfillmentStatus: "CANCELLED" },
     });
@@ -440,6 +478,155 @@ export async function refundPayment(
   return { refunded: true };
 }
 
+/** Outcome of an admin return approval. `approved` is false on a repeat. */
+export interface ApproveReturnResult {
+  approved: boolean;
+  status: ReturnStatus;
+}
+
+/** Outcome of an admin return rejection. `rejected` is false on a repeat. */
+export interface RejectReturnResult {
+  rejected: boolean;
+  status: ReturnStatus;
+}
+
+/**
+ * Approves a PENDING return request and refunds it in full.
+ *
+ * The PENDING → APPROVED claim is conditional (`updateMany` on the observed
+ * status), so exactly one concurrent approver wins: losers — and every later
+ * call — return `{ approved: false }` without touching Stripe. The claim
+ * commits before `refundPayment` runs, which is what unlocks its DELIVERED
+ * gate (APPROVED is terminal, so the gate cannot regress mid-refund) and
+ * what makes a retry after a successful refund a no-op instead of a second
+ * Stripe call. Returns `{ approved: true }` when this call approved.
+ *
+ * Resume rule: an APPROVED request whose order is still PAID means a
+ * previous approve died between the claim commit and the completed refund,
+ * so the refund is resumed (same `idempotencyKey: refund-{orderId}`;
+ * `refundPayment` no-ops on already-cancelled rows, so resuming can never
+ * double-charge). Only an order that already left PAID is a true no-op.
+ * Refund failures propagate, so the admin action surfaces them instead of
+ * reporting a success while the money never moved.
+ */
+export async function approveReturn(
+  orderId: string,
+  actorId: string,
+): Promise<ApproveReturnResult> {
+  const decision = await prisma.$transaction(async (tx) => {
+    const request = await tx.returnRequest.findUnique({
+      where: { orderId },
+    });
+
+    if (!request) {
+      throw new ReturnRequestNotFoundError();
+    }
+
+    if (request.status === "APPROVED") {
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { status: true },
+      });
+
+      if (!order) {
+        throw new OrderNotFoundError();
+      }
+
+      if (order.status !== "PAID") {
+        return { approved: false, status: request.status };
+      }
+
+      return { approved: true, status: request.status };
+    }
+
+    if (request.status !== "PENDING") {
+      return { approved: false, status: request.status };
+    }
+
+    const claimed = await tx.returnRequest.updateMany({
+      where: { orderId, status: "PENDING" },
+      data: { status: "APPROVED" },
+    });
+
+    if (claimed.count !== 1) {
+      const current = await tx.returnRequest.findUniqueOrThrow({
+        where: { orderId },
+      });
+      return { approved: false, status: current.status };
+    }
+
+    await tx.orderAuditLog.create({
+      data: {
+        orderId,
+        actorId,
+        action: RETURN_APPROVED_ACTION,
+        // The order row itself is unchanged by the decision (the refund
+        // writes its own ORDER_REFUNDED row), so both status fields stay
+        // null; the action name carries the meaning.
+        fromStatus: null,
+        toStatus: null,
+      },
+    });
+
+    return { approved: true, status: "APPROVED" as ReturnStatus };
+  });
+
+  if (!decision.approved) {
+    return decision;
+  }
+
+  await refundPayment(orderId, actorId);
+  return decision;
+}
+
+/**
+ * Rejects a PENDING return request. Money never moves: no Stripe call, no
+ * order or payment change, just the REJECTED status and one audit row.
+ * Decisions after the first are no-ops returning the current status.
+ */
+export async function rejectReturn(
+  orderId: string,
+  actorId: string,
+): Promise<RejectReturnResult> {
+  return prisma.$transaction(async (tx) => {
+    const request = await tx.returnRequest.findUnique({
+      where: { orderId },
+    });
+
+    if (!request) {
+      throw new ReturnRequestNotFoundError();
+    }
+
+    if (request.status !== "PENDING") {
+      return { rejected: false, status: request.status };
+    }
+
+    const claimed = await tx.returnRequest.updateMany({
+      where: { orderId, status: "PENDING" },
+      data: { status: "REJECTED" },
+    });
+
+    if (claimed.count !== 1) {
+      const current = await tx.returnRequest.findUniqueOrThrow({
+        where: { orderId },
+      });
+      return { rejected: false, status: current.status };
+    }
+
+    await tx.orderAuditLog.create({
+      data: {
+        orderId,
+        actorId,
+        action: RETURN_REJECTED_ACTION,
+        fromStatus: null,
+        toStatus: null,
+      },
+    });
+
+    return { rejected: true, status: "REJECTED" as ReturnStatus };
+  });
+}
+
 export interface AdminOrderSummary {
   id: string;
   createdAt: Date;
@@ -454,6 +641,8 @@ export interface AdminOrderSummary {
   taxCents: number;
   totalCents: number;
   paymentStatus: PaymentStatus | null;
+  /** Return request state for list-level triage; null when never requested. */
+  returnRequestStatus: ReturnStatus | null;
 }
 
 export interface OrderAuditEntry {
@@ -468,6 +657,12 @@ export interface OrderAuditEntry {
 export interface AdminOrderDetail extends OrderDetail {
   customerEmail: string;
   auditLogs: OrderAuditEntry[];
+  /** The customer return request for this order, if one exists (Task 15). */
+  returnRequest: {
+    status: ReturnStatus;
+    reason: string;
+    createdAt: Date;
+  } | null;
   payment:
     | (OrderDetail["payment"] & {
         /** Present so the page can use the shared `canRefund` gate. */
@@ -490,6 +685,7 @@ const adminOrderSummarySelect = {
   totalCents: true,
   user: { select: { email: true } },
   payment: { select: { status: true } },
+  returnRequest: { select: { status: true } },
 } as const;
 
 /** Lists every customer's orders, newest first. Admin-only at the boundary. */
@@ -513,6 +709,7 @@ export async function listOrdersForAdmin(): Promise<AdminOrderSummary[]> {
     taxCents: order.taxCents,
     totalCents: order.totalCents,
     paymentStatus: order.payment?.status ?? null,
+    returnRequestStatus: order.returnRequest?.status ?? null,
   }));
 }
 
@@ -529,6 +726,7 @@ export async function getOrderForAdmin(
       user: { select: { email: true } },
       items: true,
       payment: true,
+      returnRequest: true,
       auditLogs: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -573,6 +771,13 @@ export async function getOrderForAdmin(
     customerEmail: order.user?.email ?? "guest",
     items,
     shipping,
+    returnRequest: order.returnRequest
+      ? {
+          status: order.returnRequest.status,
+          reason: order.returnRequest.reason,
+          createdAt: order.returnRequest.createdAt,
+        }
+      : null,
     payment: order.payment
       ? {
           status: order.payment.status,

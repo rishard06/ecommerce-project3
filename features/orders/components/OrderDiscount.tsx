@@ -73,6 +73,9 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   FULFILLMENT_UPDATED: "Fulfillment updated",
   ORDER_CANCELLED: "Order cancelled",
   ORDER_REFUNDED: "Refund issued",
+  RETURN_REQUESTED: "Return requested",
+  RETURN_APPROVED: "Return approved",
+  RETURN_REJECTED: "Return rejected",
 };
 
 /** Human label for an `OrderAuditLog.action`; unknown tokens pass through. */

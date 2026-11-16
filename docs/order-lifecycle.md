@@ -10,6 +10,11 @@ cleanup. This document mirrors the code in:
 - `features/payments/server/payment-transitions.ts`
 - `features/orders/server/admin-order-service.ts`
 - `features/orders/server/customer-order-service.ts`
+- `features/orders/server/return-decisions.ts` (approve/reject; re-exported by `admin-order-service.ts`)
+- `features/returns/server/actions.ts` (`requestReturn`, `getReturnRequestForViewer`)
+- `features/returns/server/return-actions.ts` (`requestReturnAction` FormData wrapper)
+- `features/invoices/server/render-invoice.ts` (snapshot-only invoice data)
+- `lib/email/send-fulfillment-email.ts` (SHIPPED/DELIVERED notifications)
 - `features/inventory/server/release-expired-reservations.ts`
 - `app/api/webhooks/stripe/route.ts`
 - `app/api/cron/release-reservations/route.ts`
@@ -78,6 +83,65 @@ success page). The refund is derived from `Payment.status`, not from the
 `ORDER_REFUNDED` audit row: the refund transaction writes both atomically, and
 the payment row is what all read paths already select. The Stripe webhook only
 ever marks `PENDING → SUCCEEDED`; it never overwrites `REFUNDED`.
+
+### ReturnStatus (`ReturnRequest.status`)
+
+| Value | Meaning |
+| --- | --- |
+| `PENDING` | Customer asked for a return; awaiting an admin decision. No money moved. |
+| `APPROVED` | Admin approved; the approve path refunds the Stripe payment in full and cancels the order. Terminal. |
+| `REJECTED` | Admin rejected; no money moves, order and payment unchanged. Terminal. |
+
+```text
+PENDING ──(admin approve + refund)──▶ APPROVED
+PENDING ──(admin reject, no money)──▶ REJECTED
+```
+
+Rules (enforced in `features/returns/server/actions.ts` and
+`features/orders/server/admin-order-service.ts`):
+
+- One request per order (`ReturnRequest.orderId` is `@unique`). A second
+  request throws `DuplicateReturnError`; concurrent double-submits resolve
+  deterministically via the unique constraint (`P2002` → duplicate).
+- Only `PAID` + `DELIVERED` orders may be requested. `PAID` keeps the approve
+  path honest (approving triggers `refundPayment`, which only refunds
+  succeeded Stripe payments, so a request must never exist on an order with
+  no captured money).
+- Only deliveries within the last 30 days (`RETURN_WINDOW_DAYS = 30`),
+  anchored on `Order.updatedAt` (there is no `deliveredAt` column; the
+  `DELIVERED` transition bumps `updatedAt`). Limitation: any later write to
+  the order row re-opens the window.
+- The customer surface is the "Returns" section on `/orders/[id]`
+  (also `/account/orders/[id]`, same page): a status block (`PENDING` /
+  `APPROVED` / `REJECTED` + reason + request date) whenever a request exists,
+  plus a `requestReturnAction(formData)` reason form shown only for `PAID` +
+  `DELIVERED` orders with no request. Guests use the same page with
+  `?token=`.
+- The admin surface is `/admin/orders` (a `Return` column from
+  `returnRequest.status`: pending / approved / rejected, `—` when none) and
+  the approve/reject forms on `/admin/orders/[id]`.
+- Approve flow: the `PENDING → APPROVED` claim is conditional
+  (`updateMany` on observed `PENDING`), so exactly one concurrent approver
+  wins; losers and later calls return `{ approved: false }` without touching
+  Stripe. The claim commits **before** `refundPayment` runs, which is what
+  unlocks the `DELIVERED` refund gate. The refund then writes
+  `ORDER_REFUNDED`, moves payment `SUCCEEDED → REFUNDED`, and moves the order
+  to `CANCELLED`/`CANCELLED` (stock restocked, one coupon use returned).
+  Resume rule: an `APPROVED` request whose order is still `PAID` means a
+  previous approve died between claim and refund, so approving again resumes
+  the refund under the same `refund-{orderId}` idempotency key (never a
+  second Stripe charge); only an order that already left `PAID` is a true
+  no-op. Refund failures propagate to the admin action — the page must derive
+  "refund pending / failed" from order/payment state, and the generic Refund
+  card remains the retry path for `APPROVED` + `PAID`.
+- Reject flow: `PENDING → REJECTED` via a conditional claim; no Stripe call,
+  no order/payment/stock change, just the `REJECTED` status plus one audit
+  row. Later decisions are no-ops returning the current status
+  (approve-after-reject and reject-after-approve never move money).
+- Audits: `RETURN_REQUESTED` (customer request; `fromStatus`/`toStatus` null,
+  actor is the user id or `NULL` for a guest token), `RETURN_APPROVED` and
+  `RETURN_REJECTED` (admin decision; statuses null — the order row itself is
+  unchanged by the decision, the refund writes its own `ORDER_REFUNDED` row).
 
 ### ReservationStatus (`Reservation.status`)
 
@@ -294,16 +358,18 @@ of corrupting sold stock. The coupon snapshot is preserved and `usedCount` is
 never returned here — a self-service cancel keeps the use consumed as an abuse
 guard; only expiry (Step 7) and admin refund (Step 9) return it.
 
-### Step 9 — Admin refund
+### Step 9 — Admin refund (generic path + approved-return exception)
 
 `refundPayment` (`features/orders/server/admin-order-service.ts`) refunds a
 paid order in full and cancels it. Eligibility is one shared gate used by both
 the service and the admin refund card (`refundBlockReason`/`canRefund`): the
-order must be `PAID`, fulfillment must be unshipped (`UNFULFILLED`,
-`PROCESSING`, or `CANCELLED` — cancelling fulfillment is only legal before
-shipment, so that shape was never shipped), and the payment must be a
-`SUCCEEDED` Stripe intent. `SHIPPED`/`DELIVERED` orders and non-Stripe or
-intent-less payments are refused.
+order must be `PAID`, the payment must be a `SUCCEEDED` Stripe intent, and
+fulfillment must be either unshipped (`UNFULFILLED`, `PROCESSING`, or
+pre-shipment `CANCELLED` — cancelling fulfillment is only legal before
+shipment, so that shape was never shipped) **or** `DELIVERED` with an
+`APPROVED` return request (Task 15 approve path). `SHIPPED` orders and
+`DELIVERED` orders without an approved return, non-Stripe payments, and
+intent-less payments are refused; `REFUNDED` payments never re-pass.
 
 Stripe is called first (`refunds.create` on the payment intent, full amount,
 `idempotencyKey: refund-{orderId}`); then one transaction restocks (each
@@ -317,11 +383,71 @@ never touches Stripe. See `docs/production-setup.md` §9 for the operator
 procedure (restricted keys need `refunds:write`; dashboard refunds are not
 synced back).
 
+**Delivered + approved-return exception, and the generic card's retry role.**
+The generic Refund card on `/admin/orders/[id]` renders from the same
+`refundBlockReason` gate, so it keeps refusing `SHIPPED` orders and
+`DELIVERED` orders without an approved return — that refusal is correct for
+the generic path; only the approve flow refunds delivered orders. When an
+approve claims `APPROVED` but its refund fails (order still `PAID`), the
+approve/reject forms no longer apply (they only render for `PENDING`), so
+the generic Refund card is the retry path: for `DELIVERED` + `APPROVED` +
+`SUCCEEDED` payment the gate passes, and retrying reuses
+`refund-{orderId}`. A resumed approve (`APPROVED` + still `PAID`) behaves
+the same way.
+
 Coupon `usedCount` policy, in one place: incremented when a checkout order is
 created; kept on customer cancel; returned on expiry cleanup and on admin
 refund; adjustable by an admin at any time via the Set/Reset usage controls on
 `/admin/coupons` (`setCouponUsageAction`). `usedCount` therefore counts
 checkouts created, not completed sales.
+
+### Step 10 — Customer return request
+
+`requestReturn` (`features/returns/server/actions.ts`) records a `PENDING`
+`ReturnRequest` plus a `RETURN_REQUESTED` audit row in one transaction; money
+is never touched here. Ownership uses the same viewer predicate as the order
+page (session `userId`, or the unguessable `guestToken` from `?token=`), and
+misses/foreign orders resolve to `OrderNotFoundError`. Eligibility:
+`PAID` + `DELIVERED`, within 30 days of `updatedAt`, one request per order,
+non-empty reason (≤ 1000 chars). The customer entry point is the
+`requestReturnAction(formData)` wrapper
+(`features/returns/server/return-actions.ts`) consumed by the "Returns"
+section on `/orders/[id]` (status block + reason form; `/account/orders/[id]`
+re-exports the same page). Admins triage via the `Return` column on
+`/admin/orders` and decide on `/admin/orders/[id]` (`approveReturn` /
+`rejectReturn`; see the `ReturnStatus` section for the claim-before-charge
+flow, the resume rule, and the reject-no-money path). There is deliberately
+no admin notification email for a new request — triage is via the list
+column.
+
+### Step 11 — Invoices (payment history, not order status)
+
+Entitlement follows payment history: `canDownloadInvoice` shows the invoice
+button and serves `/orders/[id]/invoice` whenever the payment reached
+`SUCCEEDED` or `REFUNDED` (and the order is not `PENDING`). Every in-app
+refund flips the order/fulfillment to `CANCELLED`, and a pre-shipment
+fulfillment cancel does the same — neither erases the financial record, so
+neither revokes the invoice. `PENDING` orders stay hidden even with a payment
+row; `PENDING`/`CANCELLED`/`FAILED` payments and missing payments stay
+hidden. Refunded invoices render a "Refunded" badge and a credit-note footer
+("A full refund was issued …"); amounts are the Task 16 order snapshots and
+never change with later catalog edits. Ownership reuses `getOrderForViewer`
+(guests keep `?token=`).
+
+### Step 12 — Shipment / delivery emails (best-effort, no refund email)
+
+`sendFulfillmentEmail(orderId, "SHIPPED" | "DELIVERED")`
+(`lib/email/send-fulfillment-email.ts`) fires after the fulfillment
+transaction commits. It is best-effort and never throws: lookup + send are
+guarded so an email failure cannot fail the admin action or roll back the
+transition. The recipient is the order's user email (same lookup as the order
+confirmation); **guest orders receive no shipment email** because they store
+no email address (`userId` null — same limitation as the Task 2 confirmation
+email). No refund or return-decision email is sent: refunds are a synchronous
+Stripe API call (`refunds.create`), not a webhook, and return
+approve/reject only flips `ReturnRequest.status` plus audit rows. Operators
+must not expect a "refund webhook/email" — assert only confirmation, auth,
+and shipment/delivery emails.
 
 ---
 
@@ -440,6 +566,27 @@ SELECT "orderId", "action", "fromStatus", "toStatus", "actorId", "createdAt"
 FROM "OrderAuditLog"
 WHERE "action" IN ('ORDER_CANCELLED', 'ORDER_REFUNDED')
 ORDER BY "createdAt" DESC;
+```
+
+Return requests and admin return decisions have their own audit actions
+(decision rows leave `fromStatus`/`toStatus` null — the order row itself is
+unchanged; the refund writes its own `ORDER_REFUNDED` row):
+
+```sql
+SELECT "orderId", "action", "fromStatus", "toStatus", "actorId", "createdAt"
+FROM "OrderAuditLog"
+WHERE "action" IN ('RETURN_REQUESTED', 'RETURN_APPROVED', 'RETURN_REJECTED')
+ORDER BY "createdAt" DESC;
+```
+
+Triage pending returns (the same signal as the `Return` column on
+`/admin/orders`):
+
+```sql
+SELECT "orderId", "reason", "status", "createdAt"
+FROM "ReturnRequest"
+WHERE "status" = 'PENDING'
+ORDER BY "createdAt" ASC;
 ```
 
 `ORDER_CANCELLED` rows have `fromStatus = 'PENDING'`, `toStatus = 'CANCELLED'`
