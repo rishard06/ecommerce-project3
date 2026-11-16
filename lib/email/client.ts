@@ -31,10 +31,10 @@ function getResendKey(): string | undefined {
 
 function getDefaultFrom(): string {
   try {
-    return getServerEnv().EMAIL_FROM ?? "venn. <orders@example.com>";
+    return getServerEnv().EMAIL_FROM ?? "tended. <orders@example.com>";
   } catch {
     const raw = process.env.EMAIL_FROM;
-    return (raw === "" ? undefined : raw) ?? "venn. <orders@example.com>";
+    return (raw === "" ? undefined : raw) ?? "tended. <orders@example.com>";
   }
 }
 

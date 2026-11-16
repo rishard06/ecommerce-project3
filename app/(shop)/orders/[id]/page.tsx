@@ -30,7 +30,7 @@ import { ReturnRequestForm } from "@/features/returns/components/ReturnRequestFo
 import { getReturnRequestForViewer } from "@/features/returns/server/actions";
 
 export const metadata = {
-  title: "Order details | venn.",
+  title: "Order details | tended.",
   description: "View your order items, shipping details, and payment status.",
 };
 

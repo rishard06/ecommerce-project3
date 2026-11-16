@@ -155,7 +155,7 @@ export function ProductTabs({ product }: ProductTabsProps) {
               asChild
               className="h-11 rounded-full bg-accent-500 px-6 font-semibold text-gray-primary hover:bg-accent-600"
             >
-              <a href="mailto:support@venn.shop">Contact support</a>
+              <a href="mailto:support@tended.shop">Contact support</a>
             </Button>
           </div>
         </TabsContent>

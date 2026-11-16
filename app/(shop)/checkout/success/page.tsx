@@ -17,7 +17,7 @@ import {
 import { formatCents } from "@/lib/money";
 
 export const metadata = {
-  title: "Payment status | venn.",
+  title: "Payment status | tended.",
   description: "Check your order payment status. Payment is confirmed only by Stripe.",
 };
 

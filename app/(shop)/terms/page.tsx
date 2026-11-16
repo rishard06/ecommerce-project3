@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "The terms that apply when you shop with venn.",
+  description: "The terms that apply when you shop with tended.",
 };
 
 export default function TermsPage() {
@@ -22,7 +22,7 @@ export default function TermsPage() {
         <section className="space-y-2">
           <h2 className="text-lg font-semibold text-gray-primary">Using this site</h2>
           <p className="leading-relaxed">
-            By browsing or ordering from venn. you agree to these terms. Use the
+            By browsing or ordering from tended. you agree to these terms. Use the
             site lawfully, keep your account details accurate, and do not attempt
             to disrupt checkout, payments, or any part of the store.
           </p>
@@ -64,7 +64,7 @@ export default function TermsPage() {
           <h2 className="text-lg font-semibold text-gray-primary">Liability</h2>
           <p className="leading-relaxed">
             The store is provided as is for demonstration purposes. To the extent
-            permitted by law, venn. is not liable for indirect or consequential
+            permitted by law, tended. is not liable for indirect or consequential
             losses arising from use of the site.
           </p>
         </section>
@@ -74,10 +74,10 @@ export default function TermsPage() {
           <p className="leading-relaxed">
             Questions about these terms? Email{" "}
             <a
-              href="mailto:support@venn.shop"
+              href="mailto:support@tended.shop"
               className="font-semibold text-accent-700 underline-offset-4 hover:underline"
             >
-              support@venn.shop
+              support@tended.shop
             </a>
             .
           </p>

@@ -50,7 +50,7 @@ const quickLinks: FooterLink[] = [
 const contactInfo: ContactInfo[] = [
   { icon: MapPin, text: "123 Audio Lane, Soundville, CA 94105" },
   { icon: Phone, text: "+1 (555) 123-4567" },
-  { icon: Mail, text: "support@venn.shop" },
+  { icon: Mail, text: "support@tended.shop" },
 ];
 
 const footerLinks: FooterLink[] = [
@@ -172,7 +172,7 @@ export default function Footer() {
 
         <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-gray-primary/10 pt-6 md:flex-row">
           <p className="text-center text-sm text-gray-tertiary md:text-left">
-            © {new Date().getFullYear()} venn. All rights reserved.
+            © {new Date().getFullYear()} tended. All rights reserved.
           </p>
           <div className="flex flex-wrap justify-center gap-4 md:gap-5">
             {footerLinks.map((link) => (

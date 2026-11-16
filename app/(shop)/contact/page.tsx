@@ -4,15 +4,15 @@ import { Mail, MapPin, Phone } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Contact",
-  description: "Talk to the venn. team about orders, delivery, returns, or anything else.",
+  description: "Talk to the tended. team about orders, delivery, returns, or anything else.",
 };
 
 const details = [
   {
     icon: Mail,
     label: "Email",
-    value: "support@venn.shop",
-    href: "mailto:support@venn.shop",
+    value: "support@tended.shop",
+    href: "mailto:support@tended.shop",
   },
   {
     icon: Phone,

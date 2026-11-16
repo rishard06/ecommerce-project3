@@ -1,4 +1,4 @@
-# Venn Store
+# tended.
 
 A production-shaped e-commerce storefront built with Next.js 15, PostgreSQL,
 Better Auth, and hosted Stripe Checkout. The catalog, cart pricing, orders,
