@@ -78,7 +78,19 @@ export default function ProductCard({
   };
 
   return (
-    <article className="glass-component group relative flex h-full flex-col overflow-hidden transition-[transform,box-shadow] duration-300 ease-out-quart hover:-translate-y-0.5 hover:shadow-lift">
+    <motion.article
+      className={cn(
+        "glass-component group relative flex h-full flex-col overflow-hidden hover:shadow-lift",
+        !prefersReducedMotion &&
+          "transition-shadow duration-300 ease-out-quart",
+      )}
+      // Transform-only tactile feedback: the card lifts 2px on hover and
+      // compresses 2% while pressed. The CSS hover lift is gone so motion owns
+      // the transform outright; box-shadow stays a CSS transition.
+      whileHover={prefersReducedMotion ? undefined : { y: -2 }}
+      whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
+      transition={prefersReducedMotion ? undefined : spring.smooth}
+    >
       {/* A single overlay link keeps the whole card clickable without nesting
           interactive elements inside an anchor. */}
       <Link
@@ -126,7 +138,11 @@ export default function ProductCard({
               alt=""
               fill
               sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
-              className="object-contain p-6 transition-transform duration-500 ease-out-quart group-hover:scale-[1.03]"
+              className={cn(
+                "object-contain p-6",
+                !prefersReducedMotion &&
+                  "transition-transform duration-500 ease-out-quart group-hover:scale-[1.03]",
+              )}
             />
           </div>
         </Link>
@@ -154,6 +170,6 @@ export default function ProductCard({
           </Button>
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 }

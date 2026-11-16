@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText as GSAPSplitText } from 'gsap/SplitText';
 import { useGSAP } from '@gsap/react';
+import { useReducedMotion } from 'motion/react';
 
 gsap.registerPlugin(ScrollTrigger, GSAPSplitText, useGSAP);
 
@@ -41,6 +42,7 @@ const SplitText: React.FC<SplitTextProps> = ({
   const animationCompletedRef = useRef(false);
   const onCompleteRef = useRef(onLetterAnimationComplete);
   const [fontsLoaded, setFontsLoaded] = useState<boolean>(false);
+  const prefersReducedMotion = useReducedMotion();
 
   // Keep callback ref updated
   useEffect(() => {
@@ -60,6 +62,9 @@ const SplitText: React.FC<SplitTextProps> = ({
   useGSAP(
     () => {
       if (!ref.current || !text || !fontsLoaded) return;
+      // Reduced motion renders the text exactly as authored: no split, no
+      // ScrollTrigger, no initial opacity-0 state.
+      if (prefersReducedMotion) return;
       // Prevent re-animation if already completed
       if (animationCompletedRef.current) return;
       const el = ref.current as HTMLElement & {
@@ -149,7 +154,8 @@ const SplitText: React.FC<SplitTextProps> = ({
         JSON.stringify(to),
         threshold,
         rootMargin,
-        fontsLoaded
+        fontsLoaded,
+        prefersReducedMotion
       ],
       scope: ref
     }
@@ -159,7 +165,8 @@ const SplitText: React.FC<SplitTextProps> = ({
     const style: React.CSSProperties = {
       textAlign,
       wordWrap: 'break-word',
-      willChange: 'transform, opacity'
+      // Only hint the compositor when an animation will actually run.
+      ...(prefersReducedMotion ? {} : { willChange: 'transform, opacity' })
     };
     const classes = `split-parent overflow-hidden inline-block whitespace-normal ${className}`;
     const Tag = (tag || 'p') as React.ElementType;
