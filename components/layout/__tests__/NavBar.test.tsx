@@ -13,7 +13,7 @@ vi.mock("@/features/cart/components/CartBadge", () => ({
   CartBadge: () => null,
 }));
 
-import NavBar from "../NavBar";
+import NavBar, { HERO_SCROLL_THRESHOLD } from "../NavBar";
 
 function setScrollY(value: number) {
   Object.defineProperty(window, "scrollY", {
@@ -55,30 +55,55 @@ describe("NavBar material", () => {
     expect(nav.className).toContain("print:hidden");
   });
 
-  it("stays transparent at any scroll position (no glass material)", () => {
+  it("turns to glass once the page scrolls past the hero threshold", () => {
     const { bar } = renderBar();
 
-    scrollTo(200);
+    scrollTo(HERO_SCROLL_THRESHOLD);
 
     expect(bar.className).toContain("bg-transparent");
     expect(bar.className).not.toContain("glass-control");
 
-    scrollTo(0);
+    scrollTo(HERO_SCROLL_THRESHOLD + 1);
 
+    expect(bar.className).toContain("glass-control");
+    expect(bar.className).not.toContain("bg-transparent");
+  });
+
+  it("returns to transparent when scrolled back to the top", () => {
+    const { bar } = renderBar();
+
+    scrollTo(HERO_SCROLL_THRESHOLD + 200);
+    expect(bar.className).toContain("glass-control");
+
+    scrollTo(0);
     expect(bar.className).toContain("bg-transparent");
     expect(bar.className).not.toContain("glass-control");
   });
 
-  it("attaches no scroll listener", () => {
+  it("listens passively and removes the listener on unmount", () => {
     const addSpy = vi.spyOn(window, "addEventListener");
+    const removeSpy = vi.spyOn(window, "removeEventListener");
 
     const { unmount } = renderBar();
 
-    expect(
-      addSpy.mock.calls.some(([type]) => type === "scroll"),
-    ).toBe(false);
+    const scrollAdd = addSpy.mock.calls.find(([type]) => type === "scroll");
+    expect(scrollAdd).toBeDefined();
+    expect(scrollAdd?.[2]).toMatchObject({ passive: true });
 
     unmount();
+
+    expect(
+      removeSpy.mock.calls.some(([type]) => type === "scroll"),
+    ).toBe(true);
+  });
+
+  it("refreshes into the glass state when mounted mid-page", () => {
+    setScrollY(HERO_SCROLL_THRESHOLD + 100);
+
+    const { bar } = renderBar();
+
+    expect(bar.className).toContain("glass-control");
+    expect(bar.className).not.toContain("bg-transparent");
   });
 });
 
