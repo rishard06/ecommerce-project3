@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Star } from "lucide-react";
+import { ArrowDown, ArrowRight, Star } from "lucide-react";
 import Stack from "@/components/animations/Stack";
 import BlurText from "@/components/animations/BlurText";
 
@@ -42,18 +42,30 @@ export default function Hero() {
             A small shop of well-made everyday objects. Clear prices, fast
             delivery, no noise between you and the thing you want.
           </p>
-          <Link href="/products" className="inline-block">
-            <Button
-              size="lg"
-              className="group h-12 rounded-full bg-accent-500 px-6 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <Link href="/products" className="inline-block">
+              <Button
+                size="lg"
+                className="group h-12 rounded-full bg-accent-500 px-6 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
+              >
+                Browse products
+                <ArrowRight
+                  className="ml-1 size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5"
+                  aria-hidden="true"
+                />
+              </Button>
+            </Link>
+            <Link
+              href="#featured"
+              className="group inline-flex items-center gap-1 text-sm font-medium text-gray-secondary underline-offset-4 transition-colors hover:text-gray-primary hover:underline"
             >
-              Browse products
-              <ArrowRight
-                className="ml-1 size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5"
+              Bestsellers
+              <ArrowDown
+                className="size-4 transition-transform duration-200 ease-out-quart group-hover:translate-y-0.5"
                 aria-hidden="true"
               />
-            </Button>
-          </Link>
+            </Link>
+          </div>
           {/* rating mirrors Testimonies 5-star cards */}
           <div
             data-testid="hero-proof"

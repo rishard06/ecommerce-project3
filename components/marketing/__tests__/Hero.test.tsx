@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { cleanup, render } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -111,5 +111,42 @@ describe("Hero proof row", () => {
     expect(row).not.toBeNull();
     expect(row?.querySelectorAll("a")).toHaveLength(0);
     expect(row?.querySelectorAll("button")).toHaveLength(0);
+  });
+});
+
+describe("Hero secondary CTA", () => {
+  it("adds a subordinate Bestsellers link next to the primary button", () => {
+    const { getByRole } = render(<Hero />);
+    const primaryLink = getByRole("link", { name: /browse products/i });
+    const primaryButton = getByRole("button", { name: /browse products/i });
+    const secondary = getByRole("link", { name: /bestsellers/i });
+
+    expect(secondary.getAttribute("href")).toBe("#featured");
+
+    // Keep the accent fill as the only primary action on the hero.
+    expect(primaryButton.className).toContain("bg-accent-500");
+    expect(secondary.className).not.toContain("bg-accent-500");
+    expect(secondary.className).not.toContain("shadow-soft");
+
+    // Reading order: primary first, quiet link after it.
+    expect(
+      primaryLink.compareDocumentPosition(secondary) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("targets a #featured section that actually exists", () => {
+    const source = readFileSync(
+      path.join(
+        process.cwd(),
+        "features",
+        "products",
+        "components",
+        "FeatureProducts.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(source).toMatch(/id="featured"/);
   });
 });
