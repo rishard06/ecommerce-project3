@@ -32,19 +32,18 @@ interface FooterLink {
   label: string;
 }
 
+// TODO(owner): replace these platform homepages with the brand's profile URLs.
 const socialLinks: SocialLink[] = [
-  { href: "#", "aria-label": "Facebook", icon: Facebook },
-  { href: "#", "aria-label": "Twitter", icon: Twitter },
-  { href: "#", "aria-label": "Instagram", icon: Instagram },
-  { href: "#", "aria-label": "YouTube", icon: Youtube },
+  { href: "https://facebook.com", "aria-label": "Facebook", icon: Facebook },
+  { href: "https://twitter.com", "aria-label": "Twitter", icon: Twitter },
+  { href: "https://instagram.com", "aria-label": "Instagram", icon: Instagram },
+  { href: "https://youtube.com", "aria-label": "YouTube", icon: Youtube },
 ];
 
 const quickLinks: FooterLink[] = [
   { href: "/", label: "Home" },
   { href: "/products", label: "Products" },
-  { href: "/about", label: "About us" },
   { href: "/contact", label: "Contact" },
-  { href: "/blog", label: "Blog" },
 ];
 
 const contactInfo: ContactInfo[] = [
@@ -90,6 +89,8 @@ export default function Footer() {
                 <a
                   key={link["aria-label"]}
                   href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex size-9 items-center justify-center rounded-full bg-surface-dark text-gray-secondary transition-colors hover:bg-accent-500/25 hover:text-gray-primary"
                   aria-label={link["aria-label"]}
                 >
