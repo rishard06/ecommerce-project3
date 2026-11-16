@@ -500,6 +500,14 @@ export interface RejectReturnResult {
  * gate (APPROVED is terminal, so the gate cannot regress mid-refund) and
  * what makes a retry after a successful refund a no-op instead of a second
  * Stripe call. Returns `{ approved: true }` when this call approved.
+ *
+ * Resume rule: an APPROVED request whose order is still PAID means a
+ * previous approve died between the claim commit and the completed refund,
+ * so the refund is resumed (same `idempotencyKey: refund-{orderId}`;
+ * `refundPayment` no-ops on already-cancelled rows, so resuming can never
+ * double-charge). Only an order that already left PAID is a true no-op.
+ * Refund failures propagate, so the admin action surfaces them instead of
+ * reporting a success while the money never moved.
  */
 export async function approveReturn(
   orderId: string,
@@ -512,6 +520,23 @@ export async function approveReturn(
 
     if (!request) {
       throw new ReturnRequestNotFoundError();
+    }
+
+    if (request.status === "APPROVED") {
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { status: true },
+      });
+
+      if (!order) {
+        throw new OrderNotFoundError();
+      }
+
+      if (order.status !== "PAID") {
+        return { approved: false, status: request.status };
+      }
+
+      return { approved: true, status: request.status };
     }
 
     if (request.status !== "PENDING") {

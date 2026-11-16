@@ -352,6 +352,35 @@ describe("approveReturn", () => {
     });
   });
 
+  it("APPROVED + PAID resumes an interrupted refund with one Stripe call", { timeout: DECISION_TEST_TIMEOUT }, async () => {
+    const admin = await createUser("ADMIN");
+    const { order } = await createDeliveredPaidOrder();
+    await createReturnRequest(order.id);
+    // Simulate a previous approve that claimed APPROVED but died before the
+    // refund ran: the retry must complete the refund, not silently succeed.
+    await testPrisma.returnRequest.update({
+      where: { orderId: order.id },
+      data: { status: "APPROVED" },
+    });
+
+    const result = await approveReturn(order.id, admin.id);
+
+    expect(result).toEqual({ approved: true, status: "APPROVED" });
+    expect(mocks.refundsCreate).toHaveBeenCalledTimes(1);
+    await expect(
+      testPrisma.order.findUniqueOrThrow({ where: { id: order.id } }),
+    ).resolves.toMatchObject({
+      status: "CANCELLED",
+      fulfillmentStatus: "CANCELLED",
+    });
+    // No second RETURN_APPROVED row: the decision was already recorded.
+    const audits = await testPrisma.orderAuditLog.findMany({
+      where: { orderId: order.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(audits.map((entry) => entry.action)).toEqual(["ORDER_REFUNDED"]);
+  });
+
   it("is a no-op on double-approve: no second Stripe call, no duplicate audit", { timeout: DECISION_TEST_TIMEOUT }, async () => {
     const admin = await createUser("ADMIN");
     const { order } = await createDeliveredPaidOrder();
@@ -368,23 +397,49 @@ describe("approveReturn", () => {
     ).resolves.toBe(2);
   });
 
-  it("issues a single Stripe refund for two concurrent approves", { timeout: DECISION_TEST_TIMEOUT }, async () => {
+  it("issues no second charge for two concurrent approves", { timeout: DECISION_TEST_TIMEOUT }, async () => {
     const admin = await createUser("ADMIN");
     const { order } = await createDeliveredPaidOrder();
     await createReturnRequest(order.id);
+    const payment = await testPrisma.payment.findUniqueOrThrow({
+      where: { orderId: order.id },
+    });
 
     const results = await Promise.allSettled([
       approveReturn(order.id, admin.id),
       approveReturn(order.id, admin.id),
     ]);
 
-    expect(results.every((r) => r.status === "fulfilled")).toBe(true);
-    const values = results
-      .filter((r) => r.status === "fulfilled")
-      .map((r) => r.value);
-    expect(values.filter((v) => v.approved)).toHaveLength(1);
-    expect(values.filter((v) => !v.approved)).toHaveLength(1);
-    expect(mocks.refundsCreate).toHaveBeenCalledTimes(1);
+    // A retry that arrives mid-refund resumes with the same idempotency key,
+    // so a second Stripe call — if it happens — cannot create a second
+    // charge; exactly one caller completes the refund.
+    expect(
+      results.filter(
+        (r) => r.status === "fulfilled" && r.value.approved === true,
+      ),
+    ).toHaveLength(1);
+    expect(mocks.refundsCreate.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(mocks.refundsCreate.mock.calls.length).toBeLessThanOrEqual(2);
+    for (const call of mocks.refundsCreate.mock.calls) {
+      expect(call).toEqual([
+        { payment_intent: payment.providerPaymentIntentId },
+        { idempotencyKey: `refund-${order.id}` },
+      ]);
+    }
+    await expect(
+      testPrisma.order.findUniqueOrThrow({ where: { id: order.id } }),
+    ).resolves.toMatchObject({
+      status: "CANCELLED",
+      fulfillmentStatus: "CANCELLED",
+    });
+    const audits = await testPrisma.orderAuditLog.findMany({
+      where: { orderId: order.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(audits.map((entry) => entry.action)).toEqual([
+      "RETURN_APPROVED",
+      "ORDER_REFUNDED",
+    ]);
   });
 
   it("throws without touching Stripe when no request exists", { timeout: DECISION_TEST_TIMEOUT }, async () => {
@@ -569,6 +624,33 @@ describe("return decision actions (admin boundary)", () => {
     expect(result.error).toMatch(/no return request/i);
     expect(mocks.refundsCreate).not.toHaveBeenCalled();
     expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a failed resumed refund as an error, never silent success", { timeout: DECISION_TEST_TIMEOUT }, async () => {
+    await signInAsAdmin();
+    const customer = await createUser();
+    const { order } = await createDeliveredPaidOrderForAction(customer.id);
+    await createReturnRequest(order.id);
+    // A previous approve claimed APPROVED, but the payment lost its intent
+    // since, so the resumed refund cannot proceed.
+    await testPrisma.returnRequest.update({
+      where: { orderId: order.id },
+      data: { status: "APPROVED" },
+    });
+    await testPrisma.payment.update({
+      where: { orderId: order.id },
+      data: { providerPaymentIntentId: null },
+    });
+
+    const result = await approveReturnAction(form({ orderId: order.id }));
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/stripe payment intent/i);
+    expect(mocks.refundsCreate).not.toHaveBeenCalled();
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+    await expect(
+      testPrisma.order.findUniqueOrThrow({ where: { id: order.id } }),
+    ).resolves.toMatchObject({ status: "PAID", fulfillmentStatus: "DELIVERED" });
   });
 
   it("approves through the action: APPROVED + CANCELLED with revalidation", { timeout: DECISION_TEST_TIMEOUT }, async () => {

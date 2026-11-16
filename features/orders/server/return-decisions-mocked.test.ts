@@ -128,7 +128,9 @@ function wireRefundSuccess() {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // Reset (not just clear): one-time implementations like
+  // mockRejectedValueOnce must not leak into the next test.
+  vi.resetAllMocks();
   requireAdminMock.mockResolvedValue(ADMIN);
   wireTransaction();
 });
@@ -170,6 +172,8 @@ describe("approveReturn (mocked prisma + Stripe)", () => {
     const first = await approveReturn(ORDER_ID, ADMIN.id);
 
     mocks.txReturnFindUnique.mockResolvedValue({ orderId: ORDER_ID, status: "APPROVED" });
+    // The completed refund left the order CANCELLED: a true no-op.
+    mocks.txOrderFindUnique.mockResolvedValue({ status: "CANCELLED" });
     mocks.txReturnUpdateMany.mockClear();
     const second = await approveReturn(ORDER_ID, ADMIN.id);
 
@@ -203,6 +207,36 @@ describe("approveReturn (mocked prisma + Stripe)", () => {
     expect(values).toContainEqual({ approved: true, status: "APPROVED" });
     expect(values).toContainEqual({ approved: false, status: "APPROVED" });
     expect(mocks.refundsCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("APPROVED + PAID order resumes the interrupted refund with one Stripe call", async () => {
+    // A previous approve claimed APPROVED but died before the refund ran:
+    // the retry must complete the refund, not silently succeed.
+    mocks.txReturnFindUnique.mockResolvedValue({ orderId: ORDER_ID, status: "APPROVED" });
+    mocks.txOrderFindUnique.mockResolvedValue({ status: "PAID" });
+    wireRefundSuccess();
+
+    const result = await approveReturn(ORDER_ID, ADMIN.id);
+
+    expect(result).toEqual({ approved: true, status: "APPROVED" });
+    expect(mocks.txReturnUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.refundsCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.refundsCreate).toHaveBeenCalledWith(
+      { payment_intent: INTENT_ID },
+      { idempotencyKey: `refund-${ORDER_ID}` },
+    );
+  });
+
+  it("APPROVED + CANCELLED order is a true no-op without Stripe", async () => {
+    mocks.txReturnFindUnique.mockResolvedValue({ orderId: ORDER_ID, status: "APPROVED" });
+    mocks.txOrderFindUnique.mockResolvedValue({ status: "CANCELLED" });
+
+    const result = await approveReturn(ORDER_ID, ADMIN.id);
+
+    expect(result).toEqual({ approved: false, status: "APPROVED" });
+    expect(mocks.txReturnUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.refundsCreate).not.toHaveBeenCalled();
+    expect(mocks.topOrderFindUnique).not.toHaveBeenCalled();
   });
 
   it("throws without touching Stripe when no request exists", async () => {
@@ -308,6 +342,19 @@ describe("return decision actions (mocked boundary)", () => {
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/no return request/i);
     expect(mocks.refundsCreate).not.toHaveBeenCalled();
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a failed resumed refund as an action error, never silent success", async () => {
+    mocks.txReturnFindUnique.mockResolvedValue({ orderId: ORDER_ID, status: "APPROVED" });
+    mocks.txOrderFindUnique.mockResolvedValue({ status: "PAID" });
+    wireRefundSuccess();
+    mocks.refundsCreate.mockRejectedValueOnce(new Error("stripe down"));
+
+    await expect(
+      approveReturnAction(form({ orderId: ORDER_ID })),
+    ).rejects.toThrow(/stripe down/);
+
     expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 
