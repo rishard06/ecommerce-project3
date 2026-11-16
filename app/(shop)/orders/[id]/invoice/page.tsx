@@ -50,7 +50,12 @@ export default async function InvoicePage({
     notFound();
   }
 
-  if (!canDownloadInvoice(order)) {
+  if (
+    !canDownloadInvoice({
+      status: order.status,
+      paymentStatus: order.payment?.status ?? null,
+    })
+  ) {
     notFound();
   }
 
@@ -60,6 +65,7 @@ export default async function InvoicePage({
   }
 
   const orderNumber = invoice.orderId.slice(0, 8).toUpperCase();
+  const refunded = order.payment?.status === "REFUNDED";
   const backHref = `/orders/${order.id}${
     token ? `?token=${encodeURIComponent(token)}` : ""
   }`;
@@ -90,6 +96,11 @@ export default async function InvoicePage({
             <p className="mt-2 text-sm font-medium text-gray-tertiary">
               Order #{orderNumber}
             </p>
+            {refunded ? (
+              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-green-600/20 bg-green-500/10 px-2.5 py-1 text-xs font-semibold text-green-700">
+                Refunded
+              </p>
+            ) : null}
           </div>
           <dl className="space-y-1 text-sm sm:text-right">
             <div className="flex justify-between gap-6 sm:justify-end">
@@ -239,8 +250,9 @@ export default async function InvoicePage({
         </div>
 
         <footer className="mt-8 border-t border-gray-primary/10 pt-4 text-xs font-medium leading-relaxed text-gray-tertiary">
-          Thank you for your order. Amounts shown are the snapshots captured
-          when the order was placed and do not change with later price updates.
+          {refunded
+            ? "A full refund was issued for this order. Amounts shown are the snapshots captured when the order was placed and do not change with later price updates."
+            : "Thank you for your order. Amounts shown are the snapshots captured when the order was placed and do not change with later price updates."}
         </footer>
       </article>
     </div>

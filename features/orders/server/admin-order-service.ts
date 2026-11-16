@@ -641,6 +641,8 @@ export interface AdminOrderSummary {
   taxCents: number;
   totalCents: number;
   paymentStatus: PaymentStatus | null;
+  /** Return request state for list-level triage; null when never requested. */
+  returnRequestStatus: ReturnStatus | null;
 }
 
 export interface OrderAuditEntry {
@@ -683,6 +685,7 @@ const adminOrderSummarySelect = {
   totalCents: true,
   user: { select: { email: true } },
   payment: { select: { status: true } },
+  returnRequest: { select: { status: true } },
 } as const;
 
 /** Lists every customer's orders, newest first. Admin-only at the boundary. */
@@ -706,6 +709,7 @@ export async function listOrdersForAdmin(): Promise<AdminOrderSummary[]> {
     taxCents: order.taxCents,
     totalCents: order.totalCents,
     paymentStatus: order.payment?.status ?? null,
+    returnRequestStatus: order.returnRequest?.status ?? null,
   }));
 }
 

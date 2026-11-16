@@ -8,8 +8,9 @@ import type { ReturnStatus } from "@/app/generated/prisma";
  * `"use server"` directive: pages call `requestReturn` from an inline server
  * action (the same pattern as `cancelOrder` in
  * `features/orders/server/customer-order-service.ts`), which keeps the typed
- * errors below importable. A `FormData` action wrapper arrives with the
- * customer UI task; there is no page consuming one in this batch.
+ * errors below importable. The thin `FormData` wrapper lives in
+ * `./return-actions` and is consumed by the customer return form on the order
+ * detail page.
  *
  * Rules:
  * - Ownership is part of the SQL predicate for every lookup, using the same
@@ -85,6 +86,49 @@ export interface ReturnRequestResult {
   status: ReturnStatus;
   reason: string;
   createdAt: Date;
+}
+
+/** Ownership-scoped read model for the customer status block. */
+export interface ReturnRequestSummary {
+  status: ReturnStatus;
+  reason: string;
+  createdAt: Date;
+}
+
+/**
+ * Loads the return request for an order visible to `viewer`, or `null` when
+ * there is none. Ownership uses the same predicate as `getOrderForViewer`
+ * (userId, or the unguessable guestToken from `?token=`); misses and foreign
+ * orders both resolve to `null` so callers cannot distinguish them.
+ */
+export async function getReturnRequestForViewer(
+  orderId: string,
+  viewer: ReturnViewer,
+): Promise<ReturnRequestSummary | null> {
+  let ownedId: string | null = null;
+  if (viewer.userId) {
+    const owned = await prisma.order.findFirst({
+      where: { id: orderId, userId: viewer.userId },
+      select: { id: true },
+    });
+    if (owned) ownedId = owned.id;
+  }
+  if (!ownedId && viewer.guestToken) {
+    const guest = await prisma.order.findFirst({
+      where: { id: orderId, guestToken: viewer.guestToken },
+      select: { id: true },
+    });
+    if (guest) ownedId = guest.id;
+  }
+  if (!ownedId) {
+    return null;
+  }
+
+  const request = await prisma.returnRequest.findUnique({
+    where: { orderId: ownedId },
+    select: { status: true, reason: true, createdAt: true },
+  });
+  return request;
 }
 
 /** Prisma unique-constraint violation (duplicate `orderId`). */

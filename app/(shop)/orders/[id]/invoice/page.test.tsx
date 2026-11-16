@@ -6,6 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * Task 17 RED: the print-friendly invoice route must gate on the same
  * `getOrderForViewer` ownership predicate as the order detail page and render
  * ONLY the Task 16 snapshot data.
+ *
+ * Retro Batch 3 I2: entitlement follows payment history. A refunded payment
+ * keeps the route (200 + a "Refunded" marker) instead of 404ing; PENDING
+ * orders and CANCELLED payments still 404 without reading invoice data.
  */
 
 const mocks = vi.hoisted(() => ({
@@ -43,6 +47,12 @@ const ORDER = {
   id: "order-1",
   status: "PAID",
   fulfillmentStatus: "UNFULFILLED",
+  payment: {
+    status: "SUCCEEDED",
+    provider: "stripe",
+    amountCents: 4286,
+    currency: "USD",
+  },
 } as const;
 
 const INVOICE = {
@@ -121,6 +131,35 @@ describe("invoice route", () => {
     });
   });
 
+  it("renders a refunded order with a Refunded marker", async () => {
+    mocks.getOrderForViewer.mockResolvedValue({
+      ...ORDER,
+      status: "CANCELLED",
+      fulfillmentStatus: "CANCELLED",
+      payment: { ...ORDER.payment, status: "REFUNDED" },
+    });
+
+    const { container } = await renderInvoicePage();
+
+    expect(screen.getByRole("heading", { name: /invoice/i })).toBeDefined();
+    expect(container.textContent).toContain("Snapshot product");
+    expect(container.textContent).toMatch(/refunded/i);
+    expect(mocks.getInvoiceData).toHaveBeenCalledWith("order-1");
+  });
+
+  it("renders a PAID order whose fulfillment was cancelled pre-shipment", async () => {
+    // Payment succeeded, so the receipt survives the fulfillment cancel.
+    mocks.getOrderForViewer.mockResolvedValue({
+      ...ORDER,
+      fulfillmentStatus: "CANCELLED",
+    });
+
+    const { container } = await renderInvoicePage();
+
+    expect(screen.getByRole("heading", { name: /invoice/i })).toBeDefined();
+    expect(container.textContent).toContain("Snapshot product");
+  });
+
   it("404s a PENDING order without reading invoice data", async () => {
     mocks.getOrderForViewer.mockResolvedValue({
       ...ORDER,
@@ -131,11 +170,12 @@ describe("invoice route", () => {
     expect(mocks.getInvoiceData).not.toHaveBeenCalled();
   });
 
-  it("404s a CANCELLED order without reading invoice data", async () => {
+  it("404s a CANCELLED order with a cancelled payment without reading invoice data", async () => {
     mocks.getOrderForViewer.mockResolvedValue({
       ...ORDER,
       status: "CANCELLED",
       fulfillmentStatus: "CANCELLED",
+      payment: { ...ORDER.payment, status: "CANCELLED" },
     });
 
     await expect(renderInvoicePage()).rejects.toThrow("NEXT_NOT_FOUND");

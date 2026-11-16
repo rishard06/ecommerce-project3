@@ -7,13 +7,11 @@ import {
 } from "../InvoiceDownloadButton";
 
 /**
- * Task 17 RED: the invoice download entry point exists only for paid orders.
- *
- * The rule is deliberately explicit and testable:
- *   order.status === "PAID" && order.fulfillmentStatus !== "CANCELLED"
- * PAID covers orders that are unfulfilled, processing, shipped, or delivered
- * (those are fulfillment states, not order states). Pending-payment and
- * cancelled orders must never expose invoice data.
+ * Retro Batch 3 I2: invoice entitlement follows payment history, not the
+ * current order status. A SUCCEEDED or REFUNDED payment keeps the invoice —
+ * even when the order row itself is CANCELLED (every in-app refund flips the
+ * order to CANCELLED) or its fulfillment was cancelled pre-shipment. PENDING
+ * orders, PENDING/CANCELLED payments, and orders with no payment stay hidden.
  */
 
 afterEach(cleanup);
@@ -21,12 +19,12 @@ afterEach(cleanup);
 const ORDER_ID = "order-1";
 
 describe("InvoiceDownloadButton", () => {
-  it("renders a download link for a PAID order", () => {
+  it("renders a download link for a PAID order with a succeeded payment", () => {
     render(
       <InvoiceDownloadButton
         orderId={ORDER_ID}
         status="PAID"
-        fulfillmentStatus="UNFULFILLED"
+        paymentStatus="SUCCEEDED"
       />,
     );
 
@@ -34,29 +32,41 @@ describe("InvoiceDownloadButton", () => {
     expect(link.getAttribute("href")).toBe("/orders/order-1/invoice");
   });
 
-  it("keeps the link for PAID orders that are shipped or delivered", () => {
-    for (const fulfillmentStatus of ["SHIPPED", "DELIVERED"] as const) {
-      render(
-        <InvoiceDownloadButton
-          orderId={ORDER_ID}
-          status="PAID"
-          fulfillmentStatus={fulfillmentStatus}
-        />,
-      );
+  it("keeps the link for a PAID order whose fulfillment was cancelled pre-shipment", () => {
+    // The payment still succeeded, so the financial record exists even
+    // though fulfillment never happened. (Old rule hid this shape; I2
+    // changed entitlement to payment history.)
+    const { container } = render(
+      <InvoiceDownloadButton
+        orderId={ORDER_ID}
+        status="PAID"
+        paymentStatus="SUCCEEDED"
+      />,
+    );
 
-      expect(
-        screen.getByRole("link", { name: /download invoice/i }),
-      ).toBeDefined();
-      cleanup();
-    }
+    expect(container.querySelector("a")).not.toBeNull();
   });
 
-  it("renders nothing for a PENDING order", () => {
+  it("keeps the link for a refunded order", () => {
+    render(
+      <InvoiceDownloadButton
+        orderId={ORDER_ID}
+        status="CANCELLED"
+        paymentStatus="REFUNDED"
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: /download invoice/i }),
+    ).toBeDefined();
+  });
+
+  it("renders nothing for a PENDING order even with a succeeded payment", () => {
     const { container } = render(
       <InvoiceDownloadButton
         orderId={ORDER_ID}
         status="PENDING"
-        fulfillmentStatus="UNFULFILLED"
+        paymentStatus="SUCCEEDED"
       />,
     );
 
@@ -64,24 +74,36 @@ describe("InvoiceDownloadButton", () => {
     expect(screen.queryByRole("link", { name: /invoice/i })).toBeNull();
   });
 
-  it("renders nothing for a CANCELLED order", () => {
+  it("renders nothing for a PENDING payment", () => {
     const { container } = render(
       <InvoiceDownloadButton
         orderId={ORDER_ID}
-        status="CANCELLED"
-        fulfillmentStatus="CANCELLED"
+        status="PENDING"
+        paymentStatus="PENDING"
       />,
     );
 
     expect(container.querySelector("a")).toBeNull();
   });
 
-  it("renders nothing when fulfillment was cancelled on a PAID order", () => {
+  it("renders nothing for a CANCELLED order with a cancelled payment", () => {
     const { container } = render(
       <InvoiceDownloadButton
         orderId={ORDER_ID}
-        status="PAID"
-        fulfillmentStatus="CANCELLED"
+        status="CANCELLED"
+        paymentStatus="CANCELLED"
+      />,
+    );
+
+    expect(container.querySelector("a")).toBeNull();
+  });
+
+  it("renders nothing when there is no payment record", () => {
+    const { container } = render(
+      <InvoiceDownloadButton
+        orderId={ORDER_ID}
+        status="CANCELLED"
+        paymentStatus={null}
       />,
     );
 
@@ -93,7 +115,7 @@ describe("InvoiceDownloadButton", () => {
       <InvoiceDownloadButton
         orderId={ORDER_ID}
         status="PAID"
-        fulfillmentStatus="UNFULFILLED"
+        paymentStatus="SUCCEEDED"
         token="guest token/with?reserved"
       />,
     );
@@ -106,36 +128,39 @@ describe("InvoiceDownloadButton", () => {
 });
 
 describe("canDownloadInvoice", () => {
-  it("is true only for PAID, non-fulfillment-cancelled orders", () => {
+  it("is true for succeeded or refunded payments on non-pending orders", () => {
     expect(
-      canDownloadInvoice({
-        status: "PAID",
-        fulfillmentStatus: "UNFULFILLED",
-      }),
+      canDownloadInvoice({ status: "PAID", paymentStatus: "SUCCEEDED" }),
     ).toBe(true);
     expect(
-      canDownloadInvoice({ status: "PAID", fulfillmentStatus: "PROCESSING" }),
+      canDownloadInvoice({ status: "PAID", paymentStatus: "REFUNDED" }),
     ).toBe(true);
     expect(
-      canDownloadInvoice({ status: "PAID", fulfillmentStatus: "SHIPPED" }),
+      canDownloadInvoice({ status: "CANCELLED", paymentStatus: "REFUNDED" }),
     ).toBe(true);
     expect(
-      canDownloadInvoice({ status: "PAID", fulfillmentStatus: "DELIVERED" }),
+      canDownloadInvoice({ status: "CANCELLED", paymentStatus: "SUCCEEDED" }),
     ).toBe(true);
+  });
+
+  it("is false for pending orders, unconfirmed payments, and missing payments", () => {
     expect(
-      canDownloadInvoice({ status: "PAID", fulfillmentStatus: "CANCELLED" }),
+      canDownloadInvoice({ status: "PENDING", paymentStatus: "SUCCEEDED" }),
     ).toBe(false);
     expect(
-      canDownloadInvoice({
-        status: "PENDING",
-        fulfillmentStatus: "UNFULFILLED",
-      }),
+      canDownloadInvoice({ status: "PENDING", paymentStatus: "PENDING" }),
     ).toBe(false);
     expect(
-      canDownloadInvoice({
-        status: "CANCELLED",
-        fulfillmentStatus: "CANCELLED",
-      }),
+      canDownloadInvoice({ status: "PAID", paymentStatus: "PENDING" }),
     ).toBe(false);
+    expect(
+      canDownloadInvoice({ status: "CANCELLED", paymentStatus: "CANCELLED" }),
+    ).toBe(false);
+    expect(
+      canDownloadInvoice({ status: "CANCELLED", paymentStatus: null }),
+    ).toBe(false);
+    expect(canDownloadInvoice({ status: "PAID", paymentStatus: null })).toBe(
+      false,
+    );
   });
 });

@@ -558,3 +558,125 @@ This report does not waive that gate.
 - `CLAUDE.md:147` still documents only `npm test`; left untouched to keep the
   I8 commit scope (README + runbook were the requested surfaces).
 - CI wiring was not modified and remains correct.
+
+---
+
+# Retro Batch 3 Fix Report — Wave 1 (I1, I2 code)
+
+Commit: `d7af55d` — "fix(retro-batch3-wave1): return entry/status/admin
+discovery + refund-keeps-invoice" (16 files, +~410/−72 per diffstat).
+
+Scope: ONLY the code halves of Important items I1 / I2 from `retro-batch3.md`.
+Untouched per instructions: I1's optional admin email, I2's strict-policy
+`REFUNDED`-order-status alternative (payment-history rule adopted as binding),
+I3 (docs), I4 (CI run), all minors, all parked per-task items. No migration
+(`ReturnRequest` exists; no schema change). `.agents/` + `skills-lock`
+untouched (only pre-existing untracked `.agents/` remains).
+
+## What changed
+
+### I1 — return workflow is reachable, visible, and discoverable
+- `features/returns/server/return-actions.ts` (new, `"use server"`):
+  `requestReturnAction(formData)` — thin FormData wrapper around
+  `requestReturn`. Viewer mirrors the order page (signed-in session + hidden
+  `guestToken` from `?token=` so guest orders keep access; anonymous callers
+  without a token get a form error). `orderId`/`reason` parsed with zod
+  (`text()`/`firstError()` precedent from `fulfillment-actions.ts`);
+  `OrderNotFoundError`/`ReturnNotEligibleError`/`DuplicateReturnError` map to
+  form errors by class identity (imported from the same module that throws
+  them); `revalidatePath` on `/orders/[id]` **and** `/account/orders/[id]`.
+  Deviation note: uses `getCurrentUser` (not a hard `requireUser`) so the
+  guest-token viewer keeps working — consistent with `cancelOrderAction`.
+- `features/returns/server/actions.ts`: added ownership-scoped
+  `getReturnRequestForViewer(orderId, viewer)` (`{status, reason, createdAt}`
+  or `null`; same userId/guestToken predicate as `getOrderForViewer`) and
+  updated the stale module header (a FormData wrapper now exists).
+- `features/returns/components/ReturnRequestForm.tsx` (new, client):
+  `useActionState` form (reason textarea + hidden orderId/guestToken, inline
+  `role="alert"` error, success confirmation).
+- `app/(shop)/orders/[id]/page.tsx`: new "Returns" section in the aside —
+  status block (`ReturnStatusPill` + reason + request date) whenever a request
+  exists (any order state, so APPROVED stays visible after the refund flips
+  the order to CANCELLED); form only for PAID + DELIVERED with no request.
+  `app/(shop)/account/orders/[id]/page.tsx` re-exports this page unchanged,
+  so `/account/orders/[id]` inherits both (verified by inspection, no edit).
+- Admin discovery: `AdminOrderSummary` += `returnRequestStatus`
+  (`adminOrderSummarySelect` += `returnRequest: { select: { status: true } }`,
+  mapped in `listOrdersForAdmin`) + "Return" column on
+  `app/(admin)/admin/orders/page.tsx` (`AdminReturnStatusBadge`: Return
+  pending / approved / rejected; `—` when none). No admin email added
+  (explicitly skipped — no new email required).
+- Pills: `ReturnStatusPill` (`OrderStatusBadges.tsx`), `AdminReturnStatusBadge`
+  (`AdminStatusBadges.tsx`).
+
+### I2 — invoices keyed on payment history
+- Binding ruling applied: `canDownloadInvoice({status, paymentStatus})` —
+  `PENDING` orders always hidden; otherwise visible iff payment is
+  `SUCCEEDED` or `REFUNDED`. Consequences: refunded (CANCELLED + REFUNDED)
+  keeps button + route 200; PAID + fulfilment-CANCELLED now visible (payment
+  still succeeded — the financial record exists); PENDING/CANCELLED payments
+  and missing payments stay hidden. `fulfillmentStatus` dropped from the
+  signature; both call sites updated (`InvoiceDownloadButton` prop →
+  `paymentStatus={order.payment?.status ?? null}`; invoice route passes
+  `order.payment?.status ?? null`).
+- Invoice route renders a "Refunded" badge under the order number and a
+  credit-note footer ("A full refund was issued…") when
+  `payment.status === "REFUNDED"`. Money untouched (integer cents,
+  Task 16 `getInvoiceData` snapshot unchanged); ownership via
+  `getOrderForViewer` + `?token=` preserved.
+- Task 17 tests that asserted 404 for refunded / PAID+cancelled-fulfillment
+  shapes were updated with the reason documented in test comments (I2
+  redefined entitlement from order status to payment history).
+
+## Tests + TDD evidence
+- RED (pre-fix): 6 focused files → 10 failed / 17 passed — exactly the new
+  behaviors (refunded invoice, cancelled-fulfillment invoice, return form/
+  status block, `requestReturnAction` missing, Return column missing).
+- GREEN (post-fix): 8 files (6 + `render-invoice` + `return-decisions-mocked`
+  regression) → **58 passed**. `npx tsc --noEmit` clean (0 errors).
+  `npx prisma validate` → schema valid.
+- Full `npx vitest run` → **369 passed, 170 skipped, 1 failed, 12 failed
+  files — all 12 fail in `beforeAll`/setup with `P1001` (can't reach
+  `db.prisma.io:5432`, no DB egress in this sandbox), identical class to the
+  Task 19 baseline (which recorded 347 passed / 170 skipped / 1 failed on 12
+  DB files). The 1 failed test is the DB-backed migration test (10 s
+  connection timeout, untouched by this diff). No non-DB regressions:
+  every suite this wave touched is green.
+- Self-inflicted test bugs fixed during RED→GREEN: wrong relative mock
+  specifier in `ReturnRequestForm.test.tsx` (component imports the `@/`
+  path; fixed) and a case-sensitive heading regex in the order page test.
+
+## Files (committed, 16)
+- New: `features/returns/server/return-actions.ts`,
+  `features/returns/server/return-actions.test.ts`,
+  `features/returns/components/ReturnRequestForm.tsx`,
+  `features/returns/components/ReturnRequestForm.test.tsx`,
+  `app/(admin)/admin/orders/page.test.tsx`
+- Modified: `features/returns/server/actions.ts`,
+  `features/invoices/components/InvoiceDownloadButton.tsx`,
+  `features/invoices/components/__tests__/InvoiceDownloadButton.test.tsx`,
+  `features/orders/components/OrderStatusBadges.tsx`,
+  `features/orders/components/AdminStatusBadges.tsx`,
+  `features/orders/server/admin-order-service.ts`,
+  `app/(shop)/orders/[id]/page.tsx`,
+  `app/(shop)/orders/[id]/page.test.tsx`,
+  `app/(shop)/orders/[id]/invoice/page.tsx`,
+  `app/(shop)/orders/[id]/invoice/page.test.tsx`,
+  this report
+
+## Concerns / follow-ups (not fixed, by instruction)
+- DB-backed suites covering the touched service code
+  (`return-decisions.test.ts`, `actions.test.ts`, `admin-refund`,
+  `fulfillment-actions`, `customer-order-service`) cannot run here (P1001);
+  CI (`test:ci` + migrated test DB) must confirm — notably the new
+  `returnRequest` select in `adminOrderSummarySelect` and the additive
+  `getReturnRequestForViewer` query. Type-clean and schema-valid, but
+  unexecuted against real Postgres.
+- `CANCELLED` order + `SUCCEEDED` payment now shows the invoice (any
+  succeeded/refunded payment is a financial record). No current writer
+  produces that shape (refunds write `REFUNDED`), so it only affects legacy
+  oddities; flagging in case the policy should be CANCELLED ⇒ hidden.
+- `AdminOrderDetail.payment` still carries `providerPaymentIntentId`
+  (pre-existing, untouched).
+- No refund/return customer email is sent (I1 optional email skipped per
+  brief; minor M3 owns status-email content).

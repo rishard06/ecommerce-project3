@@ -21,10 +21,13 @@ import {
   FulfillmentStatusPill,
   OrderStatusPill,
   PaymentStatusPill,
+  ReturnStatusPill,
 } from "@/features/orders/components/OrderStatusBadges";
 import { formatCents } from "@/lib/money";
 import { OrderDiscountRow } from "@/features/orders/components/OrderDiscount";
 import { InvoiceDownloadButton } from "@/features/invoices/components/InvoiceDownloadButton";
+import { ReturnRequestForm } from "@/features/returns/components/ReturnRequestForm";
+import { getReturnRequestForViewer } from "@/features/returns/server/actions";
 
 export const metadata = {
   title: "Order details | venn.",
@@ -48,10 +51,11 @@ export default async function OrderDetailPage({
   const { id } = await params;
   const sp = await searchParams;
   const token = typeof sp.token === "string" ? sp.token : null;
-  const order = await getOrderForViewer(id, {
+  const viewer = {
     userId: user?.id ?? null,
     guestToken: token,
-  });
+  };
+  const order = await getOrderForViewer(id, viewer);
 
   if (!order) {
     if (!user && !token) {
@@ -60,8 +64,17 @@ export default async function OrderDetailPage({
     notFound();
   }
 
+  const returnRequest = await getReturnRequestForViewer(order.id, viewer);
+
   const cancellable =
     order.status === "PENDING" && order.fulfillmentStatus === "UNFULFILLED";
+  // Only delivered paid orders accept a new request; an existing request
+  // keeps its status block on every order state (an approval refunds and
+  // flips the order to CANCELLED).
+  const returnEligible =
+    !returnRequest &&
+    order.status === "PAID" &&
+    order.fulfillmentStatus === "DELIVERED";
   // Captured for the server action below: narrowing on `order` does not
   // persist into the nested closure.
   const orderId = order.id;
@@ -129,7 +142,7 @@ export default async function OrderDetailPage({
           <InvoiceDownloadButton
             orderId={order.id}
             status={order.status}
-            fulfillmentStatus={order.fulfillmentStatus}
+            paymentStatus={order.payment?.status ?? null}
             token={token}
           />
         </div>
@@ -268,6 +281,43 @@ export default async function OrderDetailPage({
               </p>
             ) : null}
           </section>
+
+          {returnRequest || returnEligible ? (
+            <section
+              aria-labelledby="returns-heading"
+              className="glass-component p-5 sm:p-6"
+            >
+              <h2
+                id="returns-heading"
+                className="text-lg font-semibold tracking-tight text-gray-primary"
+              >
+                Returns
+              </h2>
+
+              {returnRequest ? (
+                <div className="mt-4 space-y-2 text-sm">
+                  <ReturnStatusPill status={returnRequest.status} />
+                  <p className="font-medium leading-relaxed text-gray-secondary">
+                    {returnRequest.reason}
+                  </p>
+                  <p className="text-xs font-medium text-gray-quaternary">
+                    Requested {dateFormatter.format(returnRequest.createdAt)}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <ReturnRequestForm
+                    orderId={orderId}
+                    guestToken={token}
+                  />
+                  <p className="mt-2 text-xs font-medium leading-relaxed text-gray-quaternary">
+                    Delivered orders can be returned within 30 days of
+                    delivery. An approved return refunds the order in full.
+                  </p>
+                </div>
+              )}
+            </section>
+          ) : null}
 
           <section
             aria-labelledby="totals-heading"
