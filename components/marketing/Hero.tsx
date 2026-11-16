@@ -100,23 +100,26 @@ export default function Hero() {
                 sensitivity={90}
                 sendToBackOnClick
                 onFirstInteract={() => setHintVisible(false)}
-                cards={deck.map(({ src, slug, alt }, index) => (
+                renderTopCardLink={(content, cardIndex) => (
                   <Link
-                    key={src}
-                    href={`/products/${slug}`}
+                    href={`/products/${deck[cardIndex].slug}`}
                     className="block size-full"
                   >
-                    <Image
-                      src={src}
-                      alt={alt}
-                      width={420}
-                      height={420}
-                      sizes="(min-width: 1024px) 420px, 80vw"
-                      draggable={false}
-                      className="size-full object-cover"
-                      priority={index === 0}
-                    />
+                    {content}
                   </Link>
+                )}
+                cards={deck.map(({ src, alt }, index) => (
+                  <Image
+                    key={src}
+                    src={src}
+                    alt={alt}
+                    width={420}
+                    height={420}
+                    sizes="(min-width: 1024px) 420px, 80vw"
+                    draggable={false}
+                    className="size-full object-cover"
+                    priority={index === 0}
+                  />
                 ))}
                 autoplay={false}
                 autoplayDelay={3000}

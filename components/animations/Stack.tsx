@@ -8,7 +8,7 @@ import {
   useReducedMotion,
   type PanInfo,
 } from "motion/react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { spring } from "@/lib/motion";
 
 interface CardRotateProps {
@@ -20,6 +20,8 @@ interface CardRotateProps {
   isTop?: boolean;
   enableClick?: boolean;
   onFirstInteract?: () => void;
+  /** Fires when a drag passes the threshold (before the card cycles). */
+  onDragPassed?: () => void;
 }
 
 function CardRotate({
@@ -31,6 +33,7 @@ function CardRotate({
   isTop = false,
   enableClick = false,
   onFirstInteract,
+  onDragPassed,
 }: CardRotateProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -44,6 +47,7 @@ function CardRotate({
       Math.abs(info.offset.x) > sensitivity || Math.abs(info.offset.y) > sensitivity;
 
     if (passed) {
+      onDragPassed?.();
       onSendToBack();
       onFirstInteract?.();
     }
@@ -102,6 +106,15 @@ interface StackProps {
   mobileBreakpoint?: number;
   /** Fires once the user first cycles a card (drag past threshold or click). */
   onFirstInteract?: () => void;
+  /**
+   * Wraps the top card's content in a link. `cardIndex` is the card's position
+   * in the original `cards` order. Only the top card is ever linked, so hidden
+   * cards stay out of the tab order and screen-reader navigation.
+   */
+  renderTopCardLink?: (
+    content: React.ReactNode,
+    cardIndex: number,
+  ) => React.ReactNode;
 }
 
 export default function Stack({
@@ -116,10 +129,16 @@ export default function Stack({
   mobileClickOnly = false,
   mobileBreakpoint = 768,
   onFirstInteract,
+  renderTopCardLink,
 }: StackProps) {
   const prefersReducedMotion = useReducedMotion();
   const [isMobile, setIsMobile] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  // A drag that cycles the card ends with a mouseup click on desktop. Swallow
+  // that one click so exploring the deck doesn't navigate away; the next
+  // pointer-down starts a fresh gesture and clears the flag. The flag lives
+  // here (not per card) because a cycling drag remounts the top card.
+  const suppressClickAfterDragRef = useRef(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -222,11 +241,27 @@ export default function Stack({
       style={{ perspective: prefersReducedMotion ? undefined : 600 }}
       onMouseEnter={() => pauseOnHover && setIsPaused(true)}
       onMouseLeave={() => pauseOnHover && setIsPaused(false)}
+      onPointerDown={() => {
+        suppressClickAfterDragRef.current = false;
+      }}
+      onClickCapture={(event) => {
+        if (!suppressClickAfterDragRef.current) return;
+        suppressClickAfterDragRef.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
     >
       {stack.map((card, index) => {
         const isTop = index === stack.length - 1;
         const randomRotate = randomRotation ? card.initialRotation : 0;
         const depth = stack.length - index - 1;
+        // Card ids are assigned as original-index + 1 whenever the stack is
+        // (re)built, so id - 1 recovers the card's position in `cards`.
+        const cardIndex = card.id - 1;
+        const content =
+          isTop && renderTopCardLink
+            ? renderTopCardLink(card.content, cardIndex)
+            : card.content;
 
         return (
           <CardRotate
@@ -238,6 +273,9 @@ export default function Stack({
             isTop={isTop}
             enableClick={shouldEnableClick}
             onFirstInteract={onFirstInteract}
+            onDragPassed={() => {
+              suppressClickAfterDragRef.current = true;
+            }}
           >
             <motion.div
               className="rounded-[1.75rem] overflow-hidden w-full h-full shadow-lift"
@@ -259,7 +297,7 @@ export default function Stack({
                 damping: animationConfig.damping,
               }}
             >
-              {card.content}
+              {content}
             </motion.div>
           </CardRotate>
         );

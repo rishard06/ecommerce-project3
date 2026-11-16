@@ -16,20 +16,31 @@ vi.mock("@/components/animations/Stack", () => ({
   default: ({
     cards,
     onFirstInteract,
+    renderTopCardLink,
   }: {
     cards?: ReactNode[];
     onFirstInteract?: () => void;
-  }) => (
-    <div data-testid="hero-deck">
-      {cards}
-      <button
-        type="button"
-        data-testid="deck-first-interact"
-        aria-label="Simulate deck interaction"
-        onClick={() => onFirstInteract?.()}
-      />
-    </div>
-  ),
+    renderTopCardLink?: (content: ReactNode, cardIndex: number) => ReactNode;
+  }) => {
+    const list = cards ?? [];
+    return (
+      <div data-testid="hero-deck">
+        {list.map((card, index) => (
+          <div key={index} data-testid="hero-deck-card">
+            {index === list.length - 1 && renderTopCardLink
+              ? renderTopCardLink(card, index)
+              : card}
+          </div>
+        ))}
+        <button
+          type="button"
+          data-testid="deck-first-interact"
+          aria-label="Simulate deck interaction"
+          onClick={() => onFirstInteract?.()}
+        />
+      </div>
+    );
+  },
 }));
 
 vi.mock("@/components/animations/BlurText", () => ({
@@ -105,14 +116,6 @@ function deckImages(container: HTMLElement): HTMLImageElement[] {
   );
 }
 
-/** Deck order follows the asset filenames; slugs are the seeded dummy-<id>s. */
-const expectedDeck = [
-  { src: "/landing/chopping-board.webp", href: "/products/dummy-53" },
-  { src: "/landing/bedside-table.webp", href: "/products/dummy-13" },
-  { src: "/landing/mug-tree.webp", href: "/products/dummy-67" },
-  { src: "/landing/leather-watch.webp", href: "/products/dummy-93" },
-];
-
 describe("Hero shoppable deck", () => {
   it("serves every card from a local /landing/ WebP asset (zero hotlinks)", () => {
     const { container } = render(<Hero />);
@@ -132,18 +135,20 @@ describe("Hero shoppable deck", () => {
     }
   });
 
-  it("links every card to its catalog product", () => {
+  it("renders a link only around the top card", () => {
     const { container } = render(<Hero />);
-    const images = deckImages(container);
-    expect(images).toHaveLength(expectedDeck.length);
+    const deck = container.querySelector('[data-testid="hero-deck"]');
+    const links = Array.from(
+      deck?.querySelectorAll('a[href^="/products/"]') ?? [],
+    );
 
-    images.forEach((image, index) => {
-      const link = image.closest("a");
-      expect(link?.getAttribute("href")).toBe(expectedDeck[index].href);
-      expect(imageSource(image.getAttribute("src") ?? "")).toBe(
-        expectedDeck[index].src,
-      );
-    });
+    // Only the top card (last in deck order) links to its product.
+    expect(links).toHaveLength(1);
+    expect(links[0].getAttribute("href")).toBe("/products/dummy-93");
+
+    const images = deckImages(container);
+    expect(images).toHaveLength(4);
+    expect(images.filter((image) => !image.closest("a"))).toHaveLength(3);
   });
 
   it("shows a drag hint that dismisses after the first deck interaction", () => {
