@@ -29,7 +29,7 @@ export default function NavBar() {
   return (
     <nav
       aria-label="Primary"
-      className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-5 md:pt-4"
+      className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-5 md:pt-4 print:hidden"
     >
       {/* Floating bar: translucency here separates navigation from content. */}
       <div className="glass-control mx-auto flex w-full max-w-7xl items-center justify-between gap-2 rounded-full px-3 py-2 sm:gap-4 sm:px-4 md:gap-8 md:py-2.5">

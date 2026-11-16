@@ -24,6 +24,7 @@ import {
 } from "@/features/orders/components/OrderStatusBadges";
 import { formatCents } from "@/lib/money";
 import { OrderDiscountRow } from "@/features/orders/components/OrderDiscount";
+import { InvoiceDownloadButton } from "@/features/invoices/components/InvoiceDownloadButton";
 
 export const metadata = {
   title: "Order details | venn.",
@@ -125,6 +126,12 @@ export default async function OrderDetailPage({
           {order.payment ? (
             <PaymentStatusPill status={order.payment.status} />
           ) : null}
+          <InvoiceDownloadButton
+            orderId={order.id}
+            status={order.status}
+            fulfillmentStatus={order.fulfillmentStatus}
+            token={token}
+          />
         </div>
       </header>
 

@@ -73,7 +73,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className="mt-16 px-4 pb-10 sm:px-6">
+    <footer className="mt-16 px-4 pb-10 sm:px-6 print:hidden">
       <div className="mx-auto w-full max-w-7xl rounded-[2rem] border border-white/50 bg-card p-6 backdrop-blur-xl sm:p-8">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
           {/* Brand */}
