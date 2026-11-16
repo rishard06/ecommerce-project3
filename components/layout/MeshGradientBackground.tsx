@@ -16,7 +16,10 @@ export default function MeshGradientBackground() {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+    // Viewport-fixed: the animation sits behind the whole page (announcement,
+    // nav, content, footer). The dissolve wash below stays exactly as it was —
+    // it now anchors the viewport bottom instead of the header bottom.
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
       <MeshGradient
         speed={prefersReducedMotion ? 0 : 0.35}
         colors={["#dbeae6", "#8fcdb3", "#a8d6b8", "#8cc4b6"]}

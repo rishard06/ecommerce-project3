@@ -18,6 +18,17 @@ import MeshGradientBackground from "../MeshGradientBackground";
 afterEach(cleanup);
 
 describe("MeshGradientBackground grain", () => {
+  it("covers the viewport behind all content (fixed, non-interactive)", () => {
+    const { container } = render(<MeshGradientBackground />);
+    const root = container.firstElementChild as HTMLElement;
+
+    expect(root.className).toContain("fixed");
+    expect(root.className).toContain("inset-0");
+    expect(root.className).toContain("-z-10");
+    expect(root.className).toContain("pointer-events-none");
+    expect(root.getAttribute("aria-hidden")).toBe("true");
+  });
+
   it("lays a static 4% SVG-noise grain over the mesh, inert to pointer and AT", () => {
     const { container } = render(<MeshGradientBackground />);
     const grain = container.querySelector<HTMLElement>("[data-grain]");
