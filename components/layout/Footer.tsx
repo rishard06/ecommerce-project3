@@ -11,6 +11,8 @@ import {
   Phone,
   Mail,
   ArrowRight,
+  Check,
+  LoaderCircle,
   type LucideProps,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -32,11 +34,12 @@ interface FooterLink {
   label: string;
 }
 
+// TODO(owner): replace these platform homepages with the brand's profile URLs.
 const socialLinks: SocialLink[] = [
-  { href: "#", "aria-label": "Facebook", icon: Facebook },
-  { href: "#", "aria-label": "Twitter", icon: Twitter },
-  { href: "#", "aria-label": "Instagram", icon: Instagram },
-  { href: "#", "aria-label": "YouTube", icon: Youtube },
+  { href: "https://facebook.com", "aria-label": "Facebook", icon: Facebook },
+  { href: "https://twitter.com", "aria-label": "Twitter", icon: Twitter },
+  { href: "https://instagram.com", "aria-label": "Instagram", icon: Instagram },
+  { href: "https://youtube.com", "aria-label": "YouTube", icon: Youtube },
 ];
 
 const quickLinks: FooterLink[] = [
@@ -62,14 +65,31 @@ const footerLinks: FooterLink[] = [
   { href: "/contact", label: "Contact" },
 ];
 
-export default function Footer() {
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
+type SubscribeStatus = "idle" | "submitting" | "success" | "error";
 
-  const handleSubscribe = (e: React.FormEvent) => {
+interface FooterProps {
+  onSubscribe?: (email: string) => Promise<void>;
+}
+
+const defaultSubscribe = async () => {};
+
+export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<SubscribeStatus>("idle");
+  const isSubmitting = status === "submitting";
+
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubscribed(true);
-    setEmail("");
+    if (isSubmitting) return;
+
+    setStatus("submitting");
+    try {
+      await onSubscribe(email);
+      setStatus("success");
+      setEmail("");
+    } catch {
+      setStatus("error");
+    }
   };
 
   return (
@@ -139,32 +159,55 @@ export default function Footer() {
             <p className="mb-3 text-sm leading-relaxed text-gray-tertiary">
               Occasional notes on new arrivals and restocks. No noise.
             </p>
-            {subscribed ? (
-              <p role="status" className="text-sm font-medium text-accent-700">
+            {status === "success" ? (
+              <p
+                role="status"
+                className="flex items-center gap-2 text-sm font-medium text-accent-700"
+              >
+                <Check size={16} aria-hidden="true" />
                 You&apos;re on the list. Thank you.
               </p>
             ) : (
-              <form onSubmit={handleSubscribe} className="flex gap-2">
-                <label htmlFor="newsletter-email" className="sr-only">
-                  Email address
-                </label>
-                <Input
-                  id="newsletter-email"
-                  type="email"
-                  placeholder="Your email"
-                  className="h-10 rounded-full border-transparent bg-white/60 text-sm placeholder:text-gray-quaternary focus-visible:bg-white/90"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <Button
-                  type="submit"
-                  size="icon"
-                  className="size-10 shrink-0 rounded-full bg-accent-500 text-gray-primary hover:bg-accent-600"
-                  aria-label="Subscribe to newsletter"
-                >
-                  <ArrowRight size={16} aria-hidden="true" />
-                </Button>
+              <form onSubmit={handleSubscribe} className="space-y-2">
+                <div className="flex gap-2">
+                  <label htmlFor="newsletter-email" className="sr-only">
+                    Email address
+                  </label>
+                  <Input
+                    id="newsletter-email"
+                    type="email"
+                    placeholder="Your email"
+                    className="h-10 rounded-full border-transparent bg-white/60 text-sm placeholder:text-gray-quaternary focus-visible:bg-white/90"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isSubmitting}
+                    aria-invalid={status === "error"}
+                    required
+                  />
+                  <Button
+                    type="submit"
+                    size="icon"
+                    className="size-10 shrink-0 rounded-full bg-accent-500 text-gray-primary hover:bg-accent-600"
+                    aria-label="Subscribe to newsletter"
+                    aria-busy={isSubmitting}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <LoaderCircle
+                        size={16}
+                        className="animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <ArrowRight size={16} aria-hidden="true" />
+                    )}
+                  </Button>
+                </div>
+                {status === "error" && (
+                  <p role="alert" className="text-sm text-destructive">
+                    Could not subscribe. Please try again.
+                  </p>
+                )}
               </form>
             )}
           </div>
