@@ -680,3 +680,84 @@ untouched (only pre-existing untracked `.agents/` remains).
   (pre-existing, untouched).
 - No refund/return customer email is sent (I1 optional email skipped per
   brief; minor M3 owns status-email content).
+
+---
+
+# Retro Batch 3 Fix Report — Wave 2 (I3 docs only)
+
+Commit: `fix(retro-batch3-wave2): ...` (3 files, +196/−15 per diffstat).
+
+Scope: ONLY Important item I3 from `retro-batch3.md` (operator docs, README,
+launch checklist). Docs only: no code, no migration, no tests (TDD N/A).
+Untouched: I1/I2 code (Wave 1 head `549492a`), I4 (CI run), all minors, all
+parked per-task items. `.agents/` + `skills-lock` untouched.
+
+Fix basis (read, not re-litigated): Task 19 report manual checklist (the
+"refund webhook/email" line describes emails the product does not send —
+refunds are a synchronous Stripe API call, no refund email exists) and Wave 1
+changes (return form/status block on `/orders/[id]`, admin `Returns` column,
+refund-keeps-invoice with `Refunded` marker, SHIPPED/DELIVERED emails with
+the guest limitation).
+
+## What changed
+
+### `docs/order-lifecycle.md`
+- §1: new `ReturnStatus` state machine (`PENDING → APPROVED/REJECTED`, one
+  request per order, `PAID` + `DELIVERED` + 30d anchored on `updatedAt` with
+  the re-open limitation, customer form/status surfaces, admin `Return`
+  column + detail decision forms, no admin notification email).
+- Same section: approve claim-before-charge → refund → `CANCELLED` flow,
+  resume rule (`APPROVED` + still `PAID` retries under `refund-{orderId}`;
+  only post-`PAID` is a no-op), reject-with-no-money, later-decision no-ops,
+  and the `RETURN_REQUESTED` / `RETURN_APPROVED` / `RETURN_REJECTED` audit
+  actions.
+- §9: rewritten as generic path + approved-return exception (`DELIVERED` +
+  `APPROVED` refunds; `SHIPPED` / non-approved `DELIVERED` still refused) plus
+  the generic Refund card's retry role after a failed approve refund.
+- New Step 10 (customer return request), Step 11 (invoice access follows
+  payment history `SUCCEEDED`/`REFUNDED`, refunded "Refunded" badge +
+  credit-note footer, guest `?token=` preserved), Step 12 (SHIPPED/DELIVERED
+  best-effort emails, never-throw, registered users only, guest limitation,
+  explicitly no refund/return-decision email or webhook).
+- §5: ops queries for `RETURN_*` audits + pending-returns triage query
+  (mirrors the admin list column).
+
+### `docs/production-setup.md`
+- §2 env table: emails described as confirmation + auth + shipment/delivery;
+  explicit "no refund or return-decision email exists" note on both rows
+  (corrects the Task 19 checklist line to assert only existing emails).
+- §4 admin pages: `Return` triage column + per-order approve/reject/refund.
+- §9 refund procedure: unshipped **or** `DELIVERED` + `APPROVED`, generic-card
+  retry role after failed approve, pending triage via list column.
+- §10 smoke test: return request/status/audit → approve → `CANCELLED` /
+  `REFUNDED` → refunded invoice with marker (incl. guest token) →
+  shipment/delivery status-email steps, and the assert-only-existing-emails
+  correction.
+
+### `README.md`
+- Features: new returns, snapshot-invoice, and shipment/delivery-email
+  bullets (incl. guest limitation + no refund/return email); refund bullet
+  extended to the delivered-approved exception.
+
+## Verification (docs only; no code/test run)
+- Full read-through of all three edited files after editing; `git diff
+  --check` clean; all pre-existing doc anchors referenced from edits still
+  resolve (`production-setup.md` §§ 4/6.4/9/10, `order-lifecycle.md` §§ 1/9).
+- Grep for stale claims across `docs/`: `refund webhook`, `refund email`,
+  `confirmation + auth emails`, `before shipment`, `unshipped only`, bare
+  `SHIPPED/DELIVERED … refused` — zero remaining stale hits; the only matches
+  are the new corrective sentences ("no refund email", "without an approved
+  return stay refused on the generic card").
+- No code, migration, or test files touched (`git status`: only the 3 docs
+  modified).
+
+## Concerns / follow-ups (not fixed, by instruction)
+- Task 19's report file itself still contains the old "refund webhook/email"
+  checklist line; it is a historical record and was deliberately not edited —
+  the correction lives in the runbook + lifecycle doc, which the checklist
+  points at.
+- The 30-day window's `updatedAt` re-open limitation and the guest-email gap
+  are documented as accepted MVP behavior, not fixed here.
+- "Approved — refund issued"-style page copy and bare status-email bodies
+  (minors M1/M3) are untouched; the docs describe current behavior only.
+- I4 (green DB-backed/CI run) remains open and is unaffected by this wave.

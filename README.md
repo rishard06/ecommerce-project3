@@ -36,12 +36,26 @@ DummyJSON is only a seed-time source.
   `/admin/coupons` (with usage Set/Reset). Checkout quotes discounts
   server-side; orders snapshot `discountCents`/`couponCode`, and coupons that
   would zero the total are rejected before anything is written.
+- **Customer returns** — shoppers (and guests via token) can request a return
+  on their own `PAID` + `DELIVERED` orders within 30 days; one request per
+  order. Admins triage via the `Return` column at `/admin/orders` and
+  approve (refunds in full, `APPROVED` → order `CANCELLED`) or reject
+  (no money moves) at `/admin/orders/[id]`. Audited as `RETURN_REQUESTED` /
+  `RETURN_APPROVED` / `RETURN_REJECTED`.
+- **Snapshot invoices** — print-friendly invoices at `/orders/[id]/invoice`
+  rendered from immutable order snapshots; entitlement follows payment
+  history (`SUCCEEDED` or `REFUNDED`), so refunded orders keep a "Refunded"
+  credit-note invoice.
+- **Shipment / delivery emails** — best-effort `SHIPPED` / `DELIVERED`
+  notifications to the order's registered user email; guest orders receive
+  none (no stored address). No refund or return-decision email is sent.
 - **Customer order cancellation** — shoppers (and guests via token) can cancel
   their own `PENDING` + `UNFULFILLED` orders; stock is released immediately
   and the coupon use stays consumed.
 - **Admin full refunds** — the Refund card on an order refunds the Stripe
   payment in full and cancels the order (`REFUNDED` payment, `ORDER_REFUNDED`
-  audit, coupon use returned, stock restocked). Dashboard refunds are not
+  audit, coupon use returned, stock restocked) for unshipped orders, or for
+  delivered orders with an approved return. Dashboard refunds are not
   synced back.
 - **Protected reservation cleanup** — Vercel Cron calls
   `/api/cron/release-reservations` every five minutes with
