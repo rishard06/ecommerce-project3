@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/features/identity/server/guards";
+import { sendFulfillmentEmail } from "@/lib/email/send-fulfillment-email";
 import {
   InvalidFulfillmentTransitionError,
   OrderNotFoundError,
@@ -83,6 +84,14 @@ export async function updateFulfillmentAction(
       return { success: false, error: error.message };
     }
     throw error;
+  }
+
+  // SHIPPED / DELIVERED notify the customer exactly once: the send is only
+  // reached when updateFulfillment commits, and the state machine rejects a
+  // repeat of the same transition, so a retry throws above before any
+  // resend. Best-effort (never throws); all other transitions send nothing.
+  if (parsed.data.next === "SHIPPED" || parsed.data.next === "DELIVERED") {
+    await sendFulfillmentEmail(parsed.data.orderId, parsed.data.next);
   }
 
   revalidatePath("/admin/orders");
