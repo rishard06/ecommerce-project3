@@ -62,14 +62,14 @@ describe("NavBar material", () => {
 
     expect(bar.className).toContain("bg-transparent");
     expect(bar.className).not.toContain("glass-control");
-    expect(nav.className).not.toContain("mt-[18px]");
+    expect(nav.className).not.toContain("pt-[18px]");
 
     scrollTo(HERO_SCROLL_THRESHOLD + 1);
 
     expect(bar.className).toContain("glass-control");
     expect(bar.className).not.toContain("bg-transparent");
     // Half the announcement height (h-9 = 36px): breathing room once stuck.
-    expect(nav.className).toContain("mt-[18px]");
+    expect(nav.className).toContain("pt-[18px]");
   });
 
   it("returns to transparent when scrolled back to the top", () => {
@@ -77,11 +77,11 @@ describe("NavBar material", () => {
 
     scrollTo(HERO_SCROLL_THRESHOLD + 200);
     expect(bar.className).toContain("glass-control");
-    expect(nav.className).toContain("mt-[18px]");
+    expect(nav.className).toContain("pt-[18px]");
 
     scrollTo(0);
     expect(bar.className).toContain("bg-transparent");
-    expect(nav.className).not.toContain("mt-[18px]");
+    expect(nav.className).not.toContain("pt-[18px]");
   });
 
   it("listens passively and removes the listener on unmount", () => {

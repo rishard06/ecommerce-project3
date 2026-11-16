@@ -48,8 +48,9 @@ export default function NavBar() {
       aria-label="Primary"
       className={`sticky top-0 z-50 w-full px-3 sm:px-5 print:hidden ${
         // Half the announcement height (h-9 = 36px): breathing room once the
-        // bar scrolls away and the pill sticks; flush under the message at top.
-        isScrolled ? "mt-[18px]" : ""
+        // bar scrolls away and the pill sticks. Padding, not margin — a
+        // sticky element's margin does not create a gap once it is stuck.
+        isScrolled ? "pt-[18px]" : ""
       }`}
     >
       {/* Floating bar: transparent over the hero, glass once content slides under. Flush under the announcement bar. */}
