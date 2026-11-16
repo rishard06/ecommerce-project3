@@ -56,6 +56,7 @@ export default function CartAction() {
           aria-haspopup="dialog"
           aria-expanded={isCartOpen}
           onClick={() => setIsCartOpen(false)}
+          className="relative"
         >
           <ShoppingBagIcon className="size-5" aria-hidden="true" />
           <CartBadge count={cartCount} />

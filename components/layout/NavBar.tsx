@@ -13,30 +13,13 @@ import CartAction from "@/features/cart/components/CartAction";
 import UserAction from "./UserAction";
 import MobileMenu from "./MobileMenu";
 
-/**
- * Distance scrolled before the bar trades its transparent hero treatment for
- * the glass material. Past this point content begins sliding under the bar.
- */
-export const HERO_SCROLL_THRESHOLD = 24;
-
 export default function NavBar() {
   const items = useFavoritesStore((state) => state.items);
   const [mounted, setMounted] = useState(false);
   const [favCount, setFavCount] = useState(0);
-  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const syncMaterial = () => {
-      setIsScrolled(window.scrollY > HERO_SCROLL_THRESHOLD);
-    };
-
-    syncMaterial();
-    window.addEventListener("scroll", syncMaterial, { passive: true });
-    return () => window.removeEventListener("scroll", syncMaterial);
   }, []);
 
   useEffect(() => {
@@ -48,14 +31,8 @@ export default function NavBar() {
       aria-label="Primary"
       className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-5 md:pt-4 print:hidden"
     >
-      {/* Floating bar: transparent over the hero, glass once content slides under. */}
-      <div
-        className={`mx-auto flex w-full max-w-7xl items-center justify-between gap-2 rounded-full px-3 py-2 sm:gap-4 sm:px-4 md:gap-8 md:py-2.5 ${
-          isScrolled
-            ? "glass-control"
-            : "border border-transparent bg-transparent"
-        }`}
-      >
+      {/* Floating bar: always transparent — no scrolled material. */}
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 rounded-full border border-transparent bg-transparent px-3 py-2 sm:gap-4 sm:px-4 md:gap-8 md:py-2.5">
         <Logo />
 
         {/* Mobile menu (includes trigger, backdrop and sheet) */}
@@ -71,7 +48,11 @@ export default function NavBar() {
             size="icon"
             className="rounded-full text-gray-secondary hover:bg-gray-primary/5"
           >
-            <Link href="/favorites" aria-label={`Favorites, ${favCount} saved`}>
+            <Link
+              href="/favorites"
+              aria-label={`Favorites, ${favCount} saved`}
+              className="relative"
+            >
               <HeartIcon className="size-5" aria-hidden="true" />
               <CartBadge count={favCount} />
             </Link>
