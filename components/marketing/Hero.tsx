@@ -11,26 +11,22 @@ import BlurText from "@/components/animations/BlurText";
 import Reveal from "@/components/animations/Reveal";
 import { fade, spring } from "@/lib/motion";
 
-/** Deck order follows the asset filenames; slugs are the seeded dummy-<id>s. */
+/** Deck order follows the asset filenames. Pure image browsing — no links. */
 const deck = [
   {
     src: "/landing/chopping-board.webp",
-    slug: "dummy-53",
     alt: "Rounded oak chopping board resting against a warm cream studio backdrop",
   },
   {
     src: "/landing/bedside-table.webp",
-    slug: "dummy-13",
     alt: "Cherry wood bedside table with one drawer and an open shelf against a warm cream backdrop",
   },
   {
     src: "/landing/mug-tree.webp",
-    slug: "dummy-67",
     alt: "Six-hook black iron mug tree standing against a warm cream studio backdrop",
   },
   {
     src: "/landing/leather-watch.webp",
-    slug: "dummy-93",
     alt: "Brown leather-strap wristwatch against a warm cream studio backdrop",
   },
 ];
@@ -100,14 +96,6 @@ export default function Hero() {
                 sensitivity={90}
                 sendToBackOnClick
                 onFirstInteract={() => setHintVisible(false)}
-                renderTopCardLink={(content, cardIndex) => (
-                  <Link
-                    href={`/products/${deck[cardIndex].slug}`}
-                    className="block size-full"
-                  >
-                    {content}
-                  </Link>
-                )}
                 cards={deck.map(({ src, alt }, index) => (
                   <Image
                     key={src}

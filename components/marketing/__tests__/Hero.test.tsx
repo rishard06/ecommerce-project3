@@ -135,20 +135,16 @@ describe("Hero shoppable deck", () => {
     }
   });
 
-  it("renders a link only around the top card", () => {
+  it("keeps the deck as pure image browsing (no product links)", () => {
     const { container } = render(<Hero />);
     const deck = container.querySelector('[data-testid="hero-deck"]');
     const links = Array.from(
       deck?.querySelectorAll('a[href^="/products/"]') ?? [],
     );
 
-    // Only the top card (last in deck order) links to its product.
-    expect(links).toHaveLength(1);
-    expect(links[0].getAttribute("href")).toBe("/products/dummy-93");
-
-    const images = deckImages(container);
-    expect(images).toHaveLength(4);
-    expect(images.filter((image) => !image.closest("a"))).toHaveLength(3);
+    // Drag/click browses images only — no card navigates anywhere.
+    expect(links).toHaveLength(0);
+    expect(deckImages(container)).toHaveLength(4);
   });
 
   it("shows a drag hint that dismisses after the first deck interaction", () => {
