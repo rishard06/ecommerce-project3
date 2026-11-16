@@ -62,21 +62,29 @@ const SplitText: React.FC<SplitTextProps> = ({
   useGSAP(
     () => {
       if (!ref.current || !text || !fontsLoaded) return;
-      // Reduced motion renders the text exactly as authored: no split, no
-      // ScrollTrigger, no initial opacity-0 state.
-      if (prefersReducedMotion) return;
-      // Prevent re-animation if already completed
-      if (animationCompletedRef.current) return;
       const el = ref.current as HTMLElement & {
         _rbsplitInstance?: GSAPSplitText;
       };
-
-      if (el._rbsplitInstance) {
+      const revertSplit = () => {
+        if (!el._rbsplitInstance) return;
         try {
           el._rbsplitInstance.revert();
         } catch (_) {}
         el._rbsplitInstance = undefined;
+      };
+
+      // Reduced motion renders the text exactly as authored: undo any split
+      // that is already live before bailing out, then skip ScrollTrigger and
+      // the opacity-0 initial state.
+      if (prefersReducedMotion) {
+        revertSplit();
+        return;
       }
+
+      // Prevent re-animation if already completed
+      if (animationCompletedRef.current) return;
+
+      revertSplit();
 
       const startPct = (1 - threshold) * 100;
       const marginMatch = /^(-?\d+(?:\.\d+)?)(px|em|rem|%)?$/.exec(rootMargin);

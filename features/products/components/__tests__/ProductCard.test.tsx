@@ -116,6 +116,7 @@ describe("ProductCard tactile feedback", () => {
     // No motion props at all: the card cannot animate.
     expect(props.whileHover).toBeUndefined();
     expect(props.whileTap).toBeUndefined();
+    expect(props.transition).toBeUndefined();
 
     // CSS transitions/transforms are gated too, so hover produces no movement.
     expect(props.className).not.toContain("transition-shadow");
