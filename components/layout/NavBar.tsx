@@ -46,7 +46,11 @@ export default function NavBar() {
   return (
     <nav
       aria-label="Primary"
-      className="sticky top-0 z-50 w-full px-3 sm:px-5 print:hidden"
+      className={`sticky top-0 z-50 w-full px-3 sm:px-5 print:hidden ${
+        // Half the announcement height (h-9 = 36px): breathing room once the
+        // bar scrolls away and the pill sticks; flush under the message at top.
+        isScrolled ? "mt-[18px]" : ""
+      }`}
     >
       {/* Floating bar: transparent over the hero, glass once content slides under. Flush under the announcement bar. */}
       <div
