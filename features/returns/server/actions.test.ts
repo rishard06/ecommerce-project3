@@ -209,6 +209,8 @@ describe("requestReturn", () => {
     expect(audits[0]).toMatchObject({
       actorId: user.id,
       action: "RETURN_REQUESTED",
+      fromStatus: null,
+      toStatus: null,
     });
   });
 
@@ -295,7 +297,12 @@ describe("requestReturn", () => {
       where: { orderId: order.id },
     });
     expect(audits).toHaveLength(1);
-    expect(audits[0]).toMatchObject({ actorId: null });
+    expect(audits[0]).toMatchObject({
+      actorId: null,
+      action: "RETURN_REQUESTED",
+      fromStatus: null,
+      toStatus: null,
+    });
   });
 
   it("rejects another user's order id and unknown ids without touching the owner's order", { timeout: RETURN_TEST_TIMEOUT }, async () => {
