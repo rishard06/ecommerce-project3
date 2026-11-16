@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import Stack from "@/components/animations/Stack";
 import BlurText from "@/components/animations/BlurText";
+import Reveal from "@/components/animations/Reveal";
 
 export default function Hero() {
   const images = [
@@ -18,33 +19,43 @@ export default function Hero() {
     <section className="flex items-center px-4 py-16 sm:px-6 md:py-24">
       <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-12 lg:flex-row lg:gap-16">
         <div className="w-full text-left lg:w-1/2">
-          <BlurText
-            text="Things worth keeping."
-            delay={45}
-            animateBy="words"
-            direction="top"
-            as="h1"
-            className="mb-5 max-w-xl text-4xl font-semibold leading-[1.05] tracking-tight text-gray-primary sm:text-5xl xl:text-6xl"
-          />
-          <p className="mb-8 max-w-lg text-base leading-relaxed text-gray-secondary md:text-lg">
-            A small shop of well-made everyday objects. Clear prices, fast
-            delivery, no noise between you and the thing you want.
-          </p>
-          <Link href="/products" className="inline-block">
-            <Button
-              size="lg"
-              className="group h-12 rounded-full bg-accent-500 px-6 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
-            >
-              Browse products
-              <ArrowRight
-                className="ml-1 size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5"
-                aria-hidden="true"
-              />
-            </Button>
-          </Link>
+          <Reveal trigger="load" index={0}>
+            <BlurText
+              text="Things worth keeping."
+              delay={45}
+              animateBy="words"
+              direction="top"
+              as="h1"
+              className="mb-5 max-w-xl text-4xl font-semibold leading-[1.05] tracking-tight text-gray-primary sm:text-5xl xl:text-6xl"
+            />
+          </Reveal>
+          <Reveal trigger="load" index={1}>
+            <p className="mb-8 max-w-lg text-base leading-relaxed text-gray-secondary md:text-lg">
+              A small shop of well-made everyday objects. Clear prices, fast
+              delivery, no noise between you and the thing you want.
+            </p>
+          </Reveal>
+          <Reveal trigger="load" index={2}>
+            <Link href="/products" className="inline-block">
+              <Button
+                size="lg"
+                className="group h-12 rounded-full bg-accent-500 px-6 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
+              >
+                Browse products
+                <ArrowRight
+                  className="ml-1 size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5"
+                  aria-hidden="true"
+                />
+              </Button>
+            </Link>
+          </Reveal>
         </div>
 
-        <div className="flex w-full items-center justify-center lg:w-1/2">
+        <Reveal
+          trigger="load"
+          index={3}
+          className="flex w-full items-center justify-center lg:w-1/2"
+        >
           <div className="aspect-square w-full max-w-[420px]">
             <Stack
               randomRotation={false}
@@ -68,7 +79,7 @@ export default function Hero() {
               pauseOnHover={false}
             />
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );
