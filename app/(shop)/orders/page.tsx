@@ -10,7 +10,7 @@ import { OrderStatusPill } from "@/features/orders/components/OrderStatusBadges"
 import { formatCents } from "@/lib/money";
 
 export const metadata = {
-  title: "Your orders | venn.",
+  title: "Your orders | tended.",
   description: "Review your order history and current order status.",
 };
 

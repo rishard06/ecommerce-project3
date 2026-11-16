@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "What venn. collects, why, and the choices you have.",
+  description: "What tended. collects, why, and the choices you have.",
 };
 
 export default function PrivacyPage() {
@@ -59,10 +59,10 @@ export default function PrivacyPage() {
             You can request a copy of your data, correct it, or ask us to delete
             your account. Email{" "}
             <a
-              href="mailto:support@venn.shop"
+              href="mailto:support@tended.shop"
               className="font-semibold text-accent-700 underline-offset-4 hover:underline"
             >
-              support@venn.shop
+              support@tended.shop
             </a>{" "}
             and we will respond within 30 days.
           </p>

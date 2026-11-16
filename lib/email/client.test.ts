@@ -87,7 +87,7 @@ describe("sendEmail", () => {
       RequestInit,
     ];
     expect(JSON.parse(init.body as string).from).toBe(
-      "venn. <orders@example.com>",
+      "tended. <orders@example.com>",
     );
   });
 });

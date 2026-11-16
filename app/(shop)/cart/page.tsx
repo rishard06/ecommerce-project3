@@ -1,7 +1,7 @@
 import { CartPage } from "@/features/cart/components/CartPage";
 
 export const metadata = {
-  title: "Cart | venn.",
+  title: "Cart | tended.",
   description: "Review your items and proceed to checkout.",
 };
 

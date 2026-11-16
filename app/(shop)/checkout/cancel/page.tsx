@@ -19,7 +19,7 @@ import {
 import { formatCents } from "@/lib/money";
 
 export const metadata = {
-  title: "Checkout cancelled | venn.",
+  title: "Checkout cancelled | tended.",
   description: "Review the status of your cancelled checkout.",
 };
 

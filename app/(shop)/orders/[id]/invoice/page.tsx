@@ -18,7 +18,7 @@ import { formatCents } from "@/lib/money";
  */
 
 export const metadata = {
-  title: "Invoice | venn.",
+  title: "Invoice | tended.",
   description: "Print or save a paid order invoice.",
 };
 
@@ -89,7 +89,7 @@ export default async function InvoicePage({
       <article className="rounded-2xl border border-gray-primary/10 bg-white p-6 text-gray-primary shadow-soft sm:p-8 md:p-10 print:rounded-none print:border-0 print:p-0 print:shadow-none">
         <header className="flex flex-col justify-between gap-6 border-b border-gray-primary/10 pb-6 sm:flex-row sm:items-start">
           <div>
-            <p className="text-2xl font-semibold tracking-tight">venn.</p>
+            <p className="text-2xl font-semibold tracking-tight">tended.</p>
             <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
               Invoice
             </h1>

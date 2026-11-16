@@ -1,6 +1,6 @@
 import { ForgotPasswordForm } from "@/features/auth/components/ForgotPasswordForm";
 
-export const metadata = { title: "Forgot password | venn." };
+export const metadata = { title: "Forgot password | tended." };
 
 export default function ForgotPasswordPage() {
   return (

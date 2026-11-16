@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { ResetPasswordForm } from "@/features/auth/components/ResetPasswordForm";
 
-export const metadata = { title: "Reset password | venn." };
+export const metadata = { title: "Reset password | tended." };
 
 export default function ResetPasswordPage() {
   return (

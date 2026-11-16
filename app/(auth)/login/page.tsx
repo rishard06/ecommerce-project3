@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to your venn. account to continue shopping.",
+  description: "Sign in to your tended. account to continue shopping.",
 };
 
 export default function LoginPage() {

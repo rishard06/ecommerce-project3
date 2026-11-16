@@ -25,12 +25,12 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: "venn. — Considered essentials",
-    template: "%s | venn.",
+    default: "tended. — Considered essentials",
+    template: "%s | tended.",
   },
   description:
     "A calm, considered shop for everyday essentials — clear pricing, fast delivery, honest reviews, easy returns, and a checkout that gets out of your way.",
-  applicationName: "venn.",
+  applicationName: "tended.",
 };
 
 export const viewport: Viewport = {

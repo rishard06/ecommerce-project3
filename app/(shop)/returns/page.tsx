@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Returns",
-  description: "How to return an item to venn., and when your refund arrives.",
+  description: "How to return an item to tended., and when your refund arrives.",
 };
 
 export default function ReturnsPage() {
@@ -33,7 +33,7 @@ export default function ReturnsPage() {
         <section className="space-y-2">
           <h2 className="text-lg font-semibold text-gray-primary">How to start</h2>
           <ol className="list-decimal space-y-1.5 pl-5 leading-relaxed">
-            <li>Email your order number to support@venn.shop.</li>
+            <li>Email your order number to support@tended.shop.</li>
             <li>We reply with a prepaid label and simple packing steps.</li>
             <li>Drop the parcel off within 7 days of receiving the label.</li>
           </ol>
