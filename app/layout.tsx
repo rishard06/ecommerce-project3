@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
@@ -14,14 +14,23 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+// Display face for H1/section titles only — body copy stays on Geist.
+// Single weight (600, matching the semibold titles) preloaded above the fold.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: "600",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: {
-    default: "venn. — Considered essentials",
-    template: "%s | venn.",
+    default: "tended. — Considered essentials",
+    template: "%s | tended.",
   },
   description:
     "A calm, considered shop for everyday essentials — clear pricing, fast delivery, honest reviews, easy returns, and a checkout that gets out of your way.",
-  applicationName: "venn.",
+  applicationName: "tended.",
 };
 
 export const viewport: Viewport = {
@@ -35,7 +44,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} font-sans antialiased`}>
         {children}
       </body>
     </html>

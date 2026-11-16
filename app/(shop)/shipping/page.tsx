@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Shipping",
-  description: "Processing times, delivery estimates, and tracking for venn. orders.",
+  description: "Processing times, delivery estimates, and tracking for tended. orders.",
 };
 
 export default function ShippingPage() {
@@ -66,10 +66,10 @@ export default function ShippingPage() {
             </a>{" "}
             or email{" "}
             <a
-              href="mailto:support@venn.shop"
+              href="mailto:support@tended.shop"
               className="font-semibold text-accent-700 underline-offset-4 hover:underline"
             >
-              support@venn.shop
+              support@tended.shop
             </a>
             .
           </p>

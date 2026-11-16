@@ -8,7 +8,7 @@ import {
   useReducedMotion,
   type PanInfo,
 } from "motion/react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { spring } from "@/lib/motion";
 
 interface CardRotateProps {
@@ -19,6 +19,9 @@ interface CardRotateProps {
   reduceMotion?: boolean;
   isTop?: boolean;
   enableClick?: boolean;
+  onFirstInteract?: () => void;
+  /** Fires when a drag passes the threshold (before the card cycles). */
+  onDragPassed?: () => void;
 }
 
 function CardRotate({
@@ -29,6 +32,8 @@ function CardRotate({
   reduceMotion = false,
   isTop = false,
   enableClick = false,
+  onFirstInteract,
+  onDragPassed,
 }: CardRotateProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -42,7 +47,9 @@ function CardRotate({
       Math.abs(info.offset.x) > sensitivity || Math.abs(info.offset.y) > sensitivity;
 
     if (passed) {
+      onDragPassed?.();
       onSendToBack();
+      onFirstInteract?.();
     }
 
     // Velocity handoff: the card leaves the finger at the speed the finger was
@@ -64,7 +71,10 @@ function CardRotate({
       className="absolute inset-0 cursor-grab"
       style={{ x, y, rotateX, rotateY }}
       drag
-      dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
+      // A real box (not a zero-area point): the card follows the finger 1:1
+      // inside it, then stretches elastically past the edges. Must span wider
+      // than `sensitivity` or a threshold pull never moves the card.
+      dragConstraints={{ top: -120, right: 160, bottom: 120, left: -160 }}
       dragElastic={0.45}
       dragTransition={dragTransition}
       whileTap={{ cursor: "grabbing" }}
@@ -76,6 +86,7 @@ function CardRotate({
         if (!enableClick || !isTop) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
+          onFirstInteract?.();
           onSendToBack();
         }
       }}
@@ -96,6 +107,17 @@ interface StackProps {
   pauseOnHover?: boolean;
   mobileClickOnly?: boolean;
   mobileBreakpoint?: number;
+  /** Fires once the user first cycles a card (drag past threshold or click). */
+  onFirstInteract?: () => void;
+  /**
+   * Wraps the top card's content in a link. `cardIndex` is the card's position
+   * in the original `cards` order. Only the top card is ever linked, so hidden
+   * cards stay out of the tab order and screen-reader navigation.
+   */
+  renderTopCardLink?: (
+    content: React.ReactNode,
+    cardIndex: number,
+  ) => React.ReactNode;
 }
 
 export default function Stack({
@@ -109,10 +131,17 @@ export default function Stack({
   pauseOnHover = false,
   mobileClickOnly = false,
   mobileBreakpoint = 768,
+  onFirstInteract,
+  renderTopCardLink,
 }: StackProps) {
   const prefersReducedMotion = useReducedMotion();
   const [isMobile, setIsMobile] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  // A drag that cycles the card ends with a mouseup click on desktop. Swallow
+  // that one click so exploring the deck doesn't navigate away; the next
+  // pointer-down starts a fresh gesture and clears the flag. The flag lives
+  // here (not per card) because a cycling drag remounts the top card.
+  const suppressClickAfterDragRef = useRef(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -215,11 +244,27 @@ export default function Stack({
       style={{ perspective: prefersReducedMotion ? undefined : 600 }}
       onMouseEnter={() => pauseOnHover && setIsPaused(true)}
       onMouseLeave={() => pauseOnHover && setIsPaused(false)}
+      onPointerDown={() => {
+        suppressClickAfterDragRef.current = false;
+      }}
+      onClickCapture={(event) => {
+        if (!suppressClickAfterDragRef.current) return;
+        suppressClickAfterDragRef.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
     >
       {stack.map((card, index) => {
         const isTop = index === stack.length - 1;
         const randomRotate = randomRotation ? card.initialRotation : 0;
         const depth = stack.length - index - 1;
+        // Card ids are assigned as original-index + 1 whenever the stack is
+        // (re)built, so id - 1 recovers the card's position in `cards`.
+        const cardIndex = card.id - 1;
+        const content =
+          isTop && renderTopCardLink
+            ? renderTopCardLink(card.content, cardIndex)
+            : card.content;
 
         return (
           <CardRotate
@@ -230,10 +275,18 @@ export default function Stack({
             reduceMotion={!!prefersReducedMotion}
             isTop={isTop}
             enableClick={shouldEnableClick}
+            onFirstInteract={onFirstInteract}
+            onDragPassed={() => {
+              suppressClickAfterDragRef.current = true;
+            }}
           >
             <motion.div
               className="rounded-[1.75rem] overflow-hidden w-full h-full shadow-lift"
-              onClick={() => shouldEnableClick && isTop && sendToBack(card.id)}
+              onClick={() => {
+                if (!shouldEnableClick || !isTop) return;
+                onFirstInteract?.();
+                sendToBack(card.id);
+              }}
               style={{ transformOrigin: "90% 90%" }}
               animate={{
                 rotateZ: prefersReducedMotion ? 0 : depth * 4 + randomRotate,
@@ -247,7 +300,7 @@ export default function Stack({
                 damping: animationConfig.damping,
               }}
             >
-              {card.content}
+              {content}
             </motion.div>
           </CardRotate>
         );

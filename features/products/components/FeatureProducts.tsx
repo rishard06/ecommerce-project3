@@ -15,7 +15,7 @@ export default async function FeatureProducts() {
       <div className="mx-auto w-full max-w-7xl">
         <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:mb-10 sm:flex-row sm:items-end">
           <div>
-            <h2 className="mb-2 text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl">
+            <h2 className="mb-2 font-display text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl">
               Featured products
             </h2>
             <p className="text-gray-secondary">

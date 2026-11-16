@@ -40,13 +40,13 @@ export function CartItem({ item, onRemove }: CartItemProps) {
           </h4>
           <p className="mt-0.5 text-xs font-medium text-gray-tertiary">
             {item.quantity} ×{" "}
-            <span className="text-gray-secondary">
+            <span className="tabular-nums text-gray-secondary">
               {formatCents(item.priceCents)}
             </span>
           </p>
         </div>
         <div className="mt-1 flex items-center justify-between">
-          <span className="text-sm font-semibold tracking-tight text-gray-secondary">
+          <span className="text-sm font-semibold tabular-nums tracking-tight text-gray-secondary">
             {formatCents(item.priceCents * item.quantity)}
           </span>
           <button

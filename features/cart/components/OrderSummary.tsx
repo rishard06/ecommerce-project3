@@ -80,7 +80,7 @@ export function OrderSummary() {
       <div className="relative overflow-hidden rounded-[1.75rem] bg-accent-500 p-6 shadow-soft">
         <div className="relative z-10">
           <h3 className="mb-1.5 text-lg font-semibold tracking-tight text-gray-primary">
-            Save with venn. Prime
+            Save with tended prime
           </h3>
           <p className="mb-5 max-w-[220px] text-sm font-medium leading-relaxed text-gray-secondary">
             Free shipping and early access to new drops.
