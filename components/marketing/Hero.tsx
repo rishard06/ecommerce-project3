@@ -1,19 +1,43 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Hand } from "lucide-react";
 import Stack from "@/components/animations/Stack";
 import BlurText from "@/components/animations/BlurText";
 import Reveal from "@/components/animations/Reveal";
+import { fade, spring } from "@/lib/motion";
+
+/** Deck order follows the asset filenames; slugs are the seeded dummy-<id>s. */
+const deck = [
+  {
+    src: "/landing/chopping-board.webp",
+    slug: "dummy-53",
+    alt: "Rounded oak chopping board resting against a warm cream studio backdrop",
+  },
+  {
+    src: "/landing/bedside-table.webp",
+    slug: "dummy-13",
+    alt: "Cherry wood bedside table with one drawer and an open shelf against a warm cream backdrop",
+  },
+  {
+    src: "/landing/mug-tree.webp",
+    slug: "dummy-67",
+    alt: "Six-hook black iron mug tree standing against a warm cream studio backdrop",
+  },
+  {
+    src: "/landing/leather-watch.webp",
+    slug: "dummy-93",
+    alt: "Brown leather-strap wristwatch against a warm cream studio backdrop",
+  },
+];
 
 export default function Hero() {
-  const images = [
-    "https://flowbite.s3.amazonaws.com/docs/gallery/square/image-10.jpg",
-    "https://flowbite.s3.amazonaws.com/docs/gallery/featured/image.jpg",
-    "https://flowbite.s3.amazonaws.com/docs/gallery/square/image-1.jpg",
-    "https://flowbite.s3.amazonaws.com/docs/gallery/square/image-2.jpg",
-  ];
+  const prefersReducedMotion = useReducedMotion();
+  const [hintVisible, setHintVisible] = useState(true);
 
   return (
     <section className="flex items-center px-4 py-16 sm:px-6 md:py-24">
@@ -56,28 +80,60 @@ export default function Hero() {
           index={3}
           className="flex w-full items-center justify-center lg:w-1/2"
         >
-          <div className="aspect-square w-full max-w-[420px]">
-            <Stack
-              randomRotation={false}
-              sensitivity={90}
-              sendToBackOnClick
-              cards={images.map((src, index) => (
-                <Image
-                  key={src}
-                  src={src}
-                  alt=""
-                  width={420}
-                  height={420}
-                  sizes="(min-width: 1024px) 420px, 80vw"
-                  draggable={false}
-                  className="size-full object-cover"
-                  priority={index === 0}
-                />
-              ))}
-              autoplay={false}
-              autoplayDelay={3000}
-              pauseOnHover={false}
-            />
+          <div className="relative aspect-square w-full max-w-[420px]">
+            <motion.div
+              className="size-full"
+              initial={false}
+              animate={
+                prefersReducedMotion
+                  ? { rotate: 0, y: 0 }
+                  : { rotate: [0, 0.8, 0, -0.8, 0], y: [0, -5, 0, -5, 0] }
+              }
+              transition={
+                prefersReducedMotion
+                  ? { duration: 0 }
+                  : { ...spring.gentle, repeat: Infinity, repeatDelay: 1 }
+              }
+            >
+              <Stack
+                randomRotation={false}
+                sensitivity={90}
+                sendToBackOnClick
+                onFirstInteract={() => setHintVisible(false)}
+                cards={deck.map(({ src, slug, alt }, index) => (
+                  <Link
+                    key={src}
+                    href={`/products/${slug}`}
+                    className="block size-full"
+                  >
+                    <Image
+                      src={src}
+                      alt={alt}
+                      width={420}
+                      height={420}
+                      sizes="(min-width: 1024px) 420px, 80vw"
+                      draggable={false}
+                      className="size-full object-cover"
+                      priority={index === 0}
+                    />
+                  </Link>
+                ))}
+                autoplay={false}
+                autoplayDelay={3000}
+                pauseOnHover={false}
+              />
+            </motion.div>
+            <motion.span
+              data-testid="deck-hint"
+              aria-hidden={!hintVisible}
+              className="pointer-events-none absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm"
+              initial={false}
+              animate={{ opacity: hintVisible ? 1 : 0 }}
+              transition={fade}
+            >
+              <Hand className="size-3.5" aria-hidden="true" />
+              Drag to explore
+            </motion.span>
           </div>
         </Reveal>
       </div>

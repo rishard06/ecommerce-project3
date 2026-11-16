@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,8 +13,22 @@ vi.mock("motion/react", async (importOriginal) => {
 });
 
 vi.mock("@/components/animations/Stack", () => ({
-  default: ({ cards }: { cards?: ReactNode[] }) => (
-    <div data-testid="hero-deck">{cards}</div>
+  default: ({
+    cards,
+    onFirstInteract,
+  }: {
+    cards?: ReactNode[];
+    onFirstInteract?: () => void;
+  }) => (
+    <div data-testid="hero-deck">
+      {cards}
+      <button
+        type="button"
+        data-testid="deck-first-interact"
+        aria-label="Simulate deck interaction"
+        onClick={() => onFirstInteract?.()}
+      />
+    </div>
   ),
 }));
 
@@ -70,5 +86,74 @@ describe("Hero reveal choreography", () => {
     ).toBeTruthy();
     expect(getByRole("link", { name: /browse products/i })).toBeTruthy();
     expect(container.querySelector('[data-testid="hero-deck"]')).not.toBeNull();
+  });
+});
+
+/** Next/Image may wrap a local source in the optimizer URL during tests. */
+function imageSource(src: string): string {
+  if (src.startsWith("/_next/image")) {
+    return new URL(src, "http://localhost").searchParams.get("url") ?? src;
+  }
+  return src;
+}
+
+function deckImages(container: HTMLElement): HTMLImageElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLImageElement>(
+      '[data-testid="hero-deck"] img',
+    ),
+  );
+}
+
+/** Deck order follows the asset filenames; slugs are the seeded dummy-<id>s. */
+const expectedDeck = [
+  { src: "/landing/chopping-board.webp", href: "/products/dummy-53" },
+  { src: "/landing/bedside-table.webp", href: "/products/dummy-13" },
+  { src: "/landing/mug-tree.webp", href: "/products/dummy-67" },
+  { src: "/landing/leather-watch.webp", href: "/products/dummy-93" },
+];
+
+describe("Hero shoppable deck", () => {
+  it("serves every card from a local /landing/ WebP asset (zero hotlinks)", () => {
+    const { container } = render(<Hero />);
+    const images = deckImages(container);
+    expect(images).toHaveLength(4);
+
+    for (const image of images) {
+      const raw = image.getAttribute("src") ?? "";
+      expect(raw.startsWith("http")).toBe(false);
+
+      const localPath = imageSource(raw);
+      expect(localPath).toMatch(/^\/landing\/[a-z0-9-]+\.webp$/);
+      expect(
+        existsSync(path.join(process.cwd(), "public", localPath)),
+        `${localPath} should exist in public/`,
+      ).toBe(true);
+    }
+  });
+
+  it("links every card to its catalog product", () => {
+    const { container } = render(<Hero />);
+    const images = deckImages(container);
+    expect(images).toHaveLength(expectedDeck.length);
+
+    images.forEach((image, index) => {
+      const link = image.closest("a");
+      expect(link?.getAttribute("href")).toBe(expectedDeck[index].href);
+      expect(imageSource(image.getAttribute("src") ?? "")).toBe(
+        expectedDeck[index].src,
+      );
+    });
+  });
+
+  it("shows a drag hint that dismisses after the first deck interaction", () => {
+    const { getByTestId, getByText } = render(<Hero />);
+
+    expect(getByText(/drag to explore/i)).toBeTruthy();
+    expect(getByTestId("deck-hint").getAttribute("aria-hidden")).toBe("false");
+
+    fireEvent.click(getByTestId("deck-first-interact"));
+
+    expect(getByTestId("deck-hint").getAttribute("aria-hidden")).toBe("true");
   });
 });

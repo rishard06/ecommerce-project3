@@ -19,6 +19,7 @@ interface CardRotateProps {
   reduceMotion?: boolean;
   isTop?: boolean;
   enableClick?: boolean;
+  onFirstInteract?: () => void;
 }
 
 function CardRotate({
@@ -29,6 +30,7 @@ function CardRotate({
   reduceMotion = false,
   isTop = false,
   enableClick = false,
+  onFirstInteract,
 }: CardRotateProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -43,6 +45,7 @@ function CardRotate({
 
     if (passed) {
       onSendToBack();
+      onFirstInteract?.();
     }
 
     // Velocity handoff: the card leaves the finger at the speed the finger was
@@ -76,6 +79,7 @@ function CardRotate({
         if (!enableClick || !isTop) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
+          onFirstInteract?.();
           onSendToBack();
         }
       }}
@@ -96,6 +100,8 @@ interface StackProps {
   pauseOnHover?: boolean;
   mobileClickOnly?: boolean;
   mobileBreakpoint?: number;
+  /** Fires once the user first cycles a card (drag past threshold or click). */
+  onFirstInteract?: () => void;
 }
 
 export default function Stack({
@@ -109,6 +115,7 @@ export default function Stack({
   pauseOnHover = false,
   mobileClickOnly = false,
   mobileBreakpoint = 768,
+  onFirstInteract,
 }: StackProps) {
   const prefersReducedMotion = useReducedMotion();
   const [isMobile, setIsMobile] = useState(false);
@@ -230,10 +237,15 @@ export default function Stack({
             reduceMotion={!!prefersReducedMotion}
             isTop={isTop}
             enableClick={shouldEnableClick}
+            onFirstInteract={onFirstInteract}
           >
             <motion.div
               className="rounded-[1.75rem] overflow-hidden w-full h-full shadow-lift"
-              onClick={() => shouldEnableClick && isTop && sendToBack(card.id)}
+              onClick={() => {
+                if (!shouldEnableClick || !isTop) return;
+                onFirstInteract?.();
+                sendToBack(card.id);
+              }}
               style={{ transformOrigin: "90% 90%" }}
               animate={{
                 rotateZ: prefersReducedMotion ? 0 : depth * 4 + randomRotate,
