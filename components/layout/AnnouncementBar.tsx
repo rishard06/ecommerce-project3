@@ -10,25 +10,51 @@ import { XIcon } from "lucide-react";
 export const ANNOUNCEMENT_MESSAGE = "Free shipping on every order.";
 
 /**
- * Dismissal is remembered per browser. Bump the key suffix whenever the
- * message changes — or to force a re-show — so the bar appears again for
- * everyone. (v2: owner-requested re-show.)
+ * How long a dismissal lasts before the bar returns. Bounded so a visitor
+ * who hides today's message still sees future ones on a reasonable cadence.
  */
-export const ANNOUNCEMENT_STORAGE_KEY = "tended.announcement.dismissed.v2";
+export const ANNOUNCEMENT_DISMISS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Dismissal is remembered per browser, keyed by the message itself: editing
+ * the copy below re-shows the bar to everyone automatically, and the stored
+ * timestamp makes the dismissal expire after `ANNOUNCEMENT_DISMISS_TTL_MS`.
+ */
+export const ANNOUNCEMENT_STORAGE_KEY = "tended.announcement.dismissal";
 
 const isDismissed = () => {
   try {
-    return window.localStorage.getItem(ANNOUNCEMENT_STORAGE_KEY) === "1";
+    const raw = window.localStorage.getItem(ANNOUNCEMENT_STORAGE_KEY);
+    if (!raw) return false;
+
+    const record = JSON.parse(raw) as {
+      message?: unknown;
+      dismissedAt?: unknown;
+    };
+
+    // New copy => new announcement: show it regardless of age.
+    if (record.message !== ANNOUNCEMENT_MESSAGE) return false;
+
+    // Malformed or expired timestamps are treated as not dismissed.
+    if (typeof record.dismissedAt !== "number") return false;
+    return Date.now() - record.dismissedAt < ANNOUNCEMENT_DISMISS_TTL_MS;
   } catch {
-    // Storage can be blocked (privacy settings). Showing the bar is the
-    // safe default; dismissal still hides it for this page view.
+    // Storage can be blocked (privacy settings) or hold malformed JSON.
+    // Showing the bar is the safe default; dismissal still hides it for
+    // this page view.
     return false;
   }
 };
 
 const rememberDismissal = () => {
   try {
-    window.localStorage.setItem(ANNOUNCEMENT_STORAGE_KEY, "1");
+    window.localStorage.setItem(
+      ANNOUNCEMENT_STORAGE_KEY,
+      JSON.stringify({
+        message: ANNOUNCEMENT_MESSAGE,
+        dismissedAt: Date.now(),
+      }),
+    );
   } catch {
     // Nothing to persist to; the in-memory state still hides the bar.
   }
