@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Star } from "lucide-react";
 import Stack from "@/components/animations/Stack";
 import BlurText from "@/components/animations/BlurText";
 
@@ -54,6 +54,28 @@ export default function Hero() {
               />
             </Button>
           </Link>
+          {/* rating mirrors Testimonies 5-star cards */}
+          <div
+            data-testid="hero-proof"
+            className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-gray-tertiary"
+          >
+            <span className="inline-flex items-center gap-1.5 text-gray-secondary">
+              <Star
+                className="size-4 text-yellow-500"
+                fill="currentColor"
+                aria-hidden="true"
+              />
+              <span>5-star rated</span>
+            </span>
+            <span aria-hidden="true" className="text-gray-quaternary">
+              ·
+            </span>
+            <span>30-day returns</span>
+            <span aria-hidden="true" className="text-gray-quaternary">
+              ·
+            </span>
+            <span>Ships same day</span>
+          </div>
         </div>
 
         <div className="flex w-full items-center justify-center lg:w-1/2">

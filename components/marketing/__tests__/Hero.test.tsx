@@ -84,3 +84,32 @@ describe("Hero landing deck", () => {
     }
   });
 });
+
+describe("Hero proof row", () => {
+  it("renders three proof items beneath the Browse products CTA", () => {
+    const { container, getByRole } = render(<Hero />);
+    const cta = getByRole("link", { name: /browse products/i });
+    const row = container.querySelector('[data-testid="hero-proof"]');
+
+    expect(row).not.toBeNull();
+    const text = row?.textContent ?? "";
+    expect(text).toContain("5-star");
+    expect(text).toContain("30-day returns");
+    expect(text).toContain("Ships same day");
+
+    // Document order keeps the proof row below the CTA it supports.
+    expect(
+      cta.compareDocumentPosition(row as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("keeps proof items as plain text instead of links", () => {
+    const { container } = render(<Hero />);
+    const row = container.querySelector('[data-testid="hero-proof"]');
+
+    expect(row).not.toBeNull();
+    expect(row?.querySelectorAll("a")).toHaveLength(0);
+    expect(row?.querySelectorAll("button")).toHaveLength(0);
+  });
+});
