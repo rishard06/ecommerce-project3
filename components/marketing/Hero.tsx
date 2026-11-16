@@ -8,10 +8,22 @@ import BlurText from "@/components/animations/BlurText";
 
 export default function Hero() {
   const images = [
-    "https://flowbite.s3.amazonaws.com/docs/gallery/square/image-10.jpg",
-    "https://flowbite.s3.amazonaws.com/docs/gallery/featured/image.jpg",
-    "https://flowbite.s3.amazonaws.com/docs/gallery/square/image-1.jpg",
-    "https://flowbite.s3.amazonaws.com/docs/gallery/square/image-2.jpg",
+    {
+      src: "/landing/chopping-board.webp",
+      alt: "Rounded oak chopping board resting against a warm cream studio backdrop",
+    },
+    {
+      src: "/landing/bedside-table.webp",
+      alt: "Cherry wood bedside table with one drawer and an open shelf against a warm cream backdrop",
+    },
+    {
+      src: "/landing/mug-tree.webp",
+      alt: "Six-hook black iron mug tree standing against a warm cream studio backdrop",
+    },
+    {
+      src: "/landing/leather-watch.webp",
+      alt: "Gold Longines wristwatch on a brown leather strap against a warm cream backdrop",
+    },
   ];
 
   return (
@@ -50,11 +62,11 @@ export default function Hero() {
               randomRotation={false}
               sensitivity={90}
               sendToBackOnClick
-              cards={images.map((src, index) => (
+              cards={images.map(({ src, alt }, index) => (
                 <Image
                   key={src}
                   src={src}
-                  alt=""
+                  alt={alt}
                   width={420}
                   height={420}
                   sizes="(min-width: 1024px) 420px, 80vw"
