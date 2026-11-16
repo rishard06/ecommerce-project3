@@ -46,7 +46,7 @@ export default function CartPreview() {
             ({getTotalItems()})
           </span>
         </h3>
-        <span className="text-base font-semibold text-accent-700">
+        <span className="text-base font-semibold tabular-nums text-accent-700">
           {formatCents(getTotalPriceCents())}
         </span>
       </div>
