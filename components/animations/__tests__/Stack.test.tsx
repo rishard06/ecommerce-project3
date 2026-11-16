@@ -198,3 +198,15 @@ describe("Stack top-card-only link", () => {
     expect(moved[0].getAttribute("href")).toBe("/products/card-1");
   });
 });
+
+describe("Stack drag follow-through", () => {
+  it("lets the top card follow the finger 1:1 past the sensitivity threshold", () => {
+    render(<Stack sensitivity={90} cards={testCards()} />);
+
+    const constraints = topDragProps().dragConstraints;
+    // A zero-area box pins the card (elastic-only creep); the box must span
+    // wider than the drag threshold so a real pull moves the card 1:1.
+    expect(constraints.right - constraints.left).toBeGreaterThan(90);
+    expect(constraints.bottom - constraints.top).toBeGreaterThan(90);
+  });
+});

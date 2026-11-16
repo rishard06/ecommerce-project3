@@ -71,7 +71,10 @@ function CardRotate({
       className="absolute inset-0 cursor-grab"
       style={{ x, y, rotateX, rotateY }}
       drag
-      dragConstraints={{ top: 0, right: 0, bottom: 0, left: 0 }}
+      // A real box (not a zero-area point): the card follows the finger 1:1
+      // inside it, then stretches elastically past the edges. Must span wider
+      // than `sensitivity` or a threshold pull never moves the card.
+      dragConstraints={{ top: -120, right: 160, bottom: 120, left: -160 }}
       dragElastic={0.45}
       dragTransition={dragTransition}
       whileTap={{ cursor: "grabbing" }}
