@@ -7,7 +7,10 @@ import {
   InvalidFulfillmentTransitionError,
   OrderNotFoundError,
   OrderNotRefundableError,
+  ReturnRequestNotFoundError,
+  approveReturn,
   refundPayment,
+  rejectReturn,
   updateFulfillment,
 } from "@/features/orders/server/admin-order-service";
 
@@ -30,6 +33,10 @@ const fulfillmentInputSchema = z.object({
 });
 
 const refundInputSchema = z.object({
+  orderId: z.string().min(1, "Order id is required"),
+});
+
+const returnDecisionInputSchema = z.object({
   orderId: z.string().min(1, "Order id is required"),
 });
 
@@ -111,6 +118,74 @@ export async function refundOrderAction(
       error instanceof InvalidFulfillmentTransitionError ||
       error instanceof OrderNotFoundError
     ) {
+      return { success: false, error: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  return { success: true };
+}
+
+/**
+ * Approves a customer's return request and refunds it in full from admin
+ * form data. The decision claims PENDING → APPROVED before any money moves,
+ * so a repeat approve is a no-op that never reaches Stripe.
+ */
+export async function approveReturnAction(
+  formData: FormData,
+): Promise<FulfillmentActionResult> {
+  const user = await requireAdmin();
+
+  const parsed = returnDecisionInputSchema.safeParse({
+    orderId: text(formData, "orderId"),
+  });
+
+  if (!parsed.success) {
+    return { success: false, error: firstError(parsed.error) };
+  }
+
+  try {
+    await approveReturn(parsed.data.orderId, user.id);
+  } catch (error) {
+    if (
+      error instanceof ReturnRequestNotFoundError ||
+      error instanceof OrderNotRefundableError ||
+      error instanceof OrderNotFoundError
+    ) {
+      return { success: false, error: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  return { success: true };
+}
+
+/**
+ * Rejects a customer's return request from admin form data. Money never
+ * moves: no Stripe call, no order change. Repeat decisions are no-ops that
+ * still return success so the page re-renders the current request status.
+ */
+export async function rejectReturnAction(
+  formData: FormData,
+): Promise<FulfillmentActionResult> {
+  const user = await requireAdmin();
+
+  const parsed = returnDecisionInputSchema.safeParse({
+    orderId: text(formData, "orderId"),
+  });
+
+  if (!parsed.success) {
+    return { success: false, error: firstError(parsed.error) };
+  }
+
+  try {
+    await rejectReturn(parsed.data.orderId, user.id);
+  } catch (error) {
+    if (error instanceof ReturnRequestNotFoundError) {
       return { success: false, error: error.message };
     }
     throw error;

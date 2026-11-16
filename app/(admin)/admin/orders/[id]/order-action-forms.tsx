@@ -2,7 +2,9 @@
 
 import { useActionState } from "react";
 import {
+  approveReturnAction,
   refundOrderAction,
+  rejectReturnAction,
   updateFulfillmentAction,
   type FulfillmentActionResult,
 } from "@/features/orders/server/fulfillment-actions";
@@ -63,6 +65,44 @@ export function RefundActionForm({ orderId }: { orderId: string }) {
       <input type="hidden" name="orderId" value={orderId} />
       <Button type="submit" variant="destructive">
         Refund and cancel order
+      </Button>
+      <ActionError result={state} />
+    </form>
+  );
+}
+
+/** Approve a return request: issues the full Stripe refund and cancels. */
+export function ApproveReturnForm({ orderId }: { orderId: string }) {
+  const [state, formAction] = useActionState(
+    (_prev: FulfillmentActionResult, formData: FormData) =>
+      approveReturnAction(formData),
+    IDLE,
+  );
+
+  return (
+    <form action={formAction} className="grid gap-2">
+      <input type="hidden" name="orderId" value={orderId} />
+      <Button type="submit" variant="destructive">
+        Approve and refund
+      </Button>
+      <ActionError result={state} />
+    </form>
+  );
+}
+
+/** Reject a return request: no refund, no order change. */
+export function RejectReturnForm({ orderId }: { orderId: string }) {
+  const [state, formAction] = useActionState(
+    (_prev: FulfillmentActionResult, formData: FormData) =>
+      rejectReturnAction(formData),
+    IDLE,
+  );
+
+  return (
+    <form action={formAction} className="grid gap-2">
+      <input type="hidden" name="orderId" value={orderId} />
+      <Button type="submit" variant="outline">
+        Reject return
       </Button>
       <ActionError result={state} />
     </form>

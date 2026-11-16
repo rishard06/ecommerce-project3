@@ -19,8 +19,10 @@ import type { FulfillmentStatus } from "@/features/orders/types";
 import { formatCents } from "@/lib/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  ApproveReturnForm,
   FulfillmentActionForm,
   RefundActionForm,
+  RejectReturnForm,
 } from "./order-action-forms";
 
 export const metadata = { title: "Order · Admin" };
@@ -284,6 +286,43 @@ export default async function AdminOrderDetailPage({
                   available before shipment.
                 </p>
                 <RefundActionForm orderId={order.id} />
+              </CardContent>
+            </Card>
+          )}
+
+          {order.returnRequest && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Return request</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <p className="text-sm">
+                  <span className="font-medium">
+                    {order.returnRequest.status === "PENDING"
+                      ? "Pending review"
+                      : order.returnRequest.status === "APPROVED"
+                        ? "Approved — refund issued"
+                        : "Rejected — no refund"}
+                  </span>
+                </p>
+                <blockquote className="text-muted-foreground border-l-2 pl-3 text-sm">
+                  {order.returnRequest.reason}
+                </blockquote>
+                <p className="text-muted-foreground text-xs tabular-nums">
+                  Requested {dateFormatter.format(order.returnRequest.createdAt)}
+                </p>
+                {order.returnRequest.status === "PENDING" && (
+                  <>
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                      Approving issues a full Stripe refund and cancels the
+                      order. Rejecting leaves the order unchanged.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <ApproveReturnForm orderId={order.id} />
+                      <RejectReturnForm orderId={order.id} />
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}

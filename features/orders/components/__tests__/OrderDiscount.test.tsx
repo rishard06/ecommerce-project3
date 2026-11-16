@@ -129,6 +129,12 @@ describe("auditActionLabel", () => {
     );
   });
 
+  it("labels return lifecycle audit actions instead of raw enum tokens", () => {
+    expect(auditActionLabel("RETURN_REQUESTED")).toBe("Return requested");
+    expect(auditActionLabel("RETURN_APPROVED")).toBe("Return approved");
+    expect(auditActionLabel("RETURN_REJECTED")).toBe("Return rejected");
+  });
+
   it("passes unknown actions through unchanged", () => {
     expect(auditActionLabel("PAYMENT_AFTER_RELEASE")).toBe(
       "PAYMENT_AFTER_RELEASE",
