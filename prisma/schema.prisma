@@ -111,6 +111,31 @@ enum ReservationStatus {
   RELEASED
 }
 
+/**
+ * Customer return lifecycle (Task 14 owns this shape; Task 15 consumes it).
+ * One row per order: `orderId` is unique so a second request for the same
+ * order is rejected at the database level. `reason` is a short free-text
+ * explanation from the customer. `status` starts `PENDING`; the admin
+ * approve path (Task 15) moves it to `APPROVED` (refund issued) or `REJECTED`
+ * (declined, no money moved), and must check the status before refunding so a
+ * double-approve never triggers a second Stripe refund.
+ */
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ReturnRequest {
+  id        String       @id @default(uuid())
+  orderId   String       @unique
+  order     Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reason    String
+  status    ReturnStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
 model Order {
   id                String            @id @default(uuid())
   createdAt         DateTime          @default(now())
@@ -144,10 +169,11 @@ model Order {
 
   idempotencyKey String?
 
-  items        OrderItem[]
-  payment      Payment?
-  reservations Reservation[]
-  auditLogs    OrderAuditLog[]
+  items         OrderItem[]
+  payment       Payment?
+  reservations  Reservation[]
+  auditLogs     OrderAuditLog[]
+  returnRequest ReturnRequest?
 
   @@unique([userId, idempotencyKey])
   @@unique([guestToken, idempotencyKey])
