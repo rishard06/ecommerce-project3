@@ -9,6 +9,13 @@ import Footer from "../Footer";
 afterEach(cleanup);
 
 /**
+ * External footer links must use https on a real-looking host. Paths, queries,
+ * and fragments are allowed: social links may point at brand profiles such as
+ * `https://facebook.com/vennshop`.
+ */
+const EXTERNAL_PROFILE_URL = /^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(?:[/?#]\S*)?$/i;
+
+/**
  * Every in-app footer destination must resolve to a real Next.js route, so we
  * derive the allowlist from the filesystem instead of hardcoding it:
  * `app/(group)/path/page.tsx` becomes `/path`, and `app/(group)/page.tsx`
@@ -71,7 +78,16 @@ describe("Footer links", () => {
     );
 
     for (const href of externalHrefs) {
-      expect(href).toMatch(/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}\/?$/i);
+      expect(href).toMatch(EXTERNAL_PROFILE_URL);
     }
+  });
+
+  it("accepts brand profile URLs with paths", () => {
+    // The owner TODO will replace platform homepages with profile URLs such as
+    // this one, so the gate must not reject a valid path.
+    expect("https://facebook.com/vennshop").toMatch(EXTERNAL_PROFILE_URL);
+    expect("https://www.instagram.com/venn.shop/").toMatch(
+      EXTERNAL_PROFILE_URL,
+    );
   });
 });
