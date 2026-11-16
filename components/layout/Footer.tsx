@@ -45,9 +45,7 @@ const socialLinks: SocialLink[] = [
 const quickLinks: FooterLink[] = [
   { href: "/", label: "Home" },
   { href: "/products", label: "Products" },
-  { href: "/about", label: "About us" },
   { href: "/contact", label: "Contact" },
-  { href: "/blog", label: "Blog" },
 ];
 
 const contactInfo: ContactInfo[] = [
@@ -110,6 +108,8 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
                 <a
                   key={link["aria-label"]}
                   href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex size-9 items-center justify-center rounded-full bg-surface-dark text-gray-secondary transition-colors hover:bg-accent-500/25 hover:text-gray-primary"
                   aria-label={link["aria-label"]}
                 >

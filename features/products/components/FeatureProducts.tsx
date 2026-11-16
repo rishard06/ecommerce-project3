@@ -8,7 +8,10 @@ export default async function FeatureProducts() {
   const featureProducts = await getFeatureProducts();
 
   return (
-    <section className="w-full px-4 py-20 sm:px-6 md:py-28">
+    <section
+      id="featured"
+      className="w-full scroll-mt-28 px-4 py-20 sm:px-6 md:py-28"
+    >
       <div className="mx-auto w-full max-w-7xl">
         <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:mb-10 sm:flex-row sm:items-end">
           <div>

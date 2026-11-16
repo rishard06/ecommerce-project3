@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -16,20 +16,16 @@ vi.mock("@/components/animations/Stack", () => ({
   default: ({
     cards,
     onFirstInteract,
-    renderTopCardLink,
   }: {
     cards?: ReactNode[];
     onFirstInteract?: () => void;
-    renderTopCardLink?: (content: ReactNode, cardIndex: number) => ReactNode;
   }) => {
     const list = cards ?? [];
     return (
       <div data-testid="hero-deck">
         {list.map((card, index) => (
           <div key={index} data-testid="hero-deck-card">
-            {index === list.length - 1 && renderTopCardLink
-              ? renderTopCardLink(card, index)
-              : card}
+            {card}
           </div>
         ))}
         <button
@@ -58,6 +54,21 @@ beforeEach(() => {
 
 function revealElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>("[data-reveal]"));
+}
+
+/** Next/Image may wrap a local source in the optimizer URL during tests. */
+function imageSource(src: string): string {
+  if (src.startsWith("/_next/image")) {
+    return new URL(src, "http://localhost").searchParams.get("url") ?? src;
+  }
+  return src;
+}
+
+function renderDeckImages() {
+  const { container } = render(<Hero />);
+  return Array.from(
+    container.querySelectorAll<HTMLImageElement>('[data-testid="hero-deck"] img'),
+  );
 }
 
 describe("Hero reveal choreography", () => {
@@ -100,33 +111,20 @@ describe("Hero reveal choreography", () => {
   });
 });
 
-/** Next/Image may wrap a local source in the optimizer URL during tests. */
-function imageSource(src: string): string {
-  if (src.startsWith("/_next/image")) {
-    return new URL(src, "http://localhost").searchParams.get("url") ?? src;
-  }
-  return src;
-}
+describe("Hero landing deck", () => {
+  it("renders four cards", () => {
+    expect(renderDeckImages()).toHaveLength(4);
+  });
 
-function deckImages(container: HTMLElement): HTMLImageElement[] {
-  return Array.from(
-    container.querySelectorAll<HTMLImageElement>(
-      '[data-testid="hero-deck"] img',
-    ),
-  );
-}
-
-describe("Hero shoppable deck", () => {
-  it("serves every card from a local /landing/ WebP asset (zero hotlinks)", () => {
-    const { container } = render(<Hero />);
-    const images = deckImages(container);
+  it("serves every card from a local /landing/ WebP asset that exists", () => {
+    const images = renderDeckImages();
     expect(images).toHaveLength(4);
 
     for (const image of images) {
-      const raw = image.getAttribute("src") ?? "";
-      expect(raw.startsWith("http")).toBe(false);
+      const src = image.getAttribute("src") ?? "";
+      expect(src.startsWith("http")).toBe(false);
 
-      const localPath = imageSource(raw);
+      const localPath = imageSource(src);
       expect(localPath).toMatch(/^\/landing\/[a-z0-9-]+\.webp$/);
       expect(
         existsSync(path.join(process.cwd(), "public", localPath)),
@@ -144,7 +142,29 @@ describe("Hero shoppable deck", () => {
 
     // Drag/click browses images only — no card navigates anywhere.
     expect(links).toHaveLength(0);
-    expect(deckImages(container)).toHaveLength(4);
+    expect(
+      deck?.querySelectorAll("img") ?? [],
+    ).toHaveLength(4);
+  });
+
+  it("gives every card a unique, descriptive alt", () => {
+    const images = renderDeckImages();
+    const alts = images.map((image) => image.getAttribute("alt") ?? "");
+
+    for (const alt of alts) {
+      expect(alt.trim().length).toBeGreaterThan(15);
+    }
+    expect(new Set(alts).size).toBe(alts.length);
+  });
+
+  it("keeps priority on the first card only", () => {
+    const images = renderDeckImages();
+
+    // `priority` opts an image out of lazy loading; the rest stay lazy.
+    expect(images[0].getAttribute("loading")).not.toBe("lazy");
+    for (const image of images.slice(1)) {
+      expect(image.getAttribute("loading")).toBe("lazy");
+    }
   });
 
   it("shows a drag hint that dismisses after the first deck interaction", () => {
@@ -156,5 +176,71 @@ describe("Hero shoppable deck", () => {
     fireEvent.click(getByTestId("deck-first-interact"));
 
     expect(getByTestId("deck-hint").getAttribute("aria-hidden")).toBe("true");
+  });
+});
+
+describe("Hero proof row", () => {
+  it("renders three proof items beneath the Browse products CTA", () => {
+    const { container, getByRole } = render(<Hero />);
+    const cta = getByRole("link", { name: /browse products/i });
+    const row = container.querySelector('[data-testid="hero-proof"]');
+
+    expect(row).not.toBeNull();
+    const text = row?.textContent ?? "";
+    expect(text).toContain("5-star");
+    expect(text).toContain("30-day returns");
+    expect(text).toContain("Ships same day");
+
+    // Document order keeps the proof row below the CTA it supports.
+    expect(
+      cta.compareDocumentPosition(row as Node) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("keeps proof items as plain text instead of links", () => {
+    const { container } = render(<Hero />);
+    const row = container.querySelector('[data-testid="hero-proof"]');
+
+    expect(row).not.toBeNull();
+    expect(row?.querySelectorAll("a")).toHaveLength(0);
+    expect(row?.querySelectorAll("button")).toHaveLength(0);
+  });
+});
+
+describe("Hero secondary CTA", () => {
+  it("adds a subordinate Bestsellers link next to the primary button", () => {
+    const { getByRole } = render(<Hero />);
+    const primaryLink = getByRole("link", { name: /browse products/i });
+    const primaryButton = getByRole("button", { name: /browse products/i });
+    const secondary = getByRole("link", { name: /bestsellers/i });
+
+    expect(secondary.getAttribute("href")).toBe("#featured");
+
+    // Keep the accent fill as the only primary action on the hero.
+    expect(primaryButton.className).toContain("bg-accent-500");
+    expect(secondary.className).not.toContain("bg-accent-500");
+    expect(secondary.className).not.toContain("shadow-soft");
+
+    // Reading order: primary first, quiet link after it.
+    expect(
+      primaryLink.compareDocumentPosition(secondary) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("targets a #featured section that actually exists", () => {
+    const source = readFileSync(
+      path.join(
+        process.cwd(),
+        "features",
+        "products",
+        "components",
+        "FeatureProducts.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(source).toMatch(/id="featured"/);
   });
 });

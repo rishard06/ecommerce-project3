@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Hand } from "lucide-react";
+import { ArrowDown, ArrowRight, Hand, Star } from "lucide-react";
 import Stack from "@/components/animations/Stack";
 import BlurText from "@/components/animations/BlurText";
 import Reveal from "@/components/animations/Reveal";
@@ -56,18 +56,52 @@ export default function Hero() {
             </p>
           </Reveal>
           <Reveal trigger="load" index={2}>
-            <Link href="/products" className="inline-block">
-              <Button
-                size="lg"
-                className="group h-12 rounded-full bg-accent-500 px-6 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <Link href="/products" className="inline-block">
+                <Button
+                  size="lg"
+                  className="group h-12 rounded-full bg-accent-500 px-6 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
+                >
+                  Browse products
+                  <ArrowRight
+                    className="ml-1 size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </Button>
+              </Link>
+              <Link
+                href="#featured"
+                className="group inline-flex items-center gap-1 text-sm font-medium text-gray-secondary underline-offset-4 transition-colors hover:text-gray-primary hover:underline"
               >
-                Browse products
-                <ArrowRight
-                  className="ml-1 size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5"
+                Bestsellers
+                <ArrowDown
+                  className="size-4 transition-transform duration-200 ease-out-quart group-hover:translate-y-0.5"
                   aria-hidden="true"
                 />
-              </Button>
-            </Link>
+              </Link>
+            </div>
+            {/* rating mirrors Testimonies 5-star cards */}
+            <div
+              data-testid="hero-proof"
+              className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-gray-tertiary"
+            >
+              <span className="inline-flex items-center gap-1.5 text-gray-secondary">
+                <Star
+                  className="size-4 text-yellow-500"
+                  fill="currentColor"
+                  aria-hidden="true"
+                />
+                <span>5-star rated</span>
+              </span>
+              <span aria-hidden="true" className="text-gray-quaternary">
+                ·
+              </span>
+              <span>30-day returns</span>
+              <span aria-hidden="true" className="text-gray-quaternary">
+                ·
+              </span>
+              <span>Ships same day</span>
+            </div>
           </Reveal>
         </div>
 

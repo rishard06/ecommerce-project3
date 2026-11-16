@@ -23,6 +23,8 @@ vi.mock("@/components/animations/BlurText", () => ({
 
 vi.mock("@/lib/products", () => ({
   getFeatureProducts: async () => [],
+  // Category reads { total } from the paginated result shape.
+  getProducts: async () => ({ products: [], total: 12, skip: 0, take: 1 }),
 }));
 
 import Hero from "../Hero";
@@ -44,7 +46,9 @@ describe("display typeface", () => {
   });
 
   it("applies the display class to every landing section title", async () => {
-    const { getByRole: getCategory } = render(<Category />);
+    // Category is an async Server Component after the Batch-1 live-counts
+    // change, so await it before rendering.
+    const { getByRole: getCategory } = render(await Category());
     expect(
       getCategory("heading", { name: /shop by category/i }).className,
     ).toContain("font-display");
