@@ -37,7 +37,16 @@ export default function ProductCard({
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
 
-  const favorited = isFavorite(slug);
+  // The favorites store is persisted to localStorage, which does not exist
+  // during SSR — the server always renders "not favorited". Gate on mount so
+  // the first client render matches the server HTML (NavBar, MobileMenu,
+  // favorites page, and cart components all use this same pattern).
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const favorited = mounted && isFavorite(slug);
   const productHref = `/products/${slug}`;
 
   const handleAddToCart = (e: React.MouseEvent) => {

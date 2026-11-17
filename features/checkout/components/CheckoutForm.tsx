@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShoppingBag } from "lucide-react";
-import { useCartStore } from "@/lib/store/cart-store";
+import { useCartStore, useSelectedCartItems } from "@/lib/store/cart-store";
 import { listAddresses } from "@/features/account/address-actions";
 import type { AddressRow } from "@/features/account/types";
 import type { CartQuote } from "@/features/cart/types";
@@ -30,7 +30,10 @@ interface CheckoutFormProps {
 export function CheckoutForm({ step }: CheckoutFormProps) {
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
-  const items = useCartStore((state) => state.items);
+  const allItems = useCartStore((state) => state.items);
+  // Only checked lines are part of the order — the server quotes and
+  // charges exactly these, never the rest of the cart.
+  const items = useSelectedCartItems();
 
   // Restore the in-progress attempt after a full page navigation (including
   // browser Back from Stripe). The server-rendered skeleton means the restored
@@ -165,6 +168,10 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
   }
 
   if (items.length === 0) {
+    // The cart itself may still hold unchecked lines — those simply are not
+    // part of this order.
+    const nothingSelected = allItems.length > 0;
+
     return (
       <div className="glass-component space-y-5 p-8 text-center shadow-panel md:p-12">
         <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-gray-primary/10">
@@ -175,17 +182,19 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
         </div>
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight text-gray-primary">
-            Your cart is empty
+            {nothingSelected ? "No items selected" : "Your cart is empty"}
           </h2>
           <p className="text-gray-tertiary">
-            Add a product before starting checkout.
+            {nothingSelected
+              ? "Check the items you want to buy before starting checkout."
+              : "Add a product before starting checkout."}
           </p>
         </div>
         <Link
-          href="/products"
+          href={nothingSelected ? "/cart" : "/products"}
           className="inline-flex h-12 items-center justify-center rounded-full bg-gray-primary px-8 text-sm font-semibold text-white transition-colors hover:bg-gray-secondary"
         >
-          Browse products
+          {nothingSelected ? "Choose items" : "Browse products"}
         </Link>
       </div>
     );

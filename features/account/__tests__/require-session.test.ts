@@ -4,19 +4,17 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`);
   }),
-  headers: vi.fn(async () => new Headers()),
   requireUser: vi.fn(),
   getSession: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
-vi.mock("next/headers", () => ({ headers: mocks.headers }));
-vi.mock("@/lib/auth", () => ({
-  auth: { api: { getSession: mocks.getSession } },
-}));
 vi.mock("@/features/identity/server/guards", () => ({
   UnauthorizedError: class UnauthorizedError extends Error {},
   requireUser: mocks.requireUser,
+  // require-session reads presentation fields through the shared memoized
+  // session helper, never through `@/lib/auth` directly.
+  getSession: mocks.getSession,
 }));
 
 import { requireAccountSession } from "../require-session";
@@ -29,6 +27,7 @@ beforeEach(() => {
 describe("requireAccountSession", () => {
   it("redirects anonymous visitors to login with the requested path", async () => {
     mocks.requireUser.mockRejectedValueOnce(new UnauthorizedError());
+    mocks.getSession.mockResolvedValueOnce(null);
 
     await expect(requireAccountSession("/account/orders")).rejects.toThrow(
       "NEXT_REDIRECT:",
@@ -37,7 +36,6 @@ describe("requireAccountSession", () => {
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/login?next=%2Faccount%2Forders",
     );
-    expect(mocks.getSession).not.toHaveBeenCalled();
   });
 
   it("returns identity from requireUser plus display fields from the session", async () => {

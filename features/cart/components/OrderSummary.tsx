@@ -8,11 +8,18 @@ import { getOrderTotals } from "@/lib/pricing";
 import { formatCents } from "@/lib/money";
 
 export function OrderSummary() {
-  const getTotalPriceCents = useCartStore((state) => state.getTotalPriceCents);
+  const getSelectedPriceCents = useCartStore(
+    (state) => state.getSelectedPriceCents,
+  );
+  const selectedCount = useCartStore(
+    (state) => state.getSelectedItems().length,
+  );
 
   // Integer-cent order math for display; the server re-quotes at checkout.
-  const subtotalCents = getTotalPriceCents();
+  // Only checked lines are part of the order.
+  const subtotalCents = getSelectedPriceCents();
   const { taxCents, totalCents } = getOrderTotals(subtotalCents);
+  const hasSelection = selectedCount > 0;
 
   return (
     <div className="space-y-5">
@@ -47,17 +54,29 @@ export function OrderSummary() {
 
         <div className="space-y-3">
           <p className="rounded-2xl border border-white/40 bg-white/30 px-4 py-3 text-xs font-medium leading-relaxed text-gray-tertiary">
-            Promo codes are applied at checkout against live server pricing.
+            {hasSelection
+              ? "Promo codes are applied at checkout against live server pricing."
+              : "Check at least one item to continue — only selected items go to checkout."}
           </p>
-          <Link href="/checkout" className="block w-full">
-            <Button className="group h-12 w-full rounded-full bg-accent-500 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600">
-              Proceed to checkout
-              <ArrowRight
-                className="size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5"
-                aria-hidden="true"
-              />
+          {hasSelection ? (
+            <Link href="/checkout" className="block w-full">
+              <Button className="group h-12 w-full rounded-full bg-accent-500 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600">
+                Proceed to checkout
+                <ArrowRight
+                  className="size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5"
+                  aria-hidden="true"
+                />
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              disabled
+              aria-disabled="true"
+              className="h-12 w-full cursor-not-allowed rounded-full bg-gray-primary/10 text-base font-semibold text-gray-tertiary"
+            >
+              Select items to continue
             </Button>
-          </Link>
+          )}
         </div>
 
         <div className="mt-7 border-t border-gray-primary/10 pt-6">

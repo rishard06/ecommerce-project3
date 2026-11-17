@@ -5,12 +5,16 @@ import { ArrowLeft, ShoppingBag } from "lucide-react";
 import { useCartStore } from "@/lib/store/cart-store";
 import { CartPageItem } from "./CartPageItem";
 import { OrderSummary } from "./OrderSummary";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { AnimatePresence } from "motion/react";
 
 export function CartPage() {
-  const { items, getTotalItems } = useCartStore();
+  const { items, getTotalItems, setAllSelected } = useCartStore();
   const totalItems = getTotalItems();
+  const selectedIds = useCartStore((state) => state.selectedVariantIds);
+  const allSelected = selectedIds === undefined;
+  const selectedCount = allSelected ? items.length : items.filter((item) => selectedIds.includes(item.variantId)).length;
 
   if (items.length === 0) {
     return (
@@ -50,6 +54,21 @@ export function CartPage() {
 
       <main className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3 lg:gap-10">
         <div className="space-y-4 lg:col-span-2">
+          <div className="glass-component flex items-center gap-3 px-4 py-3 sm:px-5">
+            <Checkbox
+              checked={allSelected}
+              indeterminate={!allSelected && selectedCount > 0}
+              onCheckedChange={(next) => setAllSelected(next)}
+              aria-label={
+                allSelected ? "Deselect all items" : "Select all items"
+              }
+            />
+            <p className="text-sm font-medium text-gray-tertiary">
+              {selectedCount === items.length
+                ? `All ${items.length} ${items.length === 1 ? "item" : "items"} selected`
+                : `${selectedCount} of ${items.length} selected`}
+            </p>
+          </div>
           <AnimatePresence mode="popLayout" initial={false}>
             {items.map((item) => (
               <CartPageItem key={item.variantId} item={item} />

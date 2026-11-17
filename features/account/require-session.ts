@@ -1,14 +1,21 @@
-import { headers } from "next/headers";
+import { cache } from "react";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import {
+  getSession,
   requireUser,
   UnauthorizedError,
 } from "@/features/identity/server/guards";
 
-export async function getAccountSession() {
-  return auth.api.getSession({ headers: await headers() });
-}
+/**
+ * Presentation fields from the memoized per-request session.
+ *
+ * Goes through the shared `getSession` helper so the account layout and the
+ * account page — which both call `requireAccountSession` in one request —
+ * share a single Better Auth lookup instead of each paying for their own.
+ */
+export const getAccountSession = cache(async () => {
+  return getSession();
+});
 
 /**
  * Server-side gate for the account area.
@@ -19,14 +26,17 @@ export async function getAccountSession() {
  * supply presentation fields (display name, avatar, email verification).
  */
 export async function requireAccountSession(nextPath = "/account") {
-  const user = await requireUser().catch((error: unknown) => {
+  // Kick off the authorization guard without awaiting: it shares the memoized
+  // session with `getAccountSession`, so both run concurrently on one lookup
+  // instead of sequentially (guard round-trip, then session round-trip).
+  const userPromise = requireUser().catch((error: unknown) => {
     if (error instanceof UnauthorizedError) {
       redirect(`/login?next=${encodeURIComponent(nextPath)}`);
     }
     throw error;
   });
 
-  const session = await getAccountSession();
+  const [user, session] = await Promise.all([userPromise, getAccountSession()]);
 
   return {
     user: {

@@ -28,7 +28,16 @@ export function ProductInfo({ product }: ProductInfoProps) {
   const [selectedColor, setSelectedColor] = React.useState(0);
   const [selectedStorage, setSelectedStorage] = React.useState(0);
 
-  const favorited = isFavorite(product.id);
+  // The favorites store is persisted to localStorage, which does not exist
+  // during SSR — the server always renders "not favorited". Gate on mount so
+  // the first client render matches the server HTML (same pattern as
+  // ProductCard, NavBar, and the favorites page).
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const favorited = mounted && isFavorite(product.id);
 
   const formattedPrice = formatCents(product.priceCents);
 

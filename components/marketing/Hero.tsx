@@ -9,7 +9,7 @@ import { ArrowDown, ArrowRight, Hand, Star } from "lucide-react";
 import Stack from "@/components/animations/Stack";
 import BlurText from "@/components/animations/BlurText";
 import Reveal from "@/components/animations/Reveal";
-import { fade, spring } from "@/lib/motion";
+import { fade } from "@/lib/motion";
 
 /** Deck order follows the asset filenames. Pure image browsing — no links. */
 const deck = [
@@ -122,7 +122,16 @@ export default function Hero() {
               transition={
                 prefersReducedMotion
                   ? { duration: 0 }
-                  : { ...spring.gentle, repeat: Infinity, repeatDelay: 1 }
+                  // Keyframe sequences cannot run on a spring (springs only
+                  // support two keyframes), so the ambient wobble loops as a
+                  // slow tween instead.
+                  : {
+                      type: "tween",
+                      duration: 6,
+                      ease: "easeInOut",
+                      repeat: Infinity,
+                      repeatDelay: 1,
+                    }
               }
             >
               <Stack

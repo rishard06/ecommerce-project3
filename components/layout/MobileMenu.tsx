@@ -227,9 +227,9 @@ export default function MobileMenu() {
                       className="rounded-full border border-white/40 bg-white/20 text-gray-primary hover:bg-white/40"
                       aria-label={session?.user ? "Account menu" : "Sign in"}
                     >
-                      {session?.user ? (
+                      {session?.user?.image ? (
                         <img
-                          src={session.user.image || ""}
+                          src={session.user.image}
                           alt=""
                           className="size-5 rounded-full object-cover"
                         />

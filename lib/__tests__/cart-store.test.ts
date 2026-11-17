@@ -22,7 +22,7 @@ const variantB: CartAddItem = {
 };
 
 beforeEach(() => {
-  useCartStore.setState({ items: [] });
+  useCartStore.setState({ items: [], selectedVariantIds: undefined });
 });
 
 describe("useCartStore", () => {
@@ -121,6 +121,90 @@ describe("useCartStore", () => {
 
     expect(useCartStore.getState().items).toEqual([]);
     expect(useCartStore.getState().getTotalPriceCents()).toBe(0);
+  });
+});
+
+describe("cart checkout selection", () => {
+  it("selects everything by default, including legacy carts without the key", () => {
+    const { addItem, isSelected, getSelectedItems } = useCartStore.getState();
+    addItem(variantA);
+    addItem(variantB);
+
+    // Simulates a cart persisted before selection existed.
+    useCartStore.setState({ selectedVariantIds: undefined });
+
+    expect(isSelected("variant-a")).toBe(true);
+    expect(isSelected("variant-b")).toBe(true);
+    expect(getSelectedItems()).toHaveLength(2);
+  });
+
+  it("toggles a single line without touching the others", () => {
+    const { addItem, toggleSelected, isSelected, getSelectedItems } =
+      useCartStore.getState();
+    addItem(variantA);
+    addItem(variantB);
+
+    toggleSelected("variant-a");
+
+    expect(isSelected("variant-a")).toBe(false);
+    expect(isSelected("variant-b")).toBe(true);
+    expect(
+      getSelectedItems().map((item) => item.variantId),
+    ).toEqual(["variant-b"]);
+
+    toggleSelected("variant-a");
+    expect(isSelected("variant-a")).toBe(true);
+  });
+
+  it("selects and deselects everything at once", () => {
+    const { addItem, setAllSelected, getSelectedItems } =
+      useCartStore.getState();
+    addItem(variantA);
+    addItem(variantB);
+
+    setAllSelected(false);
+    expect(getSelectedItems()).toEqual([]);
+
+    setAllSelected(true);
+    expect(getSelectedItems()).toHaveLength(2);
+  });
+
+  it("keeps new lines checked and drops removed lines from the selection", () => {
+    const { addItem, toggleSelected, removeItem, isSelected } =
+      useCartStore.getState();
+    addItem(variantA);
+    addItem(variantB);
+    toggleSelected("variant-a");
+
+    addItem({ ...variantB, variantId: "variant-c", title: "Product C" });
+    expect(isSelected("variant-c")).toBe(true);
+
+    removeItem("variant-b");
+    const state = useCartStore.getState();
+    expect(state.selectedVariantIds).not.toContain("variant-b");
+    expect(state.getSelectedItems().map((item) => item.variantId)).toEqual([
+      "variant-c",
+    ]);
+  });
+
+  it("totals only the selected lines", () => {
+    const { addItem, toggleSelected } = useCartStore.getState();
+    addItem(variantA);
+    addItem(variantA);
+    addItem(variantB);
+    toggleSelected("variant-b");
+
+    expect(useCartStore.getState().getSelectedPriceCents()).toBe(1999 * 2);
+  });
+
+  it("resets the selection when the cart is cleared", () => {
+    const { addItem, toggleSelected, clearCart } = useCartStore.getState();
+    addItem(variantA);
+    toggleSelected("variant-a");
+
+    clearCart();
+
+    expect(useCartStore.getState().selectedVariantIds).toBeUndefined();
   });
 });
 
