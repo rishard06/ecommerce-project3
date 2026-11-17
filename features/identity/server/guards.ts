@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
@@ -31,13 +32,31 @@ export class ForbiddenError extends Error {
 }
 
 /**
- * Resolves the Better Auth session, then loads the role exclusively from
- * PostgreSQL. A client can never assert its own role or user id.
+ * Single per-request memoized Better Auth session lookup.
+ *
+ * Layouts and pages both guard the same route (e.g. AccountLayout plus the
+ * account page, AdminLayout plus each admin page), so without memoization
+ * every navigation pays for the session query twice — plus a second DB user
+ * lookup. `cache()` deduplicates all of these to one lookup per request.
+ * Every session consumer in the app must go through this helper (directly or
+ * via `getCurrentUser`) to share the memoized result.
  */
-export async function getCurrentUser(): Promise<SessionUser | null> {
-  const session = await auth.api.getSession({
+export const getSession = cache(async () => {
+  return auth.api.getSession({
     headers: await headers(),
   });
+});
+
+/**
+ * Resolves the Better Auth session, then loads the role exclusively from
+ * PostgreSQL. A client can never assert its own role or user id.
+ *
+ * Memoized per request: concurrent and sequential `requireUser` /
+ * `requireAdmin` / `getCurrentUser` calls in one render share a single
+ * session fetch and a single user row lookup.
+ */
+export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
+  const session = await getSession();
 
   if (!session?.user?.id || !session.user.email) {
     return null;
@@ -57,7 +76,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     email: dbUser.email,
     role: dbUser.role,
   };
-}
+});
 
 /**
  * Guard for any authenticated action. Throws UnauthorizedError when there is

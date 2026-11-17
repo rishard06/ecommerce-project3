@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { ChevronRight, MapPin, Package, ShoppingBag } from "lucide-react";
 import { listOrdersForUser } from "@/features/orders/server/customer-order-service";
 import {
@@ -8,6 +9,7 @@ import {
 import { listAddresses } from "@/features/account/address-actions";
 import { requireAccountSession } from "@/features/account/require-session";
 import { formatCents } from "@/lib/money";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -16,13 +18,79 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 export default async function AccountPage() {
+  // Memoized per request: AccountLayout already resolved this, so this await
+  // does not refetch the session or the user row.
   const session = await requireAccountSession();
+
+  return (
+    <div className="space-y-6">
+      {/*
+       * The header/nav shell (layout + static cards below) paints immediately;
+       * only the database-driven sections stream in behind this boundary.
+       */}
+      <Suspense fallback={<DashboardSkeleton />}>
+        <DashboardContent userId={session.user.id} />
+      </Suspense>
+
+      <section className="grid gap-4 sm:grid-cols-2">
+        <Link
+          href="/account/profile"
+          className="glass-component p-5 transition-shadow hover:shadow-lift"
+        >
+          <p className="font-semibold text-gray-primary">Edit profile</p>
+          <p className="mt-1 text-sm text-gray-tertiary">
+            Update your display name and avatar.
+          </p>
+        </Link>
+        <Link
+          href="/account/settings"
+          className="glass-component p-5 transition-shadow hover:shadow-lift"
+        >
+          <p className="font-semibold text-gray-primary">Account settings</p>
+          <p className="mt-1 text-sm text-gray-tertiary">
+            Manage your session and security.
+          </p>
+        </Link>
+      </section>
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-live="polite">
+      <section className="grid gap-4 sm:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="glass-component flex items-center gap-4 p-5">
+            <Skeleton className="size-12 shrink-0 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-7 w-12 rounded-md" />
+              <Skeleton className="h-4 w-28 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </section>
+      <section className="glass-component space-y-4 p-6">
+        <Skeleton className="h-6 w-32 rounded-md" />
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center justify-between py-2">
+            <Skeleton className="h-4 w-36 rounded-full" />
+            <Skeleton className="h-5 w-16 rounded-md" />
+          </div>
+        ))}
+      </section>
+      <span className="sr-only">Loading dashboard…</span>
+    </div>
+  );
+}
+
+async function DashboardContent({ userId }: { userId: string }) {
   let orders: Awaited<ReturnType<typeof listOrdersForUser>> = [];
   let addresses: Awaited<ReturnType<typeof listAddresses>> = [];
   let dbReady = true;
   try {
     [orders, addresses] = await Promise.all([
-      listOrdersForUser(session.user.id),
+      listOrdersForUser(userId),
       listAddresses(),
     ]);
   } catch (error) {
@@ -43,7 +111,7 @@ export default async function AccountPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <>
       {!dbReady ? (
         <div role="alert" className="glass-component border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-gray-primary">
           <p className="font-semibold">Database tables are missing.</p>
@@ -137,27 +205,6 @@ export default async function AccountPage() {
           </ul>
         )}
       </section>
-
-      <section className="grid gap-4 sm:grid-cols-2">
-        <Link
-          href="/account/profile"
-          className="glass-component p-5 transition-shadow hover:shadow-lift"
-        >
-          <p className="font-semibold text-gray-primary">Edit profile</p>
-          <p className="mt-1 text-sm text-gray-tertiary">
-            Update your display name and avatar.
-          </p>
-        </Link>
-        <Link
-          href="/account/settings"
-          className="glass-component p-5 transition-shadow hover:shadow-lift"
-        >
-          <p className="font-semibold text-gray-primary">Account settings</p>
-          <p className="mt-1 text-sm text-gray-tertiary">
-            Manage your session and security.
-          </p>
-        </Link>
-      </section>
-    </div>
+    </>
   );
 }

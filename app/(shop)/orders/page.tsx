@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { ChevronRight, Package, ShoppingBag } from "lucide-react";
 import {
@@ -8,6 +9,7 @@ import {
 import { listOrdersForUser } from "@/features/orders/server/customer-order-service";
 import { OrderStatusPill } from "@/features/orders/components/OrderStatusBadges";
 import { formatCents } from "@/lib/money";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata = {
   title: "Your orders | tended.",
@@ -19,6 +21,8 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 export default async function OrdersPage() {
+  // Memoized per request: no extra session/user lookup beyond what the
+  // layout (or a sibling server component) already paid for.
   const user = await requireUser().catch((error: unknown) => {
     if (error instanceof UnauthorizedError) {
       return null;
@@ -30,8 +34,6 @@ export default async function OrdersPage() {
     redirect("/login");
   }
 
-  const orders = await listOrdersForUser(user.id);
-
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 md:py-12 lg:px-8">
       <header className="mb-8 space-y-2 md:mb-10">
@@ -41,12 +43,58 @@ export default async function OrdersPage() {
         <h1 className="text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl">
           Your orders
         </h1>
-        <p className="font-medium text-gray-tertiary">
-          {orders.length === 0
-            ? "Orders you place will appear here."
-            : `${orders.length} ${orders.length === 1 ? "order" : "orders"}, newest first.`}
-        </p>
+        {/*
+         * Static subtitle paints with the header; the live count streams in
+         * with the list below so navigation never blocks on the query.
+         */}
       </header>
+
+      <Suspense fallback={<OrdersListSkeleton />}>
+        <OrdersList userId={user.id} />
+      </Suspense>
+    </div>
+  );
+}
+
+function OrdersListSkeleton() {
+  return (
+    <div aria-busy="true" aria-live="polite">
+      <Skeleton className="mb-8 h-4 w-40 rounded-full" />
+      <ul className="space-y-4">
+        {[0, 1, 2].map((i) => (
+          <li
+            key={i}
+            className="glass-component flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"
+          >
+            <div className="flex items-start gap-4">
+              <Skeleton className="size-11 shrink-0 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32 rounded-md" />
+                <Skeleton className="h-4 w-44 rounded-full" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 pl-[3.75rem] sm:pl-0">
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <Skeleton className="h-5 w-16 rounded-md" />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <span className="sr-only">Loading your orders…</span>
+    </div>
+  );
+}
+
+async function OrdersList({ userId }: { userId: string }) {
+  const orders = await listOrdersForUser(userId);
+
+  return (
+    <>
+      <p className="mb-8 font-medium text-gray-tertiary">
+        {orders.length === 0
+          ? "Orders you place will appear here."
+          : `${orders.length} ${orders.length === 1 ? "order" : "orders"}, newest first.`}
+      </p>
 
       {orders.length === 0 ? (
         <div className="glass-component flex flex-col items-center justify-center px-6 py-16 text-center">
@@ -119,6 +167,6 @@ export default async function OrdersPage() {
           </Link>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }
