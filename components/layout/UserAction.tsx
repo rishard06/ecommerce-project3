@@ -31,9 +31,9 @@ export default function UserAction() {
           className="rounded-full border border-white/40 bg-surface-light text-gray-secondary hover:bg-white/60"
           aria-label={session?.user ? "Account menu" : "Sign in"}
         >
-          {session?.user ? (
+          {session?.user?.image ? (
             <img
-              src={session.user.image || ""}
+              src={session.user.image}
               alt=""
               className="size-6 rounded-full object-cover"
             />
