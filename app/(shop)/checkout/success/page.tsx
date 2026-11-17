@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { getCurrentUser } from "@/features/identity/server/guards";
 import { getOrderForViewer } from "@/features/orders/server/customer-order-service";
+import { ClearCartOnSuccess } from "@/features/checkout/components/ClearCartOnSuccess";
 import {
   FulfillmentStatusPill,
   OrderStatusPill,
@@ -95,6 +96,14 @@ export default async function CheckoutSuccessPage({
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 md:py-16 lg:px-8">
+      {paymentConfirmed ? (
+        <ClearCartOnSuccess
+          orderId={order.id}
+          variantIds={order.items
+            .map((item) => item.variantId)
+            .filter((variantId): variantId is string => variantId !== null)}
+        />
+      ) : null}
       <div className="glass-component p-6 sm:p-8 md:p-10">
         <div className="flex flex-col items-center text-center">
           <div
