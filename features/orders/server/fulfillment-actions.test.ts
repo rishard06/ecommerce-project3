@@ -923,3 +923,96 @@ describe("guest orders (null user)", () => {
     });
   });
 });
+
+describe("guest orders (null user)", () => {
+  async function createGuestOrder(options: OrderFixtureOptions = {}) {
+    return testPrisma.order.create({
+      data: {
+        userId: null,
+        guestToken: nextToken("guest"),
+        createdAt: options.createdAt ?? new Date(),
+        status: options.status ?? "PENDING",
+        fulfillmentStatus: options.fulfillmentStatus ?? "UNFULFILLED",
+        currency: "USD",
+        subtotalCents: 3998,
+        shippingCents: 500,
+        taxCents: 320,
+        totalCents: 4818,
+        shippingFullName: SHIPPING.fullName,
+        shippingLine1: SHIPPING.line1,
+        shippingLine2: SHIPPING.line2,
+        shippingCity: SHIPPING.city,
+        shippingRegion: SHIPPING.region,
+        shippingPostalCode: SHIPPING.postalCode,
+        shippingCountry: SHIPPING.country,
+        items: {
+          create: [
+            {
+              variantId: null,
+              productSlug: "product-slug",
+              sku: "sku-1",
+              title: "Snapshot product",
+              unitPriceCents: 1999,
+              quantity: 2,
+              lineTotalCents: 3998,
+            },
+          ],
+        },
+        payment: {
+          create: {
+            status: options.paymentStatus ?? "PENDING",
+            provider: "stripe",
+            amountCents: 4818,
+            currency: "USD",
+          },
+        },
+      },
+    });
+  }
+
+  it("lists a guest order with a guest fallback email", async () => {
+    const order = await createGuestOrder({
+      status: "PAID",
+      paymentStatus: "SUCCEEDED",
+    });
+
+    const orders = await listOrdersForAdmin();
+
+    expect(orders).toHaveLength(1);
+    expect(orders[0]).toMatchObject({
+      id: order.id,
+      customerEmail: "guest",
+      status: "PAID",
+      paymentStatus: "SUCCEEDED",
+    });
+  });
+
+  it("returns guest order detail with a guest fallback email", async () => {
+    const order = await createGuestOrder();
+
+    const detail = await getOrderForAdmin(order.id);
+
+    expect(detail).toMatchObject({ id: order.id, customerEmail: "guest" });
+  });
+
+  it("applies a fulfillment transition to a guest order with an admin audit actor", async () => {
+    const admin = await createUser("ADMIN");
+    const order = await createGuestOrder();
+
+    await updateFulfillment(order.id, "PROCESSING", admin.id);
+
+    const state = await fulfillmentState(order.id);
+    expect(state.fulfillmentStatus).toBe("PROCESSING");
+
+    const auditLogs = await testPrisma.orderAuditLog.findMany({
+      where: { orderId: order.id },
+    });
+    expect(auditLogs).toHaveLength(1);
+    expect(auditLogs[0]).toMatchObject({
+      actorId: admin.id,
+      action: "FULFILLMENT_UPDATED",
+      fromStatus: "UNFULFILLED",
+      toStatus: "PROCESSING",
+    });
+  });
+});
