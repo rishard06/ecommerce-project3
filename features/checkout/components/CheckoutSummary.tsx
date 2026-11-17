@@ -2,15 +2,19 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Lock, ShoppingBag } from "lucide-react";
-import { useCartStore } from "@/lib/store/cart-store";
+import { useCartStore, useSelectedCartItems } from "@/lib/store/cart-store";
 import { getOrderTotals } from "@/lib/pricing";
 import { formatCents } from "@/lib/money";
 
 export function CheckoutSummary() {
   const [mounted, setMounted] = useState(false);
-  const items = useCartStore((state) => state.items);
-  const getTotalPriceCents = useCartStore((state) => state.getTotalPriceCents);
+  const allItems = useCartStore((state) => state.items);
+  const items = useSelectedCartItems();
+  const getSelectedPriceCents = useCartStore(
+    (state) => state.getSelectedPriceCents,
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -31,10 +35,13 @@ export function CheckoutSummary() {
 
   // Display-only estimate from integer cents. The review step replaces this
   // with the authoritative server quote before any Stripe handoff.
-  const subtotalCents = getTotalPriceCents();
+  // Only checked lines are shown — the rest of the cart stays behind.
+  const subtotalCents = getSelectedPriceCents();
   const { taxCents, totalCents } = getOrderTotals(subtotalCents);
 
   if (items.length === 0) {
+    const nothingSelected = allItems.length > 0;
+
     return (
       <div className="sticky top-24 space-y-5">
         <div className="glass-component p-6 md:p-8">
@@ -46,7 +53,17 @@ export function CheckoutSummary() {
               className="mx-auto size-10 text-gray-quaternary"
               aria-hidden="true"
             />
-            <p className="font-medium text-gray-tertiary">Your cart is empty</p>
+            <p className="font-medium text-gray-tertiary">
+              {nothingSelected ? "No items selected" : "Your cart is empty"}
+            </p>
+            {nothingSelected ? (
+              <Link
+                href="/cart"
+                className="inline-block text-sm font-semibold text-gray-secondary underline underline-offset-2 hover:text-gray-primary"
+              >
+                Choose items
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>
@@ -56,9 +73,19 @@ export function CheckoutSummary() {
   return (
     <div className="sticky top-24 space-y-5">
       <div className="glass-component p-6 md:p-7">
-        <h2 className="mb-5 text-lg font-semibold tracking-tight text-gray-primary">
-          Order summary
-        </h2>
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold tracking-tight text-gray-primary">
+            Order summary
+          </h2>
+          {allItems.length !== items.length ? (
+            <Link
+              href="/cart"
+              className="text-sm font-semibold text-gray-tertiary underline underline-offset-2 transition-colors hover:text-gray-primary"
+            >
+              Edit selection
+            </Link>
+          ) : null}
+        </div>
 
         <ul className="custom-scrollbar mb-6 max-h-[360px] space-y-3 overflow-y-auto pr-1">
           {items.map((item) => (

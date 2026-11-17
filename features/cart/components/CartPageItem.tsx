@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Trash2, Minus, Plus } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { CartItem as CartItemType, useCartStore } from "@/lib/store/cart-store";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { spring } from "@/lib/motion";
 import { formatCents } from "@/lib/money";
@@ -13,8 +14,10 @@ interface CartPageItemProps {
 }
 
 export function CartPageItem({ item }: CartPageItemProps) {
-  const { updateQuantity, removeItem } = useCartStore();
+  const { updateQuantity, removeItem, toggleSelected, isSelected } =
+    useCartStore();
   const prefersReducedMotion = useReducedMotion();
+  const selected = isSelected(item.variantId);
 
   return (
     <motion.article
@@ -25,6 +28,11 @@ export function CartPageItem({ item }: CartPageItemProps) {
       transition={spring.smooth}
       className="glass-component flex flex-col items-center gap-5 p-4 sm:flex-row sm:p-5"
     >
+      <Checkbox
+        checked={selected}
+        onCheckedChange={() => toggleSelected(item.variantId)}
+        aria-label={`Select ${item.title} for checkout`}
+      />
       <div className="flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/50 bg-white/60">
         <Image
           src={item.image}
