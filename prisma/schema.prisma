@@ -33,6 +33,7 @@ model User {
   addresses     Address[]
   reviews       Review[]
   orders        Order[]
+  wishlistItems WishlistItem[]
 
   @@unique([email])
   @@map("user")
@@ -339,6 +340,17 @@ model ProductVariant {
 
   @@index([productId])
   @@map("product_variant")
+}
+
+model WishlistItem {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productSlug String
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, productSlug])
+  @@index([userId])
 }
 
 model Address {

@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import { getPublicEnv } from "@/lib/env";
+import { WishlistSync } from "@/features/wishlist/components/wishlist-sync";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -76,6 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} font-sans antialiased`}>
+        <WishlistSync />
         {children}
       </body>
     </html>
