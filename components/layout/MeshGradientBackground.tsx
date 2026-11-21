@@ -14,24 +14,37 @@ const GRAIN_TEXTURE = `url("data:image/svg+xml,${encodeURIComponent(
 
 export default function MeshGradientBackground() {
   const prefersReducedMotion = useReducedMotion();
+  const [allowWebGL, setAllowWebGL] = React.useState(false);
+
+  React.useEffect(() => {
+    const coarse =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 768px)").matches;
+    setAllowWebGL(!coarse);
+  }, []);
+
+  const showWebGL = allowWebGL && !prefersReducedMotion;
 
   return (
     // Viewport-fixed: the animation sits behind the whole page (announcement,
     // nav, content, footer). The dissolve wash below stays exactly as it was —
     // it now anchors the viewport bottom instead of the header bottom.
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
-      <MeshGradient
-        speed={prefersReducedMotion ? 0 : 0.35}
-        colors={["#dbeae6", "#8fcdb3", "#a8d6b8", "#8cc4b6"]}
-        className="absolute inset-0 size-full opacity-55 mix-blend-normal"
-      />
-
-      <MeshGradient
-        speed={prefersReducedMotion ? 0 : 0.35}
-        colors={["#cfe3e6", "#7fc3a4", "#a5d2b4", "#7bbcab", "#3f8a6d"]}
-        distortion={0.85}
-        className="absolute inset-0 size-full opacity-30 mix-blend-multiply"
-      />
+      {showWebGL && (
+        <>
+          <MeshGradient
+            speed={0.35}
+            colors={["#dbeae6", "#8fcdb3", "#a8d6b8", "#8cc4b6"]}
+            className="absolute inset-0 size-full opacity-55 mix-blend-normal"
+          />
+          <MeshGradient
+            speed={0.35}
+            colors={["#cfe3e6", "#7fc3a4", "#a5d2b4", "#7bbcab", "#3f8a6d"]}
+            distortion={0.85}
+            className="absolute inset-0 size-full opacity-30 mix-blend-multiply"
+          />
+        </>
+      )}
 
       {/* Static 4% film grain over the mesh: enough to read as material, low
           enough to never compete with the copy. */}

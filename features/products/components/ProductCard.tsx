@@ -144,7 +144,7 @@ export default function ProductCard({
           <div className="relative h-56 w-full overflow-hidden">
             <Image
               src={image}
-              alt=""
+              alt={title}
               fill
               sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
               className={cn(

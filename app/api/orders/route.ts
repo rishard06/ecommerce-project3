@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 import { CartQuoteError } from "@/features/cart/server/quote-cart";
 import { CouponError } from "@/features/coupons/server/coupon-service";
 import {
@@ -23,6 +24,18 @@ const checkoutInputSchema = createPendingOrderBaseSchema.omit({
 });
 
 export async function POST(req: Request) {
+  const ip = clientIpFromHeaders(req.headers);
+  const limit = checkRateLimit(`orders:${ip}`, 20, 60_000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many requests", code: "RATE_LIMITED" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfter) },
+      },
+    );
+  }
+
   try {
     // SECURITY: ownership comes from the session, never from the request body.
     // Guests use startCheckoutAction; this legacy endpoint stays authenticated.
