@@ -66,6 +66,8 @@ function buildWhere(q?: string, category?: string): Prisma.ProductWhereInput {
       OR: [
         { title: { contains: q, mode: "insensitive" } },
         { slug: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+        { brand: { contains: q, mode: "insensitive" } },
       ],
     });
   }
@@ -115,7 +117,10 @@ function priceOrderedIdsQuery({
   if (q) {
     const pattern = `%${q}%`;
     filters.push(
-      Prisma.sql`(p."title" ILIKE ${pattern} OR p."slug" ILIKE ${pattern})`,
+      Prisma.sql`(p."title" ILIKE ${pattern}
+        OR p."slug" ILIKE ${pattern}
+        OR p."description" ILIKE ${pattern}
+        OR p."brand" ILIKE ${pattern})`,
     );
   }
 

@@ -71,7 +71,7 @@ beforeEach(() => {
 });
 
 describe("searchProducts", () => {
-  it("matches the query against title and slug with case-insensitive contains", async () => {
+  it("matches the query against title, slug, description and brand with case-insensitive contains", async () => {
     await searchProducts({ q: "desk" });
 
     expect(product.findMany).toHaveBeenCalledWith(
@@ -84,6 +84,8 @@ describe("searchProducts", () => {
               OR: [
                 { title: { contains: "desk", mode: "insensitive" } },
                 { slug: { contains: "desk", mode: "insensitive" } },
+                { description: { contains: "desk", mode: "insensitive" } },
+                { brand: { contains: "desk", mode: "insensitive" } },
               ],
             },
           ],
@@ -91,6 +93,62 @@ describe("searchProducts", () => {
         orderBy: [{ slug: "asc" }],
       }),
     );
+  });
+
+  it("recalls products that only match on description or brand", async () => {
+    await searchProducts({ q: "oak" });
+
+    expect(product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: "ACTIVE",
+          variants: { some: {} },
+          AND: [
+            {
+              OR: [
+                { title: { contains: "oak", mode: "insensitive" } },
+                { slug: { contains: "oak", mode: "insensitive" } },
+                { description: { contains: "oak", mode: "insensitive" } },
+                { brand: { contains: "oak", mode: "insensitive" } },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    expect(product.count.mock.calls[0]?.[0]?.where).toEqual(
+      product.findMany.mock.calls[0]?.[0]?.where,
+    );
+  });
+
+  it("keeps description and brand recall on the price-sorted path", async () => {
+    queryRaw.mockResolvedValue([{ id: "product-1" }] as never);
+    product.findMany.mockResolvedValue([makeRow()] as never);
+    product.count.mockResolvedValue(1 as never);
+
+    await searchProducts({ q: "oak", sort: "price-desc" });
+
+    const sql = queryRaw.mock.calls[0]?.[0] as unknown as {
+      text: string;
+      values: unknown[];
+    };
+    expect(sql.text).toContain('p."description" ILIKE');
+    expect(sql.text).toContain('p."brand" ILIKE');
+    expect(sql.values).toEqual(expect.arrayContaining(["%oak%"]));
+    expect(product.count.mock.calls[0]?.[0]?.where).toEqual({
+      status: "ACTIVE",
+      variants: { some: {} },
+      AND: [
+        {
+          OR: [
+            { title: { contains: "oak", mode: "insensitive" } },
+            { slug: { contains: "oak", mode: "insensitive" } },
+            { description: { contains: "oak", mode: "insensitive" } },
+            { brand: { contains: "oak", mode: "insensitive" } },
+          ],
+        },
+      ],
+    });
   });
 
   it("adds the category to the same AND clause as the query", async () => {
@@ -105,6 +163,8 @@ describe("searchProducts", () => {
           OR: [
             { title: { contains: "desk", mode: "insensitive" } },
             { slug: { contains: "desk", mode: "insensitive" } },
+            { description: { contains: "desk", mode: "insensitive" } },
+            { brand: { contains: "desk", mode: "insensitive" } },
           ],
         },
       ],
