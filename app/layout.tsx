@@ -1,5 +1,7 @@
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import type { Metadata, Viewport } from "next";
+import { siteUrl } from "@/lib/app-url";
+import { WishlistSync } from "@/features/wishlist/components/wishlist-sync";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,14 +25,35 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
+const SITE_NAME = "tended.";
+const SITE_TITLE = "tended. — Considered essentials";
+// Shared by the page description and both social cards so they never drift.
+const SITE_DESCRIPTION =
+  "A calm, considered shop for everyday essentials — clear pricing, fast delivery, honest reviews, easy returns, and a checkout that gets out of your way.";
+const SOCIAL_IMAGE = "/landing/craft.webp";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl()),
   title: {
-    default: "tended. — Considered essentials",
+    default: SITE_TITLE,
     template: "%s | tended.",
   },
-  description:
-    "A calm, considered shop for everyday essentials — clear pricing, fast delivery, honest reviews, easy returns, and a checkout that gets out of your way.",
-  applicationName: "tended.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    images: [{ url: SOCIAL_IMAGE, alt: SITE_TITLE }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [SOCIAL_IMAGE],
+  },
 };
 
 export const viewport: Viewport = {
@@ -45,6 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} font-sans antialiased`}>
+        <WishlistSync />
         {children}
       </body>
     </html>

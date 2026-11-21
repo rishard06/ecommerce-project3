@@ -217,9 +217,10 @@ describe("Hero secondary CTA", () => {
 
     expect(secondary.getAttribute("href")).toBe("#featured");
 
-    // Keep the accent fill as the only primary action on the hero.
-    expect(primaryButton.className).toContain("bg-accent-500");
-    expect(secondary.className).not.toContain("bg-accent-500");
+    // Keep the single action fill as the only primary action on the hero.
+    expect(primaryButton.className).toContain("bg-action");
+    expect(primaryButton.className).toContain("text-action-foreground");
+    expect(secondary.className).not.toContain("bg-action");
     expect(secondary.className).not.toContain("shadow-soft");
 
     // Reading order: primary first, quiet link after it.

@@ -13,7 +13,7 @@ export function CartBadge({ count }: { count: number }) {
       animate={{ scale: 1, opacity: 1 }}
       transition={spring.snappy}
       aria-hidden="true"
-      className="pointer-events-none absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white/70 bg-accent-500 px-1 text-[10px] font-bold tabular-nums text-gray-primary shadow-soft"
+      className="pointer-events-none absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white/70 bg-action px-1 text-[10px] font-bold tabular-nums text-action-foreground shadow-soft"
     >
       {count > 99 ? "99+" : count}
     </motion.span>

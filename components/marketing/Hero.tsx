@@ -60,7 +60,7 @@ export default function Hero() {
               <Link href="/products" className="inline-block">
                 <Button
                   size="lg"
-                  className="group h-12 rounded-full bg-accent-500 px-6 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
+                  className="group h-12 rounded-full bg-action px-6 text-base font-semibold text-action-foreground shadow-soft hover:bg-action-hover"
                 >
                   Browse products
                   <ArrowRight

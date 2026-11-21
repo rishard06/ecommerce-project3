@@ -187,7 +187,7 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
                   <Button
                     type="submit"
                     size="icon"
-                    className="size-10 shrink-0 rounded-full bg-accent-500 text-gray-primary hover:bg-accent-600"
+                    className="size-10 shrink-0 rounded-full bg-action text-action-foreground hover:bg-action-hover"
                     aria-label="Subscribe to newsletter"
                     aria-busy={isSubmitting}
                     disabled={isSubmitting}

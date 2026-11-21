@@ -114,7 +114,7 @@ export default function ProductCard({
           onClick={handleFavorite}
           aria-label={favorited ? `Remove ${title} from favorites` : `Save ${title} to favorites`}
           aria-pressed={favorited}
-          className="absolute right-3 top-3 z-20 flex size-10 items-center justify-center rounded-full border border-white/60 bg-white/70 text-gray-secondary shadow-soft backdrop-blur-md transition-colors hover:bg-white/90"
+          className="absolute right-3 top-3 z-20 flex size-10 items-center justify-center rounded-full border border-border bg-surface-light text-gray-secondary shadow-soft backdrop-blur-md transition-colors hover:bg-secondary"
         >
           <motion.span
             animate={prefersReducedMotion ? undefined : { scale: favorited ? 1.12 : 1 }}
@@ -130,7 +130,7 @@ export default function ProductCard({
         </button>
 
         {isPopular && (
-          <span className="absolute left-3 top-3 z-20 rounded-full bg-accent-500/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-primary shadow-soft">
+          <span className="absolute left-3 top-3 z-20 rounded-full bg-action/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-action-foreground shadow-soft">
             Popular
           </span>
         )}
@@ -144,7 +144,7 @@ export default function ProductCard({
           <div className="relative h-56 w-full overflow-hidden">
             <Image
               src={image}
-              alt=""
+              alt={title}
               fill
               sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
               className={cn(
@@ -171,7 +171,7 @@ export default function ProductCard({
           </span>
           <Button
             size="icon"
-            className="pointer-events-auto relative z-20 size-11 rounded-full bg-accent-500 text-gray-primary shadow-soft hover:bg-accent-600"
+            className="pointer-events-auto relative z-20 size-11 rounded-full bg-action text-action-foreground shadow-soft hover:bg-action-hover"
             onClick={handleAddToCart}
             aria-label={`Add ${title} to cart`}
           >

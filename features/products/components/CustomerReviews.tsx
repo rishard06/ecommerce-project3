@@ -54,7 +54,7 @@ export function CustomerReviews({ reviews, rating, totalReviews }: CustomerRevie
             What people who bought this actually think.
           </p>
         </div>
-        <Button className="h-11 rounded-full bg-accent-500 px-6 font-semibold text-gray-primary shadow-soft hover:bg-accent-600">
+        <Button className="h-11 rounded-full bg-action px-6 font-semibold text-action-foreground shadow-soft hover:bg-action-hover">
           Write a review
         </Button>
       </div>

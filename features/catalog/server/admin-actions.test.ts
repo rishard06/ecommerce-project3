@@ -21,9 +21,10 @@ vi.mock("@/features/catalog/server/catalog-service", () => ({
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
 }));
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import {
   ForbiddenError,
   UnauthorizedError,
@@ -40,6 +41,7 @@ import {
   saveProductAction,
   saveVariantAction,
 } from "./admin-actions";
+import { PRODUCTS_CACHE_TAG } from "@/lib/cache-tags";
 
 const requireAdminMock = vi.mocked(requireAdmin);
 const upsertProductMock = vi.mocked(upsertProduct);
@@ -47,6 +49,7 @@ const ensureDefaultVariantMock = vi.mocked(ensureDefaultVariant);
 const updateVariantMock = vi.mocked(updateVariant);
 const archiveProductMock = vi.mocked(archiveProduct);
 const revalidatePathMock = vi.mocked(revalidatePath);
+const revalidateTagMock = vi.mocked(revalidateTag);
 
 const ADMIN = { id: "admin-1", email: "admin@example.com", role: "ADMIN" } as const;
 
@@ -150,6 +153,10 @@ describe("saveProductAction", () => {
     expect(result).toEqual({ success: true, productId: "p1" });
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/products");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/products/p1");
+    // Storefront detail/related reads are cached for 60s; an edit must drop
+    // the copy immediately (the slug is known from the submitted form).
+    expect(revalidateTagMock).toHaveBeenCalledWith(PRODUCTS_CACHE_TAG);
+    expect(revalidatePathMock).toHaveBeenCalledWith("/products/dream-desk");
   });
 
   it("rejects fractional and negative default price/stock without creating anything", async () => {
@@ -239,6 +246,10 @@ describe("saveVariantAction", () => {
     expect(result).toEqual({ success: true });
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/products");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/products/p1");
+    // A price/stock edit knows only the product id, so it busts the shared
+    // storefront tag and the dynamic detail route instead of one slug.
+    expect(revalidateTagMock).toHaveBeenCalledWith(PRODUCTS_CACHE_TAG);
+    expect(revalidatePathMock).toHaveBeenCalledWith("/products/[id]", "page");
   });
 
   it("rejects fractional or negative price and stock without mutating", async () => {
@@ -294,6 +305,8 @@ describe("archiveProductAction", () => {
     expect(result).toEqual({ success: true });
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/products");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/products/p1");
+    expect(revalidateTagMock).toHaveBeenCalledWith(PRODUCTS_CACHE_TAG);
+    expect(revalidatePathMock).toHaveBeenCalledWith("/products/[id]", "page");
   });
 
   it("rejects a missing productId without mutating", async () => {

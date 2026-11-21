@@ -39,7 +39,7 @@ export function ForgotPasswordForm() {
           />
           <button
             type="submit"
-            className="h-11 w-full rounded-full bg-gray-900 text-sm font-semibold text-white"
+            className="h-11 w-full rounded-full bg-action text-sm font-semibold text-action-foreground transition-colors hover:bg-action-hover"
           >
             Send reset link
           </button>

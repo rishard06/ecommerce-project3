@@ -1,8 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/features/identity/server/guards";
+import { PRODUCTS_CACHE_TAG } from "@/lib/cache-tags";
 import {
   archiveInputSchema,
   productInputSchema,
@@ -67,6 +68,25 @@ function firstError(error: z.ZodError): string {
 }
 
 /**
+ * Storefront detail/related reads are cached for 60s under the shared products
+ * tag. Any catalog mutation must drop that copy before the page is served
+ * again: a stale price is a money bug. The tag covers every product, and the
+ * path clears the route cache for the storefront detail page.
+ */
+function revalidateStorefrontProduct(slug?: string): void {
+  revalidateTag(PRODUCTS_CACHE_TAG);
+
+  if (slug) {
+    revalidatePath(`/products/${slug}`);
+    return;
+  }
+
+  // Variant/archive actions know only the product id, so they bust the dynamic
+  // route pattern instead of one concrete slug.
+  revalidatePath("/products/[id]", "page");
+}
+
+/**
  * Creates or updates a product. Every value comes from the submitted FormData
  * and is validated here after the ADMIN role check; the browser is never
  * trusted. Optional default price/stock fields create the product's default
@@ -125,6 +145,7 @@ export async function saveProductAction(
 
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${productId}`);
+  revalidateStorefrontProduct(parsed.data.slug);
   return { success: true, productId };
 }
 
@@ -156,6 +177,7 @@ export async function saveVariantAction(
   const productId = text(formData, "productId");
   revalidatePath("/admin/products");
   if (productId) revalidatePath(`/admin/products/${productId}`);
+  revalidateStorefrontProduct();
   return { success: true };
 }
 
@@ -177,5 +199,6 @@ export async function archiveProductAction(
 
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${parsed.data.productId}`);
+  revalidateStorefrontProduct();
   return { success: true };
 }

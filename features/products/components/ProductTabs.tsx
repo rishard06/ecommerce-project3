@@ -12,7 +12,7 @@ interface ProductTabsProps {
 }
 
 const triggerClass =
-  "shrink-0 rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-tertiary transition-colors hover:text-gray-secondary data-[state=active]:bg-accent-500 data-[state=active]:text-gray-primary data-[state=active]:shadow-soft";
+  "shrink-0 rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-tertiary transition-colors hover:text-gray-secondary data-[state=active]:bg-action data-[state=active]:text-action-foreground data-[state=active]:shadow-soft";
 
 export function ProductTabs({ product }: ProductTabsProps) {
   return (
@@ -153,7 +153,7 @@ export function ProductTabs({ product }: ProductTabsProps) {
             </div>
             <Button
               asChild
-              className="h-11 rounded-full bg-accent-500 px-6 font-semibold text-gray-primary hover:bg-accent-600"
+              className="h-11 rounded-full bg-action px-6 font-semibold text-action-foreground hover:bg-action-hover"
             >
               <a href="mailto:support@tended.shop">Contact support</a>
             </Button>

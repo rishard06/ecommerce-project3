@@ -56,7 +56,7 @@ export function ReviewForm({ productSlug }: ReviewFormProps) {
         </p>
         <Link
           href="/login"
-          className="inline-flex h-11 items-center justify-center rounded-full bg-gray-primary px-6 font-semibold text-white transition-colors hover:bg-gray-secondary"
+          className="inline-flex h-11 items-center justify-center rounded-full bg-action px-6 font-semibold text-action-foreground transition-colors hover:bg-action-hover"
         >
           Sign in
         </Link>
@@ -138,7 +138,7 @@ export function ReviewForm({ productSlug }: ReviewFormProps) {
       <Button
         type="submit"
         disabled={isPending || comment.trim().length === 0}
-        className="h-11 rounded-full bg-accent-500 px-6 font-semibold text-gray-primary hover:bg-accent-600"
+        className="h-11 rounded-full bg-action px-6 font-semibold text-action-foreground hover:bg-action-hover"
       >
         {isPending ? "Posting…" : "Post review"}
       </Button>

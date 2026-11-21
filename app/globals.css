@@ -12,7 +12,8 @@
   --font-color-primary: #17231f;
   --font-color-secondary: #34433d;
   --font-color-tertiary: #56655f;
-  --font-color-quaternary: #6d7c76;
+  /* 4.98:1 on the sage canvas (was #6d7c76 at 4.15:1 — below WCAG AA). */
+  --font-color-quaternary: #626f6a;
 
   /* ---- Brand ----------------------------------------------------------- */
   --primary-50: #e8f4f8;
@@ -28,6 +29,14 @@
   --accent-500: #ccf381;
   --accent-600: #beeb6b;
   --accent-700: #98c447;
+
+  /* ---- Action (the only CTA fill) ------------------------------------- */
+  /* Lime in both themes. The label is fixed ink rather than a theme token:
+     `--foreground` flips to near-white in dark mode, which on lime drops to
+     1.1:1. Blue stays reserved for --ring and info chrome. */
+  --action: var(--accent-500);
+  --action-hover: var(--accent-600);
+  --action-foreground: #101a17;
 
   /* ---- shadcn / semantic tokens (previously undefined) ----------------- */
   --card: rgba(255, 255, 255, 0.72);
@@ -143,6 +152,10 @@
   --color-accent-500: var(--accent-500);
   --color-accent-600: var(--accent-600);
   --color-accent-700: var(--accent-700);
+
+  --color-action: var(--action);
+  --color-action-hover: var(--action-hover);
+  --color-action-foreground: var(--action-foreground);
 
   --color-surface-light: var(--surface-light);
   --color-surface-dark: var(--surface-dark);

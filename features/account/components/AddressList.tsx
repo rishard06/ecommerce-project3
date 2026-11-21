@@ -56,7 +56,7 @@ export function AddressList({ addresses }: { addresses: AddressRow[] }) {
                 {address.fullName}
               </p>
               {address.isDefault ? (
-                <span className="rounded-full bg-accent-500/60 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-gray-primary">
+                <span className="rounded-full bg-action/60 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-action-foreground">
                   Default
                 </span>
               ) : null}

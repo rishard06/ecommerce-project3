@@ -129,7 +129,7 @@ async function DashboardContent({ userId }: { userId: string }) {
             href={href}
             className="glass-component group flex items-center gap-4 p-5 transition-shadow hover:shadow-lift"
           >
-            <span className="flex size-12 items-center justify-center rounded-full bg-accent-500/60 text-gray-primary">
+            <span className="flex size-12 items-center justify-center rounded-full bg-action/60 text-action-foreground">
               <Icon className="size-5" aria-hidden="true" />
             </span>
             <span className="min-w-0">
@@ -171,7 +171,7 @@ async function DashboardContent({ userId }: { userId: string }) {
             </p>
             <Link
               href="/products"
-              className="inline-flex h-11 items-center justify-center rounded-full bg-gray-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-gray-secondary"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-action px-6 text-sm font-semibold text-action-foreground transition-colors hover:bg-action-hover"
             >
               Browse products
             </Link>

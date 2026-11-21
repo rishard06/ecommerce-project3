@@ -15,7 +15,6 @@
     "seed": "node prisma/seed.mjs"
   },
   "dependencies": {
-    "@gsap/react": "^2.1.2",
     "@paper-design/shaders-react": "^0.0.47",
     "@prisma/client": "^6.15.0",
     "@radix-ui/react-avatar": "^1.1.11",
@@ -28,7 +27,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",
-    "gsap": "^3.14.2",
     "lucide-react": "^0.543.0",
     "motion": "^12.35.0",
     "next": "^15.5.9",

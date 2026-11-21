@@ -141,7 +141,7 @@ function LoginFormInner() {
               type="submit"
               size="lg"
               disabled={isLoading}
-              className="h-12 w-full gap-2.5 rounded-2xl bg-gray-primary text-base font-semibold text-white shadow-soft hover:bg-gray-secondary"
+              className="h-12 w-full gap-2.5 rounded-2xl bg-action text-base font-semibold text-action-foreground shadow-soft hover:bg-action-hover"
             >
               {isLoading ? (
                 <>
@@ -162,7 +162,8 @@ function LoginFormInner() {
 
           <Button
             size="lg"
-            className="h-12 w-full gap-2.5 rounded-2xl bg-accent-500 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
+            variant="outline"
+            className="h-12 w-full gap-2.5 rounded-2xl font-semibold"
             onClick={handleGithubSignIn}
             disabled={isGithubLoading}
           >

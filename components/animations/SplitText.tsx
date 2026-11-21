@@ -1,192 +1,123 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { SplitText as GSAPSplitText } from 'gsap/SplitText';
-import { useGSAP } from '@gsap/react';
-import { useReducedMotion } from 'motion/react';
+"use client";
 
-gsap.registerPlugin(ScrollTrigger, GSAPSplitText, useGSAP);
+import React, { useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 
 export interface SplitTextProps {
   text: string;
   className?: string;
   delay?: number;
   duration?: number;
-  ease?: string | ((t: number) => number);
-  splitType?: 'chars' | 'words' | 'lines' | 'words, chars';
-  from?: gsap.TweenVars;
-  to?: gsap.TweenVars;
+  ease?: string | ((t: number) => number) | number[];
+  splitType?: "chars" | "words" | "lines" | "words, chars";
+  from?: Record<string, string | number>;
+  to?: Record<string, string | number>;
   threshold?: number;
   rootMargin?: string;
-  tag?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'span';
-  textAlign?: React.CSSProperties['textAlign'];
+  tag?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span";
+  textAlign?: React.CSSProperties["textAlign"];
   onLetterAnimationComplete?: () => void;
+}
+
+function splitUnits(text: string, splitType: string): { units: string[]; cls: string } {
+  if (splitType.includes("chars") && !splitType.includes("words,")) {
+    return { units: Array.from(text), cls: "split-char" };
+  }
+  if (splitType.includes("words")) {
+    return { units: text.split(/(\s+)/).filter((s) => s.length > 0), cls: "split-word" };
+  }
+  return { units: Array.from(text), cls: "split-char" };
 }
 
 const SplitText: React.FC<SplitTextProps> = ({
   text,
-  className = '',
+  className = "",
   delay = 50,
   duration = 1.25,
-  ease = 'power3.out',
-  splitType = 'chars',
+  ease = "power3.out",
+  splitType = "chars",
   from = { opacity: 0, y: 40 },
   to = { opacity: 1, y: 0 },
   threshold = 0.1,
-  rootMargin = '-100px',
-  tag = 'p',
-  textAlign = 'center',
-  onLetterAnimationComplete
+  rootMargin = "-100px",
+  tag = "p",
+  textAlign = "center",
+  onLetterAnimationComplete,
 }) => {
-  const ref = useRef<HTMLParagraphElement>(null);
-  const animationCompletedRef = useRef(false);
-  const onCompleteRef = useRef(onLetterAnimationComplete);
-  const [fontsLoaded, setFontsLoaded] = useState<boolean>(false);
+  const ref = useRef<HTMLElement>(null);
+  const [inView, setInView] = useState(false);
   const prefersReducedMotion = useReducedMotion();
-
-  // Keep callback ref updated
-  useEffect(() => {
-    onCompleteRef.current = onLetterAnimationComplete;
-  }, [onLetterAnimationComplete]);
+  const doneRef = useRef(false);
 
   useEffect(() => {
-    if (document.fonts.status === 'loaded') {
-      setFontsLoaded(true);
-    } else {
-      document.fonts.ready.then(() => {
-        setFontsLoaded(true);
-      });
+    if (!ref.current || typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
     }
-  }, []);
-
-  useGSAP(
-    () => {
-      if (!ref.current || !text || !fontsLoaded) return;
-      const el = ref.current as HTMLElement & {
-        _rbsplitInstance?: GSAPSplitText;
-      };
-      const revertSplit = () => {
-        if (!el._rbsplitInstance) return;
-        try {
-          el._rbsplitInstance.revert();
-        } catch (_) {}
-        el._rbsplitInstance = undefined;
-      };
-
-      // Reduced motion renders the text exactly as authored: undo any split
-      // that is already live before bailing out, then skip ScrollTrigger and
-      // the opacity-0 initial state.
-      if (prefersReducedMotion) {
-        revertSplit();
-        return;
-      }
-
-      // Prevent re-animation if already completed
-      if (animationCompletedRef.current) return;
-
-      revertSplit();
-
-      const startPct = (1 - threshold) * 100;
-      const marginMatch = /^(-?\d+(?:\.\d+)?)(px|em|rem|%)?$/.exec(rootMargin);
-      const marginValue = marginMatch ? parseFloat(marginMatch[1]) : 0;
-      const marginUnit = marginMatch ? marginMatch[2] || 'px' : 'px';
-      const sign =
-        marginValue === 0
-          ? ''
-          : marginValue < 0
-            ? `-=${Math.abs(marginValue)}${marginUnit}`
-            : `+=${marginValue}${marginUnit}`;
-      const start = `top ${startPct}%${sign}`;
-      let targets: Element[] = [];
-      const assignTargets = (self: GSAPSplitText) => {
-        if (splitType.includes('chars') && (self as GSAPSplitText).chars?.length)
-          targets = (self as GSAPSplitText).chars;
-        if (!targets.length && splitType.includes('words') && self.words.length) targets = self.words;
-        if (!targets.length && splitType.includes('lines') && self.lines.length) targets = self.lines;
-        if (!targets.length) targets = self.chars || self.words || self.lines;
-      };
-      const splitInstance = new GSAPSplitText(el, {
-        type: splitType,
-        smartWrap: true,
-        autoSplit: splitType === 'lines',
-        linesClass: 'split-line',
-        wordsClass: 'split-word',
-        charsClass: 'split-char',
-        reduceWhiteSpace: false,
-        onSplit: (self: GSAPSplitText) => {
-          assignTargets(self);
-          return gsap.fromTo(
-            targets,
-            { ...from },
-            {
-              ...to,
-              duration,
-              ease,
-              stagger: delay / 1000,
-              scrollTrigger: {
-                trigger: el,
-                start,
-                once: true,
-                fastScrollEnd: true,
-                anticipatePin: 0.4
-              },
-              onComplete: () => {
-                animationCompletedRef.current = true;
-                onCompleteRef.current?.();
-              },
-              willChange: 'transform, opacity',
-              force3D: true
-            }
-          );
+    const el = ref.current;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.unobserve(el);
         }
-      });
-      el._rbsplitInstance = splitInstance;
-      return () => {
-        ScrollTrigger.getAll().forEach(st => {
-          if (st.trigger === el) st.kill();
-        });
-        try {
-          splitInstance.revert();
-        } catch (_) {}
-        el._rbsplitInstance = undefined;
-      };
-    },
-    {
-      dependencies: [
-        text,
-        delay,
-        duration,
-        ease,
-        splitType,
-        JSON.stringify(from),
-        JSON.stringify(to),
-        threshold,
-        rootMargin,
-        fontsLoaded,
-        prefersReducedMotion
-      ],
-      scope: ref
+      },
+      { threshold, rootMargin },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold, rootMargin]);
+
+  useEffect(() => {
+    if (inView && !doneRef.current) {
+      const t = setTimeout(() => {
+        doneRef.current = true;
+        onLetterAnimationComplete?.();
+      }, Math.round(duration * 1000) + delay * text.length);
+      return () => clearTimeout(t);
     }
-  );
+  }, [inView, duration, delay, text.length, onLetterAnimationComplete]);
 
-  const renderTag = () => {
-    const style: React.CSSProperties = {
-      textAlign,
-      wordWrap: 'break-word',
-      // Only hint the compositor when an animation will actually run.
-      ...(prefersReducedMotion ? {} : { willChange: 'transform, opacity' })
-    };
-    const classes = `split-parent overflow-hidden inline-block whitespace-normal ${className}`;
-    const Tag = (tag || 'p') as React.ElementType;
-
+  if (prefersReducedMotion) {
+    const Tag = tag as React.ElementType;
     return (
-      <Tag ref={ref} style={style} className={classes}>
+      <Tag ref={ref} style={{ textAlign }} className={className}>
         {text}
       </Tag>
     );
-  };
+  }
 
-  return renderTag();
+  const { units, cls } = splitUnits(text, splitType);
+  const Tag = motion[tag as "p"] as unknown as React.ElementType;
+
+  return (
+    <Tag
+      ref={ref}
+      style={{ textAlign, willChange: "transform, opacity" }}
+      className={`split-parent overflow-hidden inline-block whitespace-normal ${className}`}
+    >
+      {units.map((unit, i) =>
+        unit.trim() === "" ? (
+          <span key={i}>&nbsp;</span>
+        ) : (
+          <motion.span
+            key={i}
+            className={cls}
+            style={{ display: "inline-block", willChange: "transform, opacity" }}
+            initial={from}
+            animate={inView ? to : from}
+            transition={{
+              duration,
+              delay: (i * delay) / 1000,
+              ease: Array.isArray(ease) ? (ease as [number, number, number, number]) : "easeOut",
+            }}
+          >
+            {unit}
+          </motion.span>
+        ),
+      )}
+    </Tag>
+  );
 };
 
 export default SplitText;

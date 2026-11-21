@@ -20,6 +20,71 @@ export interface SearchParams {
   category?: string;
   skip?: number;
   limit?: number;
+  /**
+   * Opaque forward cursor: base64url of the last slug on the previous page.
+   * Omitted (the default) keeps the existing skip/offset paging.
+   */
+  cursor?: string;
+  /**
+   * Related-products mode: keep only products sharing the category of this
+   * slug, and exclude the slug itself. Resolved in the same query so callers
+   * never have to read the product's category first.
+   */
+  relatedTo?: string;
+}
+
+/** Cursor payloads are versioned so a raw offset can never be mistaken for one. */
+const CURSOR_VERSION = "v1";
+const MAX_CURSOR_LENGTH = 256;
+const MAX_SLUG_LENGTH = 200;
+/** Slugs are ASCII words (kebab-case in practice); anything else is forged. */
+const CURSOR_SLUG_PATTERN = /^[A-Za-z0-9._-]+$/;
+
+/** Encodes the last-seen product slug as an opaque cursor; never a raw offset. */
+export function encodeCursor(slug: string): string {
+  return Buffer.from(`${CURSOR_VERSION}:${slug}`, "utf8").toString(
+    "base64url",
+  );
+}
+
+/** Decodes a cursor back to its slug, or null when it is invalid/forged. */
+export function decodeCursor(cursor?: string | null): string | null {
+  if (!cursor || cursor.length > MAX_CURSOR_LENGTH) return null;
+
+  let decoded: string;
+  try {
+    decoded = Buffer.from(cursor, "base64url").toString("utf8");
+  } catch {
+    return null;
+  }
+
+  const prefix = `${CURSOR_VERSION}:`;
+  if (!decoded.startsWith(prefix)) return null;
+
+  const slug = decoded.slice(prefix.length);
+  if (slug.length === 0 || slug.length > MAX_SLUG_LENGTH) return null;
+  if (!CURSOR_SLUG_PATTERN.test(slug)) return null;
+
+  return slug;
+}
+
+/**
+ * Guarded rollout: keyset paging is opt-in via `PRODUCTS_CURSOR_PAGINATION=1`.
+ * Unset/false keeps `skip` as the only advertised paging mode, so existing
+ * links and bookmarks behave exactly as before.
+ */
+export function isCursorPaginationEnabled(): boolean {
+  const value = process.env.PRODUCTS_CURSOR_PAGINATION?.toLowerCase();
+  return value === "1" || value === "true";
+}
+
+/**
+ * A cursor only has a defined position when the rows are totally ordered by
+ * slug. Rating/newest/price sorts keep offset paging (their cursor position
+ * cannot be derived from a slug alone).
+ */
+export function supportsCursorPaging(sort: SearchSort | undefined): boolean {
+  return sort === undefined || sort === "relevance";
 }
 
 interface SearchResult {
@@ -55,17 +120,29 @@ function normalizePaging(skip: number, limit: number) {
  * The same predicate is used for the rows query and the `count`, so `total`
  * always describes the full result set rather than the returned page.
  */
-function buildWhere(q?: string, category?: string): Prisma.ProductWhereInput {
+function buildWhere(
+  q?: string,
+  category?: string,
+  relatedTo?: string,
+): Prisma.ProductWhereInput {
   const and: Prisma.ProductWhereInput[] = [];
 
   if (category) {
     and.push({ category: { slug: category } });
+  }
+  if (relatedTo) {
+    // Same category as the subject product, resolved from the slug so this can
+    // run in parallel with the detail read. The subject is never "related".
+    and.push({ category: { products: { some: { slug: relatedTo } } } });
+    and.push({ slug: { not: relatedTo } });
   }
   if (q) {
     and.push({
       OR: [
         { title: { contains: q, mode: "insensitive" } },
         { slug: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+        { brand: { contains: q, mode: "insensitive" } },
       ],
     });
   }
@@ -90,12 +167,14 @@ function buildWhere(q?: string, category?: string): Prisma.ProductWhereInput {
 function priceOrderedIdsQuery({
   q,
   category,
+  relatedTo,
   skip,
   take,
   sort,
 }: {
   q?: string;
   category?: string;
+  relatedTo?: string;
   skip: number;
   take: number;
   sort: "price-asc" | "price-desc";
@@ -112,10 +191,26 @@ function priceOrderedIdsQuery({
   if (category) {
     filters.push(Prisma.sql`c."slug" = ${category}`);
   }
+  if (relatedTo) {
+    // Mirrors the Prisma path in buildWhere: same category as the subject,
+    // subject excluded.
+    filters.push(Prisma.sql`p."slug" <> ${relatedTo}`);
+    filters.push(
+      Prisma.sql`EXISTS (
+        SELECT 1
+        FROM "product" related
+        WHERE related."categoryId" = p."categoryId"
+          AND related."slug" = ${relatedTo}
+      )`,
+    );
+  }
   if (q) {
     const pattern = `%${q}%`;
     filters.push(
-      Prisma.sql`(p."title" ILIKE ${pattern} OR p."slug" ILIKE ${pattern})`,
+      Prisma.sql`(p."title" ILIKE ${pattern}
+        OR p."slug" ILIKE ${pattern}
+        OR p."description" ILIKE ${pattern}
+        OR p."brand" ILIKE ${pattern})`,
     );
   }
 
@@ -166,6 +261,10 @@ function dropUnsellable(
  *
  * Paging and ordering happen in the database; errors are allowed to propagate
  * so a database failure is never mistaken for an empty catalog.
+ *
+ * `skip` is the default (and fallback) paging mode. When a valid `cursor` is
+ * supplied on a slug-ordered sort, the page resumes after that slug instead,
+ * so concurrent inserts cannot shift the window.
  */
 export async function searchProducts({
   q,
@@ -173,11 +272,35 @@ export async function searchProducts({
   category,
   skip = 0,
   limit = 20,
+  cursor,
+  relatedTo,
 }: SearchParams): Promise<SearchResult> {
   const query = q?.trim() || undefined;
-  const where = buildWhere(query, category);
+  const where = buildWhere(query, category, relatedTo);
   const { skip: pageSkip, take: pageTake } = normalizePaging(skip, limit);
   const totalQuery = prisma.product.count({ where });
+
+  // Guarded: a cursor is honoured only when a slug position is meaningful.
+  // Invalid/stale cursors (and every non-slug sort) fall through to the
+  // untouched offset path below, so old `skip` URLs never break.
+  const cursorSlug = supportsCursorPaging(sort) ? decodeCursor(cursor) : null;
+
+  if (cursorSlug) {
+    // Resume strictly after the last slug the shopper saw: rows inserted
+    // behind the cursor cannot repeat a product already on screen. `total`
+    // still counts the whole filtered set, so the page counter is unchanged.
+    const [rows, total] = await Promise.all([
+      prisma.product.findMany({
+        where: { ...where, slug: { gt: cursorSlug } },
+        include: PRODUCT_INCLUDE,
+        orderBy: orderByFor(sort),
+        take: pageTake,
+      }),
+      totalQuery,
+    ]);
+
+    return { products: dropUnsellable(rows), total };
+  }
 
   if (isPriceSort(sort)) {
     const [idRows, total] = await Promise.all([
@@ -185,6 +308,7 @@ export async function searchProducts({
         priceOrderedIdsQuery({
           q: query,
           category,
+          relatedTo,
           skip: pageSkip,
           take: pageTake,
           sort,

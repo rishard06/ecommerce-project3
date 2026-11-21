@@ -31,7 +31,7 @@ export function CartPage() {
           </p>
         </div>
         <Link href="/products">
-          <Button className="h-12 rounded-full bg-accent-500 px-7 font-semibold text-gray-primary shadow-soft hover:bg-accent-600">
+          <Button className="h-12 rounded-full bg-action px-7 font-semibold text-action-foreground shadow-soft hover:bg-action-hover">
             Start shopping
           </Button>
         </Link>
