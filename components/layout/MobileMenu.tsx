@@ -101,7 +101,7 @@ export default function MobileMenu() {
           ref={triggerRef}
           variant="default"
           size="icon"
-          className="rounded-full bg-accent-500 text-gray-primary hover:bg-accent-600"
+          className="rounded-full bg-action text-action-foreground hover:bg-action-hover"
           onClick={toggleMenu}
           aria-expanded={isMenuOpen}
           aria-controls="mobile-menu"

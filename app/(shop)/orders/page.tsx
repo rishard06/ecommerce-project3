@@ -110,7 +110,7 @@ async function OrdersList({ userId }: { userId: string }) {
           </p>
           <Link
             href="/products"
-            className="mt-6 inline-flex h-12 items-center justify-center rounded-full bg-accent-500 px-7 text-sm font-semibold text-gray-primary shadow-soft transition-colors hover:bg-accent-600"
+            className="mt-6 inline-flex h-12 items-center justify-center rounded-full bg-action px-7 text-sm font-semibold text-action-foreground shadow-soft transition-colors hover:bg-action-hover"
           >
             Start shopping
           </Link>

@@ -71,7 +71,7 @@ export function ReviewStep({
           id="review-heading"
           className="flex items-center gap-3 text-xl font-bold text-gray-primary"
         >
-          <span className="flex size-8 items-center justify-center rounded-full bg-gray-primary text-sm font-bold text-white">
+          <span className="flex size-8 items-center justify-center rounded-full bg-gray-primary text-sm font-bold text-background">
             2
           </span>
           Review Order
@@ -237,7 +237,7 @@ export function ReviewStep({
                   type="submit"
                   disabled={isApplyingCoupon || isProcessing || isQuoting}
                   aria-busy={isApplyingCoupon}
-                  className="h-11 shrink-0 rounded-xl bg-gray-primary px-5 text-sm font-semibold text-white hover:bg-gray-secondary"
+                  className="h-11 shrink-0 rounded-xl bg-gray-primary px-5 text-sm font-semibold text-background hover:bg-gray-secondary"
                 >
                   {isApplyingCoupon ? (
                     <>
@@ -304,7 +304,7 @@ export function ReviewStep({
           variant="outline"
           onClick={onBack}
           disabled={isProcessing}
-          className="h-12 flex-1 rounded-2xl border-gray-primary/15 bg-white/40 font-semibold text-gray-primary hover:bg-white/70"
+          className="h-12 flex-1 rounded-2xl border-border bg-surface-light font-semibold text-foreground hover:bg-secondary"
         >
           Back to shipping
         </Button>
@@ -313,7 +313,7 @@ export function ReviewStep({
           onClick={onSubmit}
           disabled={submitDisabled}
           aria-busy={isProcessing}
-          className="h-12 flex-[2] rounded-2xl bg-gray-primary font-semibold text-white hover:bg-gray-secondary"
+          className="h-12 flex-[2] rounded-2xl bg-action font-semibold text-action-foreground hover:bg-action-hover"
         >
           {isProcessing ? (
             <>

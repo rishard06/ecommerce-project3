@@ -62,7 +62,7 @@ export default function RegisterForm() {
           <Input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 rounded-xl" required />
           <Input placeholder="Password (8+ chars)" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 rounded-xl" required />
           {error && <p role="alert" className="text-sm font-medium text-destructive">{error}</p>}
-          <Button type="submit" disabled={loading} className="h-12 w-full rounded-2xl bg-gray-primary font-semibold text-white">
+          <Button type="submit" disabled={loading} className="h-12 w-full rounded-2xl bg-action font-semibold text-action-foreground hover:bg-action-hover">
             {loading ? <><Loader2 className="size-5 animate-spin" /> Creating…</> : "Create account"}
           </Button>
           <p className="text-center text-sm text-gray-tertiary">

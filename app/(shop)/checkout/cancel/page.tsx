@@ -164,7 +164,7 @@ export default async function CheckoutCancelPage({
           </Link>
           <Link
             href="/products"
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-accent-500 px-6 text-sm font-semibold text-gray-primary shadow-soft transition-colors hover:bg-accent-600 sm:w-auto"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-action px-6 text-sm font-semibold text-action-foreground shadow-soft transition-colors hover:bg-action-hover sm:w-auto"
           >
             <ShoppingBag className="size-4" aria-hidden="true" />
             Continue shopping

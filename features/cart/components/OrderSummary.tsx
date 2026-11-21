@@ -60,7 +60,7 @@ export function OrderSummary() {
           </p>
           {hasSelection ? (
             <Link href="/checkout" className="block w-full">
-              <Button className="group h-12 w-full rounded-full bg-accent-500 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600">
+              <Button className="group h-12 w-full rounded-full bg-action text-base font-semibold text-action-foreground shadow-soft hover:bg-action-hover">
                 Proceed to checkout
                 <ArrowRight
                   className="size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5"
@@ -96,15 +96,15 @@ export function OrderSummary() {
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-[1.75rem] bg-accent-500 p-6 shadow-soft">
+      <div className="relative overflow-hidden rounded-[1.75rem] bg-action p-6 shadow-soft">
         <div className="relative z-10">
-          <h3 className="mb-1.5 text-lg font-semibold tracking-tight text-gray-primary">
+          <h3 className="mb-1.5 text-lg font-semibold tracking-tight text-action-foreground">
             Save with tended prime
           </h3>
-          <p className="mb-5 max-w-[220px] text-sm font-medium leading-relaxed text-gray-secondary">
+          <p className="mb-5 max-w-[220px] text-sm font-medium leading-relaxed text-action-foreground/80">
             Free shipping and early access to new drops.
           </p>
-          <Button className="h-9 rounded-full bg-gray-primary px-5 text-sm font-semibold text-white hover:bg-gray-secondary">
+          <Button className="h-9 rounded-full bg-action-foreground px-5 text-sm font-semibold text-action hover:bg-action-foreground/90">
             Join now
           </Button>
         </div>

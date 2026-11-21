@@ -75,7 +75,7 @@ export default function FavoritesPage() {
             <p className="mb-8 max-w-sm font-medium text-gray-tertiary">
               Tap the heart on any product to keep it here.
             </p>
-            <Button asChild className="h-12 rounded-full bg-accent-500 px-7 font-semibold text-gray-primary shadow-soft hover:bg-accent-600">
+            <Button asChild className="h-12 rounded-full bg-action px-7 font-semibold text-action-foreground shadow-soft hover:bg-action-hover">
               <Link href="/products" className="flex items-center gap-2">
                 Explore products
                 <ShoppingBag className="size-4" aria-hidden="true" />

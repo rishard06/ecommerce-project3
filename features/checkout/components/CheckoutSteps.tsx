@@ -32,16 +32,16 @@ export function CheckoutSteps({ step }: CheckoutStepsProps) {
           >
             <div
               className={`h-1 rounded-full transition-colors ${
-                isComplete || isCurrent ? "bg-accent-500" : "bg-gray-primary/10"
+                isComplete || isCurrent ? "bg-action" : "bg-gray-primary/10"
               }`}
             />
             <div className="flex items-center gap-2">
               <span
                 className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                   isComplete
-                    ? "bg-accent-500 text-gray-primary"
+                    ? "bg-action text-action-foreground"
                     : isCurrent
-                      ? "bg-gray-primary text-white"
+                      ? "bg-gray-primary text-background"
                       : "bg-gray-primary/10 text-gray-tertiary"
                 }`}
                 aria-hidden="true"

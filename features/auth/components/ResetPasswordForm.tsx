@@ -45,7 +45,7 @@ export function ResetPasswordForm() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <button
         type="submit"
-        className="h-11 w-full rounded-full bg-gray-900 text-sm font-semibold text-white"
+        className="h-11 w-full rounded-full bg-action text-sm font-semibold text-action-foreground transition-colors hover:bg-action-hover"
       >
         Reset password
       </button>

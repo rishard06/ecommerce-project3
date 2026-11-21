@@ -135,6 +135,20 @@ describe("ProductCard tactile feedback", () => {
   });
 });
 
+describe("ProductCard action colour", () => {
+  it("fills the add-to-cart CTA with the single action token", () => {
+    const { getByRole } = renderCard();
+    const cta = getByRole("button", { name: `Add ${PRODUCT.title} to cart` });
+
+    // One action colour everywhere: lime fill, ink label that stays ink in
+    // dark mode instead of flipping to the light body colour.
+    expect(cta.className).toContain("bg-action");
+    expect(cta.className).toContain("text-action-foreground");
+    expect(cta.className).not.toContain("bg-accent-500");
+    expect(cta.className).not.toContain("text-gray-primary");
+  });
+});
+
 describe("ProductCard prices", () => {
   it("renders the price with tabular figures", () => {
     const { getByText } = renderCard();

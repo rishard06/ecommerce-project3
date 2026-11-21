@@ -29,7 +29,7 @@ export default function CartPreview() {
         <Button
           asChild
           variant="outline"
-          className="rounded-full border-gray-primary/15 px-6 font-semibold hover:bg-accent-500 hover:text-gray-primary"
+          className="rounded-full border-gray-primary/15 px-6 font-semibold hover:bg-action hover:text-action-foreground"
         >
           <Link href="/products">Explore catalog</Link>
         </Button>
@@ -38,7 +38,7 @@ export default function CartPreview() {
   }
 
   return (
-    <div className="flex max-h-[min(500px,70vh)] flex-col bg-white/70">
+    <div className="flex max-h-[min(500px,70vh)] flex-col bg-popover">
       <div className="flex items-center justify-between border-b border-gray-primary/10 px-5 py-4">
         <h3 className="text-sm font-semibold tracking-tight text-gray-primary">
           Cart{" "}
@@ -62,7 +62,7 @@ export default function CartPreview() {
       <div className="mt-auto border-t border-gray-primary/10 p-4">
         <Button
           asChild
-          className="h-12 w-full rounded-2xl bg-accent-500 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
+          className="h-12 w-full rounded-2xl bg-action text-base font-semibold text-action-foreground shadow-soft hover:bg-action-hover"
         >
           <Link href="/cart" className="flex items-center justify-center gap-2">
             Checkout

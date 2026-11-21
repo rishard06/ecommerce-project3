@@ -115,7 +115,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       <Button
         type="submit"
         disabled={isSaving}
-        className="h-12 w-full rounded-2xl bg-gray-primary font-semibold text-white hover:bg-gray-secondary sm:w-auto sm:px-8"
+        className="h-12 w-full rounded-2xl bg-action font-semibold text-action-foreground hover:bg-action-hover sm:w-auto sm:px-8"
       >
         {isSaving ? (
           <>

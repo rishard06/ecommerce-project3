@@ -152,7 +152,7 @@ export default async function ProductsPage({
         </p>
         <Link
           href="/products"
-          className="rounded-full bg-accent-500 px-6 py-3 font-semibold text-gray-primary transition-colors hover:bg-accent-600"
+          className="rounded-full bg-action px-6 py-3 font-semibold text-action-foreground transition-colors hover:bg-action-hover"
         >
           Try again
         </Link>

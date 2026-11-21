@@ -179,8 +179,8 @@ export function ProductInfo({ product }: ProductInfoProps) {
                 className={cn(
                   "h-11 rounded-xl px-5 font-semibold transition-[background-color,border-color,color] duration-200",
                   selectedStorage === index
-                    ? "border-2 border-accent-500 bg-accent-500 text-gray-primary hover:bg-accent-600"
-                    : "border-gray-primary/15 bg-white/50 text-gray-secondary hover:border-accent-600 hover:bg-accent-500/10"
+                    ? "border-2 border-action bg-action text-action-foreground hover:bg-action-hover"
+                    : "border-gray-primary/15 bg-surface-light text-gray-secondary hover:border-action hover:bg-action/10"
                 )}
               >
                 {size}
@@ -192,7 +192,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
 
       <div className="flex gap-3 pt-2">
         <Button
-          className="group h-14 flex-1 gap-2 rounded-2xl bg-accent-500 text-base font-semibold text-gray-primary shadow-soft hover:bg-accent-600"
+          className="group h-14 flex-1 gap-2 rounded-2xl bg-action text-base font-semibold text-action-foreground shadow-soft hover:bg-action-hover"
           onClick={handleAddToCart}
         >
           <ShoppingCart

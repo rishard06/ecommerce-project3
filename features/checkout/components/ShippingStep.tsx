@@ -39,7 +39,7 @@ export function ShippingStep({
     >
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-3 text-xl font-bold text-gray-primary">
-          <span className="flex size-8 items-center justify-center rounded-full bg-gray-primary text-sm font-bold text-white">
+          <span className="flex size-8 items-center justify-center rounded-full bg-gray-primary text-sm font-bold text-background">
             1
           </span>
           Shipping Information
@@ -206,7 +206,7 @@ export function ShippingStep({
 
       <Button
         type="submit"
-        className="h-12 w-full rounded-2xl bg-gray-primary font-semibold text-white hover:bg-gray-secondary"
+        className="h-12 w-full rounded-2xl bg-action font-semibold text-action-foreground hover:bg-action-hover"
       >
         Continue to review
       </Button>

@@ -34,7 +34,7 @@ export function CategorySidebar({ categories, currentCategory }: CategorySidebar
     cn(
       "flex w-full items-center justify-between rounded-full px-4 py-2.5 text-sm font-medium transition-colors duration-200",
       isActive
-        ? "bg-accent-500 font-semibold text-gray-primary shadow-soft"
+        ? "bg-action font-semibold text-action-foreground shadow-soft"
         : "text-gray-secondary hover:bg-white/60 hover:text-gray-primary"
     );
 

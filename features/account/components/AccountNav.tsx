@@ -31,7 +31,7 @@ export function AccountNav({ user }: { user: AccountNavUser | null }) {
         </div>
         <Link
           href="/login?next=/account"
-          className="inline-flex h-10 items-center justify-center rounded-full bg-gray-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-gray-secondary"
+          className="inline-flex h-10 items-center justify-center rounded-full bg-action px-5 text-sm font-semibold text-action-foreground transition-colors hover:bg-action-hover"
         >
           Sign in
         </Link>
@@ -59,7 +59,7 @@ export function AccountNav({ user }: { user: AccountNavUser | null }) {
         ) : (
           <span
             aria-hidden="true"
-            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-500 text-sm font-bold text-gray-primary"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-action text-sm font-bold text-action-foreground"
           >
             {initials || "U"}
           </span>
@@ -84,7 +84,7 @@ export function AccountNav({ user }: { user: AccountNavUser | null }) {
               aria-current={isActive ? "page" : undefined}
               className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
                 isActive
-                  ? "bg-accent-500/60 text-gray-primary"
+                  ? "bg-action/60 text-action-foreground"
                   : "text-gray-tertiary hover:bg-gray-primary/[0.04] hover:text-gray-primary"
               }`}
             >

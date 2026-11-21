@@ -192,7 +192,7 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
         </div>
         <Link
           href={nothingSelected ? "/cart" : "/products"}
-          className="inline-flex h-12 items-center justify-center rounded-full bg-gray-primary px-8 text-sm font-semibold text-white transition-colors hover:bg-gray-secondary"
+          className="inline-flex h-12 items-center justify-center rounded-full bg-action px-8 text-sm font-semibold text-action-foreground transition-colors hover:bg-action-hover"
         >
           {nothingSelected ? "Choose items" : "Browse products"}
         </Link>
