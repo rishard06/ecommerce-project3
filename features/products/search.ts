@@ -25,6 +25,12 @@ export interface SearchParams {
    * Omitted (the default) keeps the existing skip/offset paging.
    */
   cursor?: string;
+  /**
+   * Related-products mode: keep only products sharing the category of this
+   * slug, and exclude the slug itself. Resolved in the same query so callers
+   * never have to read the product's category first.
+   */
+  relatedTo?: string;
 }
 
 /** Cursor payloads are versioned so a raw offset can never be mistaken for one. */
@@ -114,11 +120,21 @@ function normalizePaging(skip: number, limit: number) {
  * The same predicate is used for the rows query and the `count`, so `total`
  * always describes the full result set rather than the returned page.
  */
-function buildWhere(q?: string, category?: string): Prisma.ProductWhereInput {
+function buildWhere(
+  q?: string,
+  category?: string,
+  relatedTo?: string,
+): Prisma.ProductWhereInput {
   const and: Prisma.ProductWhereInput[] = [];
 
   if (category) {
     and.push({ category: { slug: category } });
+  }
+  if (relatedTo) {
+    // Same category as the subject product, resolved from the slug so this can
+    // run in parallel with the detail read. The subject is never "related".
+    and.push({ category: { products: { some: { slug: relatedTo } } } });
+    and.push({ slug: { not: relatedTo } });
   }
   if (q) {
     and.push({
@@ -151,12 +167,14 @@ function buildWhere(q?: string, category?: string): Prisma.ProductWhereInput {
 function priceOrderedIdsQuery({
   q,
   category,
+  relatedTo,
   skip,
   take,
   sort,
 }: {
   q?: string;
   category?: string;
+  relatedTo?: string;
   skip: number;
   take: number;
   sort: "price-asc" | "price-desc";
@@ -172,6 +190,19 @@ function priceOrderedIdsQuery({
 
   if (category) {
     filters.push(Prisma.sql`c."slug" = ${category}`);
+  }
+  if (relatedTo) {
+    // Mirrors the Prisma path in buildWhere: same category as the subject,
+    // subject excluded.
+    filters.push(Prisma.sql`p."slug" <> ${relatedTo}`);
+    filters.push(
+      Prisma.sql`EXISTS (
+        SELECT 1
+        FROM "product" related
+        WHERE related."categoryId" = p."categoryId"
+          AND related."slug" = ${relatedTo}
+      )`,
+    );
   }
   if (q) {
     const pattern = `%${q}%`;
@@ -242,9 +273,10 @@ export async function searchProducts({
   skip = 0,
   limit = 20,
   cursor,
+  relatedTo,
 }: SearchParams): Promise<SearchResult> {
   const query = q?.trim() || undefined;
-  const where = buildWhere(query, category);
+  const where = buildWhere(query, category, relatedTo);
   const { skip: pageSkip, take: pageTake } = normalizePaging(skip, limit);
   const totalQuery = prisma.product.count({ where });
 
@@ -276,6 +308,7 @@ export async function searchProducts({
         priceOrderedIdsQuery({
           q: query,
           category,
+          relatedTo,
           skip: pageSkip,
           take: pageTake,
           sort,

@@ -1,14 +1,8 @@
-import { getProduct, getProducts } from "@/lib/products";
-import { getPublicEnv } from "@/lib/env";
+import { getProduct, getRelatedProducts } from "@/lib/products";
+import { siteUrl } from "@/lib/app-url";
 import { ProductDetailPage } from "@/features/products/ProductDetailPage";
 import { notFound } from "next/navigation";
 import { Product as InternalProduct } from "@/features/products/types";
-
-const DEFAULT_APP_URL = "http://localhost:3000";
-
-function siteUrl(): string {
-  return (getPublicEnv().NEXT_PUBLIC_APP_URL ?? DEFAULT_APP_URL).replace(/\/$/, "");
-}
 
 export default async function Page({
   params,
@@ -18,14 +12,18 @@ export default async function Page({
   // The URL carries the product slug (the folder keeps its historical name).
   const { id: slug } = await params;
 
-  const product = await getProduct(slug);
+  // Detail and related cards are independent cached reads: the related query
+  // resolves the category from the slug itself, so neither waits on the other.
+  const [product, relatedResponse] = await Promise.all([
+    getProduct(slug),
+    getRelatedProducts(slug, 5),
+  ]);
 
   if (!product) {
     notFound();
   }
 
   // Related products from the same category, excluding the current product.
-  const relatedResponse = await getProducts(product.categorySlug, 0, 5);
   const relatedProducts: Partial<InternalProduct>[] = relatedResponse.products
     .filter((p) => p.slug !== slug)
     .slice(0, 4)

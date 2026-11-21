@@ -11,12 +11,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getProduct: vi.fn(),
-  getProducts: vi.fn(),
+  getRelatedProducts: vi.fn(),
 }));
 
 vi.mock("@/lib/products", () => ({
   getProduct: mocks.getProduct,
-  getProducts: mocks.getProducts,
+  getRelatedProducts: mocks.getRelatedProducts,
 }));
 
 vi.mock("@/features/products/ProductDetailPage", () => ({
@@ -60,7 +60,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://shop.example/");
   mocks.getProduct.mockResolvedValue(PRODUCT);
-  mocks.getProducts.mockResolvedValue({
+  mocks.getRelatedProducts.mockResolvedValue({
     products: [],
     total: 0,
     skip: 0,
@@ -131,5 +131,35 @@ describe("product detail JSON-LD", () => {
     expect(readJsonLd(container).description).toBe(
       "A perfectly safe </script><script>alert(1)</script> product.",
     );
+  });
+});
+
+describe("product detail data fetching", () => {
+  it("requests the related cards for the same product slug", async () => {
+    await Page({ params: Promise.resolve({ id: PRODUCT.slug }) });
+
+    expect(mocks.getRelatedProducts).toHaveBeenCalledWith(PRODUCT.slug, 5);
+  });
+
+  it("starts the related read in parallel with the detail read", async () => {
+    let releaseDetail!: (value: typeof PRODUCT) => void;
+    mocks.getProduct.mockReturnValue(
+      new Promise((resolve) => {
+        releaseDetail = resolve;
+      }),
+    );
+
+    const pending = Page({ params: Promise.resolve({ id: PRODUCT.slug }) });
+
+    // The detail read is still unresolved, so the related read must already be
+    // in flight: it cannot wait for `product.categorySlug`. If the page awaited
+    // the detail first, this wait would time out.
+    await vi.waitFor(() => {
+      expect(mocks.getRelatedProducts).toHaveBeenCalledTimes(1);
+    });
+    expect(mocks.getProduct).toHaveBeenCalledTimes(1);
+
+    releaseDetail(PRODUCT);
+    await expect(pending).resolves.toBeTruthy();
   });
 });

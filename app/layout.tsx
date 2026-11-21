@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import type { Metadata, Viewport } from "next";
-import { getPublicEnv } from "@/lib/env";
+import { siteUrl } from "@/lib/app-url";
 import { WishlistSync } from "@/features/wishlist/components/wishlist-sync";
 import "./globals.css";
 
@@ -25,21 +25,12 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
-const DEFAULT_APP_URL = "http://localhost:3000";
 const SITE_NAME = "tended.";
 const SITE_TITLE = "tended. — Considered essentials";
 // Shared by the page description and both social cards so they never drift.
 const SITE_DESCRIPTION =
   "A calm, considered shop for everyday essentials — clear pricing, fast delivery, honest reviews, easy returns, and a checkout that gets out of your way.";
 const SOCIAL_IMAGE = "/landing/craft.webp";
-
-/**
- * Absolute base URL for canonical/OG links. Never hardcode a production
- * domain: the validated public env decides, with localhost as the dev fallback.
- */
-function siteUrl(): string {
-  return (getPublicEnv().NEXT_PUBLIC_APP_URL ?? DEFAULT_APP_URL).replace(/\/$/, "");
-}
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),

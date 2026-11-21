@@ -171,6 +171,34 @@ describe("searchProducts", () => {
     });
   });
 
+  it("filters related products by the subject's category and excludes it", async () => {
+    await searchProducts({ relatedTo: "desk-9" });
+
+    expect(product.findMany.mock.calls[0]?.[0]?.where).toEqual({
+      status: "ACTIVE",
+      variants: { some: {} },
+      AND: [
+        { category: { products: { some: { slug: "desk-9" } } } },
+        { slug: { not: "desk-9" } },
+      ],
+    });
+    expect(product.count.mock.calls[0]?.[0]?.where).toEqual(
+      product.findMany.mock.calls[0]?.[0]?.where,
+    );
+  });
+
+  it("keeps the related filter on the price-sorted path", async () => {
+    await searchProducts({ relatedTo: "desk-9", sort: "price-asc" });
+
+    const sql = queryRaw.mock.calls[0]?.[0] as unknown as {
+      text: string;
+      values: unknown[];
+    };
+    expect(sql.text).toContain('p."slug" <>');
+    expect(sql.text).toContain('related."slug" =');
+    expect(sql.values).toEqual(expect.arrayContaining(["desk-9"]));
+  });
+
   it("pages in the database and counts with the identical where", async () => {
     product.findMany.mockResolvedValue([makeRow({ slug: "desk-21" })] as never);
     product.count.mockResolvedValue(42 as never);

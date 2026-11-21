@@ -1,8 +1,6 @@
 import type { MetadataRoute } from "next";
-import { getPublicEnv } from "@/lib/env";
+import { siteUrl } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
-
-const DEFAULT_APP_URL = "http://localhost:3000";
 
 /**
  * The catalog changes independently of deploys, and the build environment is
@@ -10,10 +8,6 @@ const DEFAULT_APP_URL = "http://localhost:3000";
  * instead of being frozen at build time.
  */
 export const dynamic = "force-dynamic";
-
-function siteUrl(): string {
-  return (getPublicEnv().NEXT_PUBLIC_APP_URL ?? DEFAULT_APP_URL).replace(/\/$/, "");
-}
 
 /**
  * Public routes: the home page, the catalog index, and every sellable product
