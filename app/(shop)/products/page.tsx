@@ -3,7 +3,13 @@ import Link from "next/link";
 import ProductCard from "@/features/products/components/ProductCard";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getCategories, getProducts } from "@/lib/products";
-import { isSearchSort } from "@/features/products/search";
+import {
+  decodeCursor,
+  encodeCursor,
+  isCursorPaginationEnabled,
+  isSearchSort,
+  supportsCursorPaging,
+} from "@/features/products/search";
 import { CategorySidebar } from "@/features/products/components/CategorySidebar";
 
 export default async function ProductsPage({
@@ -14,33 +20,56 @@ export default async function ProductsPage({
     skip?: string;
     q?: string;
     sort?: string;
+    cursor?: string;
   }>;
 }) {
   const params = await searchParams;
   const currentCategory = params.category;
   const q = params.q?.trim() || undefined;
   const sort = isSearchSort(params.sort) ? params.sort : undefined;
-  const skip = parseInt(params.skip || "0", 10);
+  const requestedSkip = Number.parseInt(params.skip ?? "0", 10);
+  // A malformed skip must not produce NaN hrefs; paging falls back to page 1.
+  const skip = Number.isFinite(requestedSkip) ? Math.max(0, requestedSkip) : 0;
   const limit = 20;
 
-  const buildHref = (nextSkip: number) => {
+  // Guarded rollout: `skip` is the default paging mode. A cursor is only
+  // trusted while the flag is on, only decodes to a slug, and only applies to
+  // the slug-ordered sorts — anything else is ignored, so legacy links work.
+  const cursorEnabled = isCursorPaginationEnabled();
+  const cursor =
+    cursorEnabled && supportsCursorPaging(sort) && decodeCursor(params.cursor)
+      ? params.cursor
+      : undefined;
+
+  const buildHref = (nextSkip: number, nextCursor?: string) => {
     const query = new URLSearchParams();
     if (currentCategory) query.set("category", currentCategory);
     if (q) query.set("q", q);
     if (sort) query.set("sort", sort);
+    // `skip` stays on cursor hrefs: it keeps the page counter and the
+    // offset fallback correct, while the server prefers the cursor.
     query.set("skip", String(Math.max(0, nextSkip)));
+    if (nextCursor) query.set("cursor", nextCursor);
     return `/products?${query.toString()}`;
   };
 
   try {
     const [categories, productData] = await Promise.all([
       getCategories(),
-      getProducts(currentCategory, skip, limit, { q, sort }),
+      getProducts(currentCategory, skip, limit, { q, sort, cursor }),
     ]);
 
     const { products, total } = productData;
     const hasPrevious = skip > 0;
     const hasNext = skip + limit < total;
+    const lastProduct = products[products.length - 1];
+    // Next is the only forward hop, so it is the only link that carries a
+    // cursor. "Previous" keeps the offset link (a cursor is forward-only, and
+    // the products behind it are already known).
+    const nextCursor =
+      cursorEnabled && supportsCursorPaging(sort) && lastProduct
+        ? encodeCursor(lastProduct.slug)
+        : undefined;
 
     return (
       <div className="mx-auto flex w-full max-w-7xl flex-col justify-center gap-6 px-4 py-8 sm:px-6 lg:flex-row lg:gap-8 lg:px-8">
@@ -121,7 +150,7 @@ export default async function ProductsPage({
 
             {hasNext ? (
               <Link
-                href={buildHref(skip + limit)}
+                href={buildHref(skip + limit, nextCursor)}
                 className="flex items-center gap-1.5 rounded-full bg-white/70 px-5 py-2.5 text-sm font-semibold text-gray-secondary shadow-soft transition-colors hover:bg-white hover:text-gray-primary"
               >
                 Next

@@ -31,6 +31,8 @@ export type ProductResponse = ProductPage;
 export interface ProductListingOptions {
   q?: string;
   sort?: SearchSort;
+  /** Opaque forward cursor; omit for the default skip/offset paging. */
+  cursor?: string;
 }
 
 /**
@@ -60,6 +62,7 @@ export async function getProducts(
     category,
     skip,
     limit,
+    cursor: options.cursor,
   });
 
   return { products, total, skip, take: limit };

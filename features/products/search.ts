@@ -20,6 +20,65 @@ export interface SearchParams {
   category?: string;
   skip?: number;
   limit?: number;
+  /**
+   * Opaque forward cursor: base64url of the last slug on the previous page.
+   * Omitted (the default) keeps the existing skip/offset paging.
+   */
+  cursor?: string;
+}
+
+/** Cursor payloads are versioned so a raw offset can never be mistaken for one. */
+const CURSOR_VERSION = "v1";
+const MAX_CURSOR_LENGTH = 256;
+const MAX_SLUG_LENGTH = 200;
+/** Slugs are ASCII words (kebab-case in practice); anything else is forged. */
+const CURSOR_SLUG_PATTERN = /^[A-Za-z0-9._-]+$/;
+
+/** Encodes the last-seen product slug as an opaque cursor; never a raw offset. */
+export function encodeCursor(slug: string): string {
+  return Buffer.from(`${CURSOR_VERSION}:${slug}`, "utf8").toString(
+    "base64url",
+  );
+}
+
+/** Decodes a cursor back to its slug, or null when it is invalid/forged. */
+export function decodeCursor(cursor?: string | null): string | null {
+  if (!cursor || cursor.length > MAX_CURSOR_LENGTH) return null;
+
+  let decoded: string;
+  try {
+    decoded = Buffer.from(cursor, "base64url").toString("utf8");
+  } catch {
+    return null;
+  }
+
+  const prefix = `${CURSOR_VERSION}:`;
+  if (!decoded.startsWith(prefix)) return null;
+
+  const slug = decoded.slice(prefix.length);
+  if (slug.length === 0 || slug.length > MAX_SLUG_LENGTH) return null;
+  if (!CURSOR_SLUG_PATTERN.test(slug)) return null;
+
+  return slug;
+}
+
+/**
+ * Guarded rollout: keyset paging is opt-in via `PRODUCTS_CURSOR_PAGINATION=1`.
+ * Unset/false keeps `skip` as the only advertised paging mode, so existing
+ * links and bookmarks behave exactly as before.
+ */
+export function isCursorPaginationEnabled(): boolean {
+  const value = process.env.PRODUCTS_CURSOR_PAGINATION?.toLowerCase();
+  return value === "1" || value === "true";
+}
+
+/**
+ * A cursor only has a defined position when the rows are totally ordered by
+ * slug. Rating/newest/price sorts keep offset paging (their cursor position
+ * cannot be derived from a slug alone).
+ */
+export function supportsCursorPaging(sort: SearchSort | undefined): boolean {
+  return sort === undefined || sort === "relevance";
 }
 
 interface SearchResult {
@@ -171,6 +230,10 @@ function dropUnsellable(
  *
  * Paging and ordering happen in the database; errors are allowed to propagate
  * so a database failure is never mistaken for an empty catalog.
+ *
+ * `skip` is the default (and fallback) paging mode. When a valid `cursor` is
+ * supplied on a slug-ordered sort, the page resumes after that slug instead,
+ * so concurrent inserts cannot shift the window.
  */
 export async function searchProducts({
   q,
@@ -178,11 +241,34 @@ export async function searchProducts({
   category,
   skip = 0,
   limit = 20,
+  cursor,
 }: SearchParams): Promise<SearchResult> {
   const query = q?.trim() || undefined;
   const where = buildWhere(query, category);
   const { skip: pageSkip, take: pageTake } = normalizePaging(skip, limit);
   const totalQuery = prisma.product.count({ where });
+
+  // Guarded: a cursor is honoured only when a slug position is meaningful.
+  // Invalid/stale cursors (and every non-slug sort) fall through to the
+  // untouched offset path below, so old `skip` URLs never break.
+  const cursorSlug = supportsCursorPaging(sort) ? decodeCursor(cursor) : null;
+
+  if (cursorSlug) {
+    // Resume strictly after the last slug the shopper saw: rows inserted
+    // behind the cursor cannot repeat a product already on screen. `total`
+    // still counts the whole filtered set, so the page counter is unchanged.
+    const [rows, total] = await Promise.all([
+      prisma.product.findMany({
+        where: { ...where, slug: { gt: cursorSlug } },
+        include: PRODUCT_INCLUDE,
+        orderBy: orderByFor(sort),
+        take: pageTake,
+      }),
+      totalQuery,
+    ]);
+
+    return { products: dropUnsellable(rows), total };
+  }
 
   if (isPriceSort(sort)) {
     const [idRows, total] = await Promise.all([
