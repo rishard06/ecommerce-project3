@@ -343,6 +343,29 @@ When working on this project:
 9. **Use the correct import aliases** (`@/*`)
 10. **Respect the security guidelines** (especially price validation)
 
+## 🧭 Skill Precedence (Matt Pocock pack vs Superpowers)
+
+Two skill packs are installed and several pairs do the same job with different rules. Pick **one per task** — never run both sides of a pair in the same run.
+
+| Job | Use | Do NOT also use | Why |
+|---|---|---|---|
+| TDD loop | `tdd` (Matt) | `test-driven-development` | Matt's separates refactor out of the loop; superpowers includes RED-GREEN-**REFACTOR**. Use one loop, then do the refactor pass in `/code-review`. |
+| Debugging | `diagnosing-bugs` (Matt) for hard/intermittent/perf bugs; `systematic-debugging` (superpowers) for narrow, trivially reproducible bugs | the other one | They disagree on method: Matt forbids any hypothesis before a red-capable loop and wants 3–5 ranked; superpowers allows code-reading first and one hypothesis at a time. Mixing produces neither discipline. |
+| Executing a plan | `subagent-driven-development` for multi-ticket work; `implement` (Matt) for a single ticket inline | `executing-plans`, the other runner | Both claim plan execution; running two orchestrators double-dispatches subagents. |
+| Planning artifact | `to-spec` → `to-tickets` (Matt) | `writing-plans` (superpowers) | One plan source of truth; two plan files drift. |
+| Pre-plan interview | `grilling` when a proposal exists to stress-test; `brainstorming` when starting from nothing | the other one | Two interviews in a row wastes the user's time and forks the decisions. |
+| Branch / PR review | `code-review` (Matt, Standards + Spec axes) | `requesting-code-review` | Superpowers' version only when drafting the review-request dispatch message itself. |
+| Writing docs/skills | `writing-for-agents` (Matt) | `writing-skills` | `writing-skills` only for authoring new superpowers-format skills. |
+
+**Complementary, no conflict** (use freely alongside the table): `grill-with-docs`, `ask-matt`, `domain-modeling`, `codebase-design`, `setup-matt-pocock-skills`, `handoff`, `retro`, `pr`, `improve-codebase-architecture`, `verification-before-completion`, `finishing-a-development-branch`.
+
+**Two traps to avoid:**
+
+- `tdd` requires test seams to be pre-agreed with the user before any test is written. A subagent cannot ask the user, so seams must already be confirmed by `to-spec` (which does exactly that) and carried into the ticket. If a ticket has no agreed seam, the coordinator confirms it before dispatch — the subagent must never invent one.
+- The Superpowers "if there is a 1% chance a skill applies, invoke it" rule combined with these overlapping pairs is how double-invocation happens. This table is the tiebreaker: when a pair is listed, the left column wins and the right column is skipped for that task.
+
+**Sequencing rule:** `/setup-matt-pocock-skills` has not been run in this repo. Until it has, `to-spec` and `to-tickets` fall back to local markdown under `.scratch/<feature>/issues/` — that is supported, not an error.
+
 ---
 
 **Last Updated**: October 2026
