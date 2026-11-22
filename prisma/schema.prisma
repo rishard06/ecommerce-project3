@@ -5,13 +5,15 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
-  output   = "../app/generated/prisma"
+  provider        = "prisma-client-js"
+  output          = "../app/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pg_trgm]
 }
 
 enum Role {
@@ -310,6 +312,12 @@ model Product {
   updatedAt   DateTime         @updatedAt
 
   @@index([categoryId, status])
+  // Trigram GIN indexes back the `ILIKE '%q%'` OR-predicate in
+  // features/products/search.ts; a btree cannot serve a leading wildcard.
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_title_trgm_idx")
+  @@index([slug(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_slug_trgm_idx")
+  @@index([description(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_description_trgm_idx")
+  @@index([brand(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_brand_trgm_idx")
   @@map("product")
 }
 

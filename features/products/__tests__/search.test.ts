@@ -151,6 +151,59 @@ describe("searchProducts", () => {
     });
   });
 
+  it("treats LIKE wildcards in the query as literals on the Prisma path", async () => {
+    await searchProducts({ q: "100%_off" });
+
+    expect(product.findMany.mock.calls[0]?.[0]?.where).toEqual({
+      status: "ACTIVE",
+      variants: { some: {} },
+      AND: [
+        {
+          OR: [
+            { title: { contains: "100\\%\\_off", mode: "insensitive" } },
+            { slug: { contains: "100\\%\\_off", mode: "insensitive" } },
+            { description: { contains: "100\\%\\_off", mode: "insensitive" } },
+            { brand: { contains: "100\\%\\_off", mode: "insensitive" } },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("escapes backslashes on the Prisma path before the wildcard escape", async () => {
+    await searchProducts({ q: "back\\slash" });
+
+    expect(product.findMany.mock.calls[0]?.[0]?.where).toEqual({
+      status: "ACTIVE",
+      variants: { some: {} },
+      AND: [
+        {
+          OR: [
+            { title: { contains: "back\\\\slash", mode: "insensitive" } },
+            { slug: { contains: "back\\\\slash", mode: "insensitive" } },
+            { description: { contains: "back\\\\slash", mode: "insensitive" } },
+            { brand: { contains: "back\\\\slash", mode: "insensitive" } },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("escapes LIKE wildcards in the parameterized price-path pattern", async () => {
+    await searchProducts({ q: "50%_off\\deal", sort: "price-asc" });
+
+    const sql = queryRaw.mock.calls[0]?.[0] as unknown as {
+      text: string;
+      values: unknown[];
+    };
+    // `%` and `_` become `\%`/`\_`, and a literal backslash becomes `\\`.
+    expect(sql.values).toEqual(
+      expect.arrayContaining(["%50\\%\\_off\\\\deal%"]),
+    );
+    // The raw query stays parameterized: the user's text is never interpolated.
+    expect(sql.text).not.toContain("50%");
+  });
+
   it("adds the category to the same AND clause as the query", async () => {
     await searchProducts({ q: "desk", category: "office" });
 

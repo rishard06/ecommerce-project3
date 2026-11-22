@@ -117,6 +117,17 @@ function normalizePaging(skip: number, limit: number) {
 }
 
 /**
+ * Escapes LIKE metacharacters so shopper input is matched literally.
+ * PostgreSQL's default LIKE escape character is `\`, so the backslash itself
+ * is escaped in the same single pass (`\` -> `\\`, `%` -> `\%`, `_` -> `\_`).
+ * The result is still passed as a bound parameter on both query paths; this
+ * only changes the pattern, never how it is sent.
+ */
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
+/**
  * The same predicate is used for the rows query and the `count`, so `total`
  * always describes the full result set rather than the returned page.
  */
@@ -137,12 +148,13 @@ function buildWhere(
     and.push({ slug: { not: relatedTo } });
   }
   if (q) {
+    const term = escapeLikePattern(q);
     and.push({
       OR: [
-        { title: { contains: q, mode: "insensitive" } },
-        { slug: { contains: q, mode: "insensitive" } },
-        { description: { contains: q, mode: "insensitive" } },
-        { brand: { contains: q, mode: "insensitive" } },
+        { title: { contains: term, mode: "insensitive" } },
+        { slug: { contains: term, mode: "insensitive" } },
+        { description: { contains: term, mode: "insensitive" } },
+        { brand: { contains: term, mode: "insensitive" } },
       ],
     });
   }
@@ -205,7 +217,7 @@ function priceOrderedIdsQuery({
     );
   }
   if (q) {
-    const pattern = `%${q}%`;
+    const pattern = `%${escapeLikePattern(q)}%`;
     filters.push(
       Prisma.sql`(p."title" ILIKE ${pattern}
         OR p."slug" ILIKE ${pattern}
