@@ -12,9 +12,11 @@ import {
 import {
   archiveProduct,
   ensureDefaultVariant,
+  getCatalogProduct,
   updateVariant,
   upsertProduct,
 } from "@/features/catalog/server/catalog-service";
+import { deleteWishlistEntriesForSlug } from "@/features/wishlist/server/actions";
 
 /**
  * Small serializable result for the admin forms. Validation failures return
@@ -87,6 +89,25 @@ function revalidateStorefrontProduct(slug?: string): void {
 }
 
 /**
+ * Removes orphaned wishlist hearts for the given product slugs. Shared by
+ * both archive paths — the dedicated `archiveProductAction` and an `ARCHIVED`
+ * status saved via the edit form — so the two cannot drift apart. Each slug
+ * gets its own slug-scoped `deleteMany`: no other product's rows are touched.
+ */
+async function clearWishlistHearts(
+  slugs: Array<string | undefined>,
+): Promise<void> {
+  const unique = new Set(
+    slugs.filter(
+      (slug): slug is string => typeof slug === "string" && slug.length > 0,
+    ),
+  );
+  for (const slug of unique) {
+    await deleteWishlistEntriesForSlug(slug);
+  }
+}
+
+/**
  * Creates or updates a product. Every value comes from the submitted FormData
  * and is validated here after the ADMIN role check; the browser is never
  * trusted. Optional default price/stock fields create the product's default
@@ -137,10 +158,27 @@ export async function saveProductAction(
     return { success: false, error: firstError(parsed.error) };
   }
 
+  // The edit form can archive (status select) or rename (slug field) without
+  // ever touching `archiveProductAction`: capture the pre-save row first so
+  // orphan cleanup below can cover the previous slug and status too.
+  const previous = parsed.data.id
+    ? await getCatalogProduct(parsed.data.id)
+    : null;
+
   const { productId } = await upsertProduct(parsed.data);
 
   if (defaultStock) {
     await ensureDefaultVariant({ productId, slug: parsed.data.slug, ...defaultStock });
+  }
+
+  // The edit form is a second archive path: an `ARCHIVED` resulting status —
+  // set explicitly or carried over from the pre-save row — cleans the saved
+  // slug's hearts and, on a rename, the previous slug's too, via the same
+  // helper as the dedicated archive action.
+  const archived =
+    (parsed.data.status ?? previous?.status ?? "DRAFT") === "ARCHIVED";
+  if (archived) {
+    await clearWishlistHearts([parsed.data.slug, previous?.slug]);
   }
 
   revalidatePath("/admin/products");
@@ -196,6 +234,15 @@ export async function archiveProductAction(
   }
 
   await archiveProduct(parsed.data.productId);
+
+  // Archived products stay readable for order history but can never render
+  // again: remove every user's heart for this product so the favorites page
+  // never points at a dead slug. The slug is the product's own, read back
+  // after the archive — never user input. Same helper as the edit-form path.
+  const product = await getCatalogProduct(parsed.data.productId);
+  if (product) {
+    await clearWishlistHearts([product.slug]);
+  }
 
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${parsed.data.productId}`);

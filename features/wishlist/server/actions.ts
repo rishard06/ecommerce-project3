@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getActiveProductsBySlugs } from "@/features/catalog/server/storefront-service";
 
 /**
  * Wishlist slugs are short product identifiers (`dummy-<id>` in the owned
@@ -47,4 +48,58 @@ export async function setWishlisted(
   }
 
   return getWishlist(userId);
+}
+
+/**
+ * Card-minimal product data for a wishlisted slug: exactly what
+ * `ProductCard` needs (title, price, image plus its identifiers), nothing
+ * more.
+ */
+export interface WishlistCard {
+  productSlug: string;
+  variantId: string;
+  title: string;
+  priceCents: number;
+  image: string;
+  description: string;
+}
+
+/**
+ * Hydrates wishlist slugs into cards, in wishlist order. Slugs must already
+ * be the caller's own rows — pass the just-fetched `getWishlist(userId)`
+ * result, or omit `ownedSlugs` to re-derive them here (standalone use).
+ * Hydration has no ownership predicate of its own, so never pass
+ * client-supplied slugs. Archived/unknown/unsellable slugs are skipped so the
+ * favorites page never renders a dead card.
+ */
+export async function getWishlistCards(
+  userId: string,
+  ownedSlugs?: string[],
+): Promise<WishlistCard[]> {
+  const slugs = ownedSlugs ?? (await getWishlist(userId));
+  if (slugs.length === 0) return [];
+
+  const products = await getActiveProductsBySlugs(slugs);
+  return products.map((product) => ({
+    productSlug: product.slug,
+    variantId: product.defaultVariantId,
+    title: product.title,
+    priceCents: product.priceCents,
+    image: product.image,
+    description: product.description,
+  }));
+}
+
+/**
+ * Deletes every wishlist row for a product slug, across all users. This is an
+ * admin cleanup path (called when a product is archived): archived products
+ * stay readable for order history but can never render again, so their hearts
+ * would otherwise dangle forever. All user-facing reads above stay
+ * `userId`-scoped; this is the only cross-user write and it never runs with
+ * user-supplied input — only with the archived product's own slug.
+ */
+export async function deleteWishlistEntriesForSlug(
+  productSlug: string,
+): Promise<void> {
+  await prisma.wishlistItem.deleteMany({ where: { productSlug } });
 }

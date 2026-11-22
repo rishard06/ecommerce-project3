@@ -19,6 +19,10 @@ vi.mock("@/features/catalog/server/catalog-service", () => ({
   archiveProduct: vi.fn(),
 }));
 
+vi.mock("@/features/wishlist/server/actions", () => ({
+  deleteWishlistEntriesForSlug: vi.fn(),
+}));
+
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
@@ -33,9 +37,11 @@ import {
 import {
   archiveProduct,
   ensureDefaultVariant,
+  getCatalogProduct,
   updateVariant,
   upsertProduct,
 } from "@/features/catalog/server/catalog-service";
+import { deleteWishlistEntriesForSlug } from "@/features/wishlist/server/actions";
 import {
   archiveProductAction,
   saveProductAction,
@@ -48,6 +54,8 @@ const upsertProductMock = vi.mocked(upsertProduct);
 const ensureDefaultVariantMock = vi.mocked(ensureDefaultVariant);
 const updateVariantMock = vi.mocked(updateVariant);
 const archiveProductMock = vi.mocked(archiveProduct);
+const getCatalogProductMock = vi.mocked(getCatalogProduct);
+const deleteWishlistEntriesForSlugMock = vi.mocked(deleteWishlistEntriesForSlug);
 const revalidatePathMock = vi.mocked(revalidatePath);
 const revalidateTagMock = vi.mocked(revalidateTag);
 
@@ -199,6 +207,81 @@ describe("saveProductAction", () => {
     expect(upsertProductMock).not.toHaveBeenCalled();
     expect(ensureDefaultVariantMock).not.toHaveBeenCalled();
   });
+
+  it("cleans wishlist hearts when the edit-form status select archives a product", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    getCatalogProductMock.mockResolvedValue({
+      id: "p1",
+      slug: "dream-desk",
+      status: "ACTIVE",
+    } as never);
+    upsertProductMock.mockResolvedValue({ productId: "p1" });
+
+    const result = await saveProductAction(
+      form({
+        id: "p1",
+        slug: "dream-desk",
+        title: "Dream Desk",
+        description: "A desk worth dreaming about.",
+        categoryId: "cat-1",
+        status: "ARCHIVED",
+      }),
+    );
+
+    expect(result).toEqual({ success: true, productId: "p1" });
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledTimes(1);
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledWith("dream-desk");
+  });
+
+  it("cleans both slugs when archiving renames the product", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    getCatalogProductMock.mockResolvedValue({
+      id: "p1",
+      slug: "old-desk",
+      status: "ACTIVE",
+    } as never);
+    upsertProductMock.mockResolvedValue({ productId: "p1" });
+
+    const result = await saveProductAction(
+      form({
+        id: "p1",
+        slug: "dream-desk",
+        title: "Dream Desk",
+        description: "A desk worth dreaming about.",
+        categoryId: "cat-1",
+        status: "ARCHIVED",
+      }),
+    );
+
+    expect(result).toEqual({ success: true, productId: "p1" });
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledWith("dream-desk");
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledWith("old-desk");
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves wishlist hearts alone on a non-archived save", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    getCatalogProductMock.mockResolvedValue({
+      id: "p1",
+      slug: "dream-desk",
+      status: "ACTIVE",
+    } as never);
+    upsertProductMock.mockResolvedValue({ productId: "p1" });
+
+    const result = await saveProductAction(
+      form({
+        id: "p1",
+        slug: "dream-desk",
+        title: "Dream Desk",
+        description: "A desk worth dreaming about.",
+        categoryId: "cat-1",
+        status: "ACTIVE",
+      }),
+    );
+
+    expect(result).toEqual({ success: true, productId: "p1" });
+    expect(deleteWishlistEntriesForSlugMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("saveVariantAction", () => {
@@ -316,5 +399,17 @@ describe("archiveProductAction", () => {
 
     expect(result.success).toBe(false);
     expect(archiveProductMock).not.toHaveBeenCalled();
+  });
+
+  it("removes orphaned wishlist hearts for the archived product's slug", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    archiveProductMock.mockResolvedValue(undefined);
+    getCatalogProductMock.mockResolvedValue({ id: "p1", slug: "dream-desk" } as never);
+
+    const result = await archiveProductAction(form({ productId: "p1" }));
+
+    expect(result).toEqual({ success: true });
+    expect(archiveProductMock).toHaveBeenCalledWith("p1");
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledWith("dream-desk");
   });
 });

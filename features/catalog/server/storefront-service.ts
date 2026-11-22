@@ -86,6 +86,30 @@ export async function getActiveProduct(slug: string): Promise<StorefrontProduct 
 }
 
 /**
+ * Active, sellable products for an explicit slug list, in the same order as
+ * the input slugs. Unknown, non-ACTIVE, or variant-less slugs are skipped —
+ * callers (wishlist hydration) must never render a dead card.
+ */
+export async function getActiveProductsBySlugs(
+  slugs: string[],
+): Promise<StorefrontProductSummary[]> {
+  if (slugs.length === 0) return [];
+
+  const rows = await prisma.product.findMany({
+    where: { slug: { in: slugs }, ...ACTIVE_WITH_VARIANT },
+    include: PRODUCT_INCLUDE,
+  });
+
+  const bySlug = new Map(
+    dropUnsellable(rows.map(toSummary)).map((product) => [product.slug, product]),
+  );
+  return slugs.flatMap((slug) => {
+    const product = bySlug.get(slug);
+    return product ? [product] : [];
+  });
+}
+
+/**
  * Highest-rated active products, deterministically ordered by rating desc
  * then slug asc.
  */

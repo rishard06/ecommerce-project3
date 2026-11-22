@@ -21,19 +21,22 @@ vi.mock("@/features/wishlist/server/actions", async (importOriginal) => {
     ...actual,
     getWishlist: vi.fn(),
     setWishlisted: vi.fn(),
+    getWishlistCards: vi.fn(),
   };
 });
 
 const { requireUser, UnauthorizedError } = await import(
   "@/features/identity/server/guards"
 );
-const { getWishlist, setWishlisted } = await import(
+const { getWishlist, getWishlistCards, setWishlisted } = await import(
   "@/features/wishlist/server/actions"
 );
 const { GET, POST } = await import("./route");
+const { clearRateLimitStore } = await import("@/lib/rate-limit");
 
 const requireUserMock = vi.mocked(requireUser);
 const getWishlistMock = vi.mocked(getWishlist);
+const getWishlistCardsMock = vi.mocked(getWishlistCards);
 const setWishlistedMock = vi.mocked(setWishlisted);
 
 const USER = { id: "wishlist-user-a", email: "a@example.com", role: "CUSTOMER" as const };
@@ -48,8 +51,10 @@ function postRequest(body: unknown): Request {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearRateLimitStore();
   requireUserMock.mockResolvedValue(USER);
   getWishlistMock.mockResolvedValue(["dummy-1"]);
+  getWishlistCardsMock.mockResolvedValue([]);
   setWishlistedMock.mockImplementation(async () => ["dummy-1", "dummy-2"]);
 });
 
@@ -70,8 +75,29 @@ describe("GET /api/wishlist", () => {
     const res = await GET();
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ items: ["dummy-3"] });
+    expect(await res.json()).toEqual({ items: ["dummy-3"], cards: [] });
     expect(getWishlistMock).toHaveBeenCalledWith(USER.id);
+  });
+
+  it("hydrates the user's own slugs as cards (title/price/image for other-device hearts)", async () => {
+    const cards = [
+      {
+        productSlug: "dummy-9",
+        title: "Other-device lamp",
+        priceCents: 3499,
+        image: "https://cdn.example.com/dummy-9.webp",
+        variantId: "variant-9",
+        description: "Saved on another device.",
+      },
+    ];
+    getWishlistMock.mockResolvedValueOnce(["dummy-9"]);
+    getWishlistCardsMock.mockResolvedValueOnce(cards);
+
+    const res = await GET();
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ items: ["dummy-9"], cards });
+    expect(getWishlistCardsMock).toHaveBeenCalledWith(USER.id, ["dummy-9"]);
   });
 });
 
@@ -119,5 +145,22 @@ describe("POST /api/wishlist", () => {
       expect(res.status).toBe(400);
       expect(setWishlistedMock).not.toHaveBeenCalled();
     }
+  });
+
+  it("rate-limits abusive POST bursts with 429 + Retry-After (like orders)", async () => {
+    for (let i = 0; i < 100; i++) {
+      const res = await POST(postRequest({ slug: `dummy-${i}` }));
+      expect(res.status).toBe(200);
+    }
+
+    const limited = await POST(postRequest({ slug: "dummy-overflow" }));
+
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get("Retry-After")).toBeTruthy();
+    expect(await limited.json()).toEqual({
+      error: "Too many requests",
+      code: "RATE_LIMITED",
+    });
+    expect(setWishlistedMock).toHaveBeenCalledTimes(100);
   });
 });
