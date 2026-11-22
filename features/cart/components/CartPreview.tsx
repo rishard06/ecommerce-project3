@@ -16,7 +16,7 @@ export default function CartPreview() {
     return (
       <div className="flex flex-col items-center gap-5 bg-white/40 p-9 text-center">
         <div className="flex size-16 items-center justify-center rounded-full bg-accent-500/15">
-          <ShoppingBag className="size-7 text-accent-700" aria-hidden="true" />
+          <ShoppingBag className="size-7 text-accent-text" aria-hidden="true" />
         </div>
         <div className="space-y-1">
           <p className="text-lg font-semibold tracking-tight text-gray-primary">
@@ -46,7 +46,7 @@ export default function CartPreview() {
             ({getTotalItems()})
           </span>
         </h3>
-        <span className="text-base font-semibold tabular-nums text-accent-700">
+        <span className="text-base font-semibold tabular-nums text-accent-text">
           {formatCents(getTotalPriceCents())}
         </span>
       </div>

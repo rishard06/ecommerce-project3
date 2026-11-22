@@ -113,7 +113,7 @@ export function CustomerReviews({ reviews, rating, totalReviews }: CustomerRevie
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <Avatar className="size-11 ring-1 ring-white/60">
-                      <AvatarFallback className="bg-accent-500/25 font-semibold text-accent-700">
+                      <AvatarFallback className="bg-accent-500/25 font-semibold text-accent-text">
                         {review.userName.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
@@ -159,7 +159,7 @@ export function CustomerReviews({ reviews, rating, totalReviews }: CustomerRevie
                     className="flex items-center gap-2 text-xs font-semibold text-gray-tertiary transition-colors hover:text-gray-primary"
                   >
                     <span className="flex size-8 items-center justify-center rounded-lg bg-accent-500/20">
-                      <ThumbsUp className="size-3.5 text-accent-700" aria-hidden="true" />
+                      <ThumbsUp className="size-3.5 text-accent-text" aria-hidden="true" />
                     </span>
                     Helpful
                   </button>
@@ -168,7 +168,7 @@ export function CustomerReviews({ reviews, rating, totalReviews }: CustomerRevie
                     className="flex items-center gap-2 text-xs font-semibold text-gray-tertiary transition-colors hover:text-gray-primary"
                   >
                     <span className="flex size-8 items-center justify-center rounded-lg bg-accent-500/20">
-                      <Reply className="size-3.5 text-accent-700" aria-hidden="true" />
+                      <Reply className="size-3.5 text-accent-text" aria-hidden="true" />
                     </span>
                     Reply
                   </button>

@@ -47,7 +47,7 @@ export default function ContactPage() {
           {details.map((item) => (
             <li key={item.label} className="flex items-start gap-4">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-500/20">
-                <item.icon className="size-4 text-accent-700" aria-hidden="true" />
+                <item.icon className="size-4 text-accent-text" aria-hidden="true" />
               </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-tertiary">
@@ -56,7 +56,7 @@ export default function ContactPage() {
                 {item.href ? (
                   <a
                     href={item.href}
-                    className="font-medium text-gray-primary underline-offset-4 hover:text-accent-700 hover:underline"
+                    className="font-medium text-gray-primary underline-offset-4 hover:text-accent-text hover:underline"
                   >
                     {item.value}
                   </a>
@@ -86,21 +86,21 @@ export default function ContactPage() {
             Our{" "}
             <Link
               href="/faq"
-              className="font-semibold text-accent-700 underline-offset-4 hover:underline"
+              className="font-semibold text-accent-text underline-offset-4 hover:underline"
             >
               FAQ
             </Link>
             ,{" "}
             <Link
               href="/shipping"
-              className="font-semibold text-accent-700 underline-offset-4 hover:underline"
+              className="font-semibold text-accent-text underline-offset-4 hover:underline"
             >
               shipping
             </Link>{" "}
             and{" "}
             <Link
               href="/returns"
-              className="font-semibold text-accent-700 underline-offset-4 hover:underline"
+              className="font-semibold text-accent-text underline-offset-4 hover:underline"
             >
               returns
             </Link>{" "}

@@ -152,6 +152,21 @@ npm run test:watch # Watch mode
 - Component tests: Colocated with components
 - Test files: `*.test.ts` or `*.test.tsx`
 
+### Visual snapshots
+- New or changed UI (components in `components/`, `features/*/components/`)
+  ships with rendered-output snapshots: `*.snapshot.test.tsx` next to the
+  existing contract tests (see `Hero`, `ProductCard`, `CheckoutSummary`, and
+  `theme-tokens.snapshot` for the pattern).
+- Snapshots run in the normal runner (`npm test` / `npm run test:ci`) with no
+  special flags. Run new suites twice to prove the snapshot is stable.
+- Keep snapshots deterministic: mock animation/timing sources
+  (`motion/react`, `Stack`, `BlurText`, autoplay), seed stores with fixed
+  fixtures, normalize dynamic values (optimizer URLs, `srcset`, generated
+  ids, dates).
+- Screenshot testing (Playwright/Chromatic) is the documented follow-up if
+  rendered-output snapshots prove insufficient — do not stand it up in a UI
+  ticket.
+
 ## 🚀 Development Workflow
 
 ### Starting Development
@@ -261,6 +276,8 @@ export function ProductCard({ product }: ProductCardProps) {
 3. Create components in `features/<feature>/components/`
 4. Add actions in `features/<feature>/actions.ts` (if needed)
 5. Add tests in `features/<feature>/__tests__/`
+6. Add/refresh `*.snapshot.test.tsx` coverage for new or changed UI (see
+   Testing → Visual snapshots); run the suite twice to prove stability
 
 ### Adding a shadcn/ui Component
 ```bash

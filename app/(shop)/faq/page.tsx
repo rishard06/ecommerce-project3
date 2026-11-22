@@ -63,7 +63,7 @@ export default function FaqPage() {
               {faq.question}
               <span
                 aria-hidden="true"
-                className="text-xl leading-none text-accent-700 transition-transform group-open:rotate-45"
+                className="text-xl leading-none text-accent-text transition-transform group-open:rotate-45"
               >
                 +
               </span>
@@ -77,7 +77,7 @@ export default function FaqPage() {
         Still stuck?{" "}
         <a
           href="/contact"
-          className="font-semibold text-accent-700 underline-offset-4 hover:underline"
+          className="font-semibold text-accent-text underline-offset-4 hover:underline"
         >
           Contact us
         </a>{" "}

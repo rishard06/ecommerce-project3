@@ -53,7 +53,7 @@ export function ProductTabs({ product }: ProductTabsProps) {
                     className="glass-component flex items-center gap-3 rounded-2xl p-4"
                   >
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-500/30">
-                      <CheckCircle2 className="size-4 text-accent-700" aria-hidden="true" />
+                      <CheckCircle2 className="size-4 text-accent-text" aria-hidden="true" />
                     </div>
                     <span className="text-sm font-semibold text-gray-secondary">
                       {feature}
@@ -139,7 +139,7 @@ export function ProductTabs({ product }: ProductTabsProps) {
           <div className="glass-component flex flex-col gap-5 rounded-[1.75rem] p-6 md:flex-row md:items-center md:justify-between md:p-10">
             <div className="flex items-start gap-4">
               <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent-500/30">
-                <LifeBuoy className="size-5 text-accent-700" aria-hidden="true" />
+                <LifeBuoy className="size-5 text-accent-text" aria-hidden="true" />
               </div>
               <div>
                 <h3 className="mb-1 text-lg font-semibold text-gray-primary">

@@ -44,7 +44,7 @@ export default function CraftBand() {
           </p>
           <Link
             href="/products"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-primary underline underline-offset-4 transition-colors hover:text-accent-700"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-primary underline underline-offset-4 transition-colors hover:text-accent-text"
           >
             Browse the collection
             <ArrowRight className="size-4" aria-hidden="true" />

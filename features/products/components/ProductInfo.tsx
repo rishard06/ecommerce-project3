@@ -100,7 +100,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
       <div>
         <Badge
           variant="secondary"
-          className="mb-4 rounded-full border border-accent-500/25 bg-accent-500/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-accent-700"
+          className="mb-4 rounded-full border border-accent-500/25 bg-accent-500/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-accent-text"
         >
           New arrival
         </Badge>
@@ -226,7 +226,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
       <div className="mt-2 grid grid-cols-2 gap-3">
         <div className="glass-component flex items-center gap-3 rounded-2xl p-4">
           <div className="flex size-10 items-center justify-center rounded-xl bg-accent-500/30">
-            <Truck className="size-5 text-accent-700" aria-hidden="true" />
+            <Truck className="size-5 text-accent-text" aria-hidden="true" />
           </div>
           <div className="text-xs">
             <p className="font-semibold text-gray-primary">Free shipping</p>
@@ -235,7 +235,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
         </div>
         <div className="glass-component flex items-center gap-3 rounded-2xl p-4">
           <div className="flex size-10 items-center justify-center rounded-xl bg-accent-500/30">
-            <ShieldCheck className="size-5 text-accent-700" aria-hidden="true" />
+            <ShieldCheck className="size-5 text-accent-text" aria-hidden="true" />
           </div>
           <div className="text-xs">
             <p className="font-semibold text-gray-primary">2-year warranty</p>

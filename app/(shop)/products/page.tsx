@@ -115,7 +115,7 @@ export default async function ProductsPage({
               </p>
               <Link
                 href="/products"
-                className="mt-3 rounded-full px-2 py-1 text-sm font-semibold text-accent-700 hover:underline"
+                className="mt-3 rounded-full px-2 py-1 text-sm font-semibold text-accent-text hover:underline"
               >
                 View all products
               </Link>

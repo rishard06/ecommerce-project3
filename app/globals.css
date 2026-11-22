@@ -29,6 +29,10 @@
   --accent-500: #ccf381;
   --accent-600: #beeb6b;
   --accent-700: #98c447;
+  /* Semantic accent foreground. The brand lime (#98c447) is only 1.93:1 on
+     the sage canvas. Olive keeps the same hue at 5.13:1. Dark mode keeps the
+     lime below. This is not a scale change — --accent-* stay untouched. */
+  --accent-text: #58731c;
 
   /* ---- Action (the only CTA fill) ------------------------------------- */
   /* Lime in both themes. The label is fixed ink rather than a theme token:
@@ -79,6 +83,9 @@
 .dark {
   --background: #0c1311;
   --foreground: #eef4f1;
+
+  /* Lime is readable on the dark canvas (9.24:1), so dark keeps the brand hue. */
+  --accent-text: var(--accent-700);
 
   --font-color-primary: #eef4f1;
   --font-color-secondary: #c3d0ca;
@@ -152,6 +159,7 @@
   --color-accent-500: var(--accent-500);
   --color-accent-600: var(--accent-600);
   --color-accent-700: var(--accent-700);
+  --color-accent-text: var(--accent-text);
 
   --color-action: var(--action);
   --color-action-hover: var(--action-hover);

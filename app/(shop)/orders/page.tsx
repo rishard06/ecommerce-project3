@@ -37,7 +37,7 @@ export default async function OrdersPage() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 md:py-12 lg:px-8">
       <header className="mb-8 space-y-2 md:mb-10">
-        <p className="text-xs font-semibold uppercase tracking-widest text-accent-700">
+        <p className="text-xs font-semibold uppercase tracking-widest text-accent-text">
           Your account
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl">
