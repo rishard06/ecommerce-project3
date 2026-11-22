@@ -440,4 +440,28 @@ describe("accent text token", () => {
 
     expect(offenders).toEqual([]);
   });
+
+  it("rejects the lime the touched links used to shift to on hover", () => {
+    const light = themeTokens("light");
+    const lime = contrast(light["--accent-600"], light["--background"]);
+
+    // #beeb6b on the sage canvas is 1.30:1 — worse than the 1.93:1 defect
+    // this ticket fixed. Hover keeps the resting token, which clears AA.
+    expect(lime).toBeLessThan(3);
+    expect(
+      contrast(light["--accent-text"], light["--background"]),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("keeps accent-link hover off the low-contrast lime", () => {
+    // The touched product links signal hover with arrow motion instead of a
+    // colour shift, so no `hover:text-accent-600` may reappear.
+    const offenders = COMPONENT_SOURCES.filter((file) =>
+      readFileSync(path.join(ROOT, file), "utf8").includes(
+        "hover:text-accent-600",
+      ),
+    );
+
+    expect(offenders).toEqual([]);
+  });
 });

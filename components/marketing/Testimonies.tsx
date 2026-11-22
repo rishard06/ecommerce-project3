@@ -114,7 +114,7 @@ export default function Testimonies() {
                 </div>
                 <Link
                   href={`/products/${testimonial.productSlug}`}
-                  className="group inline-flex items-center gap-1 rounded-sm text-sm font-semibold text-accent-text transition-colors duration-200 hover:text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 motion-reduce:transition-none"
+                  className="group inline-flex items-center gap-1 rounded-sm text-sm font-semibold text-accent-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
                 >
                   {testimonial.productName}
                   <ArrowUpRight
