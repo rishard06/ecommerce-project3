@@ -60,7 +60,7 @@ export default function PrivacyPage() {
             your account. Email{" "}
             <a
               href="mailto:support@tended.shop"
-              className="font-semibold text-accent-700 underline-offset-4 hover:underline"
+              className="font-semibold text-accent-text underline-offset-4 hover:underline"
             >
               support@tended.shop
             </a>{" "}

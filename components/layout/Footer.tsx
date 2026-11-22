@@ -144,7 +144,7 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
                 <li key={item.text} className="flex items-start gap-2 text-sm text-gray-tertiary">
                   <item.icon
                     size={16}
-                    className="mt-0.5 shrink-0 text-accent-700"
+                    className="mt-0.5 shrink-0 text-accent-text"
                     aria-hidden="true"
                   />
                   <span className="leading-snug">{item.text}</span>
@@ -162,7 +162,7 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
             {status === "success" ? (
               <p
                 role="status"
-                className="flex items-center gap-2 text-sm font-medium text-accent-700"
+                className="flex items-center gap-2 text-sm font-medium text-accent-text"
               >
                 <Check size={16} aria-hidden="true" />
                 You&apos;re on the list. Thank you.

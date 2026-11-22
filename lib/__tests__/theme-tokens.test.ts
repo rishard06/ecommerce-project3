@@ -383,3 +383,61 @@ describe("CTA source contract", () => {
     }
   });
 });
+
+/* ------------------------------------------------------------------------- *
+ * Accent text: `--accent-700` is a raw brand scale colour (lime), not a
+ * readable foreground on the sage canvas. Accent copy uses the semantic
+ * `--accent-text` token instead: an olive in light, the lime in dark.
+ * ------------------------------------------------------------------------- */
+
+describe("accent text token", () => {
+  it("exposes a semantic Tailwind alias", () => {
+    const theme = declarations(cssBlock(CSS, "@theme inline"));
+    expect(theme["--color-accent-text"]).toBe("var(--accent-text)");
+  });
+
+  for (const [theme, tokens] of THEMES) {
+    it(`keeps ${theme} accent text at WCAG AA (>= 4.5:1) on the canvas`, () => {
+      expect(
+        contrast(tokens["--accent-text"], tokens["--background"]),
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+
+  it("keeps light accent text readable on the tints used by badges and avatars", () => {
+    const light = themeTokens("light");
+
+    // bg-accent-500/20–/30 sits under the badge, avatar and icon-tile labels.
+    for (const opacity of [0.2, 0.25, 0.3]) {
+      expect(
+        contrastOn(
+          light["--accent-text"],
+          `rgba(204, 243, 129, ${opacity})`,
+          light["--background"],
+        ),
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("steps off the lime scale in light mode but keeps the lime in dark mode", () => {
+    const light = themeTokens("light");
+    const dark = themeTokens("dark");
+
+    // No retheme: the brand scale value itself is untouched.
+    expect(rgbaToHex(parseColor(light["--accent-700"]))).toBe("#98c447");
+    expect(rgbaToHex(parseColor(light["--accent-text"]))).not.toBe(
+      rgbaToHex(parseColor(light["--accent-700"])),
+    );
+    expect(rgbaToHex(parseColor(dark["--accent-text"]))).toBe(
+      rgbaToHex(parseColor(dark["--accent-700"])),
+    );
+  });
+
+  it("sweeps every accent-700 text site to the semantic token", () => {
+    const offenders = COMPONENT_SOURCES.filter((file) =>
+      readFileSync(path.join(ROOT, file), "utf8").includes("text-accent-700"),
+    );
+
+    expect(offenders).toEqual([]);
+  });
+});

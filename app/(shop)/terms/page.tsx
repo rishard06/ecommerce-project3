@@ -52,7 +52,7 @@ export default function TermsPage() {
             Unused items can be returned within 30 days of delivery. See our{" "}
             <a
               href="/returns"
-              className="font-semibold text-accent-700 underline-offset-4 hover:underline"
+              className="font-semibold text-accent-text underline-offset-4 hover:underline"
             >
               Returns policy
             </a>{" "}
@@ -75,7 +75,7 @@ export default function TermsPage() {
             Questions about these terms? Email{" "}
             <a
               href="mailto:support@tended.shop"
-              className="font-semibold text-accent-700 underline-offset-4 hover:underline"
+              className="font-semibold text-accent-text underline-offset-4 hover:underline"
             >
               support@tended.shop
             </a>

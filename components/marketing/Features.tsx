@@ -55,14 +55,14 @@ export default function Features() {
           {features.map((feature) => (
             <Card key={feature.title} className="glass-component h-full">
               <CardHeader className="pt-6">
-                <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-500/30 text-accent-700">
+                <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-500/30 text-accent-text">
                   {feature.icon}
                 </div>
                 <CardTitle className="text-lg font-semibold tracking-tight text-gray-primary">
                   {feature.href ? (
                     <Link
                       href={feature.href}
-                      className="underline-offset-4 transition-colors hover:text-accent-700 hover:underline"
+                      className="underline-offset-4 transition-colors hover:text-accent-text hover:underline"
                     >
                       {feature.title}
                     </Link>

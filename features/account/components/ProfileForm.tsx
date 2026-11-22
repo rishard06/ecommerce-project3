@@ -107,7 +107,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
         </p>
       ) : null}
       {message ? (
-        <p role="status" className="text-sm font-medium text-accent-700">
+        <p role="status" className="text-sm font-medium text-accent-text">
           {message}
         </p>
       ) : null}

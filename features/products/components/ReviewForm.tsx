@@ -130,7 +130,7 @@ export function ReviewForm({ productSlug }: ReviewFormProps) {
       ) : null}
 
       {submitted ? (
-        <p role="status" className="mb-4 text-sm font-medium text-accent-700">
+        <p role="status" className="mb-4 text-sm font-medium text-accent-text">
           Thank you — your review has been posted.
         </p>
       ) : null}

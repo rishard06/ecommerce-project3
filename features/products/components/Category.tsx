@@ -27,7 +27,7 @@ const categories: Category[] = [
     name: "Sports",
     slug: "sports-accessories",
     icon: <Volleyball className="size-7" aria-hidden="true" />,
-    color: "text-accent-700",
+    color: "text-accent-text",
   },
   {
     name: "Smartphones",
@@ -98,7 +98,7 @@ export default async function Category() {
                     </CardContent>
                   ) : null}
                   <CardFooter className="justify-center pb-6">
-                    <span className="flex items-center gap-1 text-sm font-semibold text-accent-700">
+                    <span className="flex items-center gap-1 text-sm font-semibold text-accent-text">
                       Shop now
                       <ChevronRightIcon className="size-4" aria-hidden="true" />
                     </span>

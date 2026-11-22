@@ -24,7 +24,7 @@ export default async function FeatureProducts() {
           </div>
           <Link
             href="/products"
-            className="group flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold text-accent-700 transition-colors hover:text-accent-600"
+            className="group flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold text-accent-text transition-colors hover:text-accent-600"
           >
             View all
             <ArrowRightIcon

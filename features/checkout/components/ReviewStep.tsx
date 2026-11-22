@@ -82,7 +82,7 @@ export function ReviewStep({
       <div className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-white/40 bg-white/30 p-5">
           <div className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-primary">
-            <MapPin className="size-4 text-accent-700" aria-hidden="true" />
+            <MapPin className="size-4 text-accent-text" aria-hidden="true" />
             Ship to
           </div>
           <p className="text-sm leading-relaxed text-gray-tertiary">
@@ -109,7 +109,7 @@ export function ReviewStep({
 
         <div className="rounded-2xl border border-white/40 bg-white/30 p-5">
           <div className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-primary">
-            <CreditCard className="size-4 text-accent-700" aria-hidden="true" />
+            <CreditCard className="size-4 text-accent-text" aria-hidden="true" />
             Payment
           </div>
           <p className="text-sm leading-relaxed text-gray-tertiary">
