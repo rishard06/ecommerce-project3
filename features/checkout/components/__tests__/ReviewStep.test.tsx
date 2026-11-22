@@ -56,6 +56,11 @@ function renderReviewStep(quote: CartQuote, onSubmit: () => void) {
       onApplyCoupon={() => {}}
       onBack={() => {}}
       onSubmit={onSubmit}
+      isGuest={false}
+      guestEmail=""
+      guestEmailOptIn={false}
+      onGuestEmailChange={() => {}}
+      onGuestEmailOptInChange={() => {}}
     />,
   );
 }
@@ -64,8 +69,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe("ReviewStep zero-total guard", () => {
-  it("disables submit and explains why when a coupon covers the full order", () => {
+describe("ReviewStep zero-total guard", () => {  it("disables submit and explains why when a coupon covers the full order", () => {
     const onSubmit = vi.fn();
     renderReviewStep(ZERO_TOTAL_QUOTE, onSubmit);
 
@@ -86,5 +90,64 @@ describe("ReviewStep zero-total guard", () => {
 
     fireEvent.click(submit);
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ReviewStep guest order-email opt-in", () => {
+  function renderGuest(optIn: boolean, onOptInChange: (value: boolean) => void) {
+    return render(
+      <ReviewStep
+        quote={PAID_QUOTE}
+        form={SHIPPING_FORM}
+        savedAddressName={null}
+        isQuoting={false}
+        quoteError={null}
+        couponCode=""
+        appliedCouponCode={null}
+        isApplyingCoupon={false}
+        couponError={null}
+        isProcessing={false}
+        error={null}
+        onCouponCodeChange={() => {}}
+        onApplyCoupon={() => {}}
+        onBack={() => {}}
+        onSubmit={() => {}}
+        isGuest
+        guestEmail=""
+        guestEmailOptIn={optIn}
+        onGuestEmailChange={() => {}}
+        onGuestEmailOptInChange={onOptInChange}
+      />,
+    );
+  }
+
+  it("hides the opt-in for signed-in buyers", () => {
+    renderReviewStep(PAID_QUOTE, () => {});
+    expect(
+      screen.queryByRole("checkbox", { name: /email me order updates/i }),
+    ).toBeNull();
+  });
+
+  it("renders unchecked with no email field until the guest opts in", () => {
+    renderGuest(false, () => {});
+    const checkbox = screen.getByRole("checkbox", {
+      name: /email me order updates/i,
+    });
+    expect((checkbox as HTMLInputElement).checked).toBe(false);
+    expect(screen.queryByLabelText(/email address/i)).toBeNull();
+  });
+
+  it("reveals the email field once checked", () => {
+    const onOptInChange = vi.fn();
+    renderGuest(false, onOptInChange);
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /email me order updates/i }),
+    );
+    expect(onOptInChange).toHaveBeenCalledWith(true);
+  });
+
+  it("shows the email field when opted in", () => {
+    renderGuest(true, () => {});
+    expect(screen.getByLabelText(/email address/i)).toBeTruthy();
   });
 });

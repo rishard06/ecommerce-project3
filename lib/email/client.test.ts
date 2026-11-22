@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { sendEmail } from "./client";
+import { EMAIL_PROVIDER_TIMEOUT_MS, sendEmail } from "./client";
 
 describe("sendEmail", () => {
   afterEach(() => {
@@ -89,5 +89,38 @@ describe("sendEmail", () => {
     expect(JSON.parse(init.body as string).from).toBe(
       "tended. <orders@example.com>",
     );
+  });
+
+  it("bounds the provider request with a 5-10s abort timeout", async () => {
+    expect(EMAIL_PROVIDER_TIMEOUT_MS).toBeGreaterThanOrEqual(5000);
+    expect(EMAIL_PROVIDER_TIMEOUT_MS).toBeLessThanOrEqual(10000);
+  });
+
+  it("aborts a hung provider and throws a plain safe error", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test_key");
+    const fetchMock = vi.fn(
+      (_url: string, init?: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(
+              new DOMException("The operation was aborted due to timeout", "TimeoutError"),
+            );
+          });
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
+
+    await expect(
+      sendEmail(
+        { to: "a@example.com", subject: "Hi", html: "<p>Hi</p>" },
+        { timeoutMs: 20 },
+      ),
+    ).rejects.toThrowError("Email provider timed out");
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 });

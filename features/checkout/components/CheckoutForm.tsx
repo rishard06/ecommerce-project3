@@ -25,9 +25,15 @@ import { ShippingStep } from "./ShippingStep";
 
 interface CheckoutFormProps {
   step: CheckoutStep;
+  /**
+   * True for anonymous shoppers. Guests see the order-email opt-in
+   * (unchecked by default) on the review step; signed-in buyers always get
+   * confirmations at their account email.
+   */
+  isGuest?: boolean;
 }
 
-export function CheckoutForm({ step }: CheckoutFormProps) {
+export function CheckoutForm({ step, isGuest = false }: CheckoutFormProps) {
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const allItems = useCartStore((state) => state.items);
@@ -63,6 +69,10 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Guest order-email opt-in (Ticket #14): unchecked by default, so guests
+  // get zero email unless they explicitly ask. Signed-in buyers never see it.
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestEmailOptIn, setGuestEmailOptIn] = useState(false);
   // One attempt, one idempotency key. The guard also blocks a second click
   // while the first submit is still in flight.
   const [attempt] = useState(() => createCheckoutAttempt());
@@ -273,6 +283,16 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
       return;
     }
 
+    // Guests only: an explicit opt-in needs a valid address. The server
+    // re-validates; this is just the inline hint before the redirect.
+    const trimmedGuestEmail = guestEmail.trim();
+    if (isGuest && guestEmailOptIn) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedGuestEmail)) {
+        setError("Enter a valid email address to receive order updates.");
+        return;
+      }
+    }
+
     // begin() returns false for a repeated click while the first submit is
     // still pending. The key stays the same for retries of this attempt.
     if (!attempt.begin()) {
@@ -293,6 +313,11 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
         // The order snapshots the same server-validated code the shopper
         // reviewed; the server revalidates and reprices it again.
         couponCode: quote.couponCode ?? undefined,
+        // Guests only: persisted solely with explicit opt-in (the server
+        // drops it otherwise); signed-in buyers use their account email.
+        ...(isGuest && guestEmailOptIn
+          ? { guestEmail: trimmedGuestEmail, guestEmailOptIn: true }
+          : {}),
       });
 
       if (result.success) {
@@ -334,6 +359,11 @@ export function CheckoutForm({ step }: CheckoutFormProps) {
         onApplyCoupon={handleApplyCoupon}
         onBack={() => goToStep("shipping")}
         onSubmit={handlePlaceOrder}
+        isGuest={isGuest}
+        guestEmail={guestEmail}
+        guestEmailOptIn={guestEmailOptIn}
+        onGuestEmailChange={setGuestEmail}
+        onGuestEmailOptInChange={setGuestEmailOptIn}
       />
     );
   }

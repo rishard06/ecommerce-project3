@@ -3,6 +3,7 @@ import { ChevronRight, ShieldCheck } from "lucide-react";
 import { CheckoutForm } from "@/features/checkout/components/CheckoutForm";
 import { CheckoutSteps } from "@/features/checkout/components/CheckoutSteps";
 import { CheckoutSummary } from "@/features/checkout/components/CheckoutSummary";
+import { getCurrentUser } from "@/features/identity/server/guards";
 import type { CheckoutStep } from "@/features/checkout/types";
 
 const STEP_NUMBERS: Record<CheckoutStep, number> = {
@@ -17,6 +18,10 @@ export default async function CheckoutPage({
 }) {
   const params = await searchParams;
   const step: CheckoutStep = params.step === "review" ? "review" : "shipping";
+
+  // Guests see the order-email opt-in (unchecked by default) on the review
+  // step; signed-in buyers always get confirmations at their account email.
+  const user = await getCurrentUser();
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 md:py-12 lg:px-8">
@@ -61,7 +66,7 @@ export default async function CheckoutPage({
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
         <div className="lg:col-span-8">
-          <CheckoutForm step={step} />
+          <CheckoutForm step={step} isGuest={!user} />
         </div>
         <div className="lg:col-span-4">
           <CheckoutSummary />

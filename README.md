@@ -48,7 +48,9 @@ DummyJSON is only a seed-time source.
   credit-note invoice.
 - **Shipment / delivery emails** — best-effort `SHIPPED` / `DELIVERED`
   notifications to the order's registered user email; guest orders receive
-  none (no stored address). No refund or return-decision email is sent.
+  none (no stored address). Refund + return-decision emails are sent
+  best-effort post-commit (refund-issued, return-approved, return-rejected);
+  guest order-confirmation goes to the opt-in checkout address only.
 - **Customer order cancellation** — shoppers (and guests via token) can cancel
   their own `PENDING` + `UNFULFILLED` orders; stock is released immediately
   and the coupon use stays consumed.
