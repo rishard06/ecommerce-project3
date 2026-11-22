@@ -45,10 +45,10 @@ async function loadDecisionOrder(orderId: string) {
  * so the email states the refunded total.
  */
 export async function sendReturnApprovedEmail(orderId: string): Promise<void> {
-  const loaded = await loadDecisionOrder(orderId);
-  if (!loaded) return;
-
   try {
+    const loaded = await loadDecisionOrder(orderId);
+    if (!loaded) return;
+
     await sendEmail({
       to: loaded.recipient.to,
       subject: returnApprovedSubject(orderId),
@@ -72,10 +72,10 @@ export async function sendReturnApprovedEmail(orderId: string): Promise<void> {
  * email says so.
  */
 export async function sendReturnRejectedEmail(orderId: string): Promise<void> {
-  const loaded = await loadDecisionOrder(orderId);
-  if (!loaded) return;
-
   try {
+    const loaded = await loadDecisionOrder(orderId);
+    if (!loaded) return;
+
     await sendEmail({
       to: loaded.recipient.to,
       subject: returnRejectedSubject(orderId),

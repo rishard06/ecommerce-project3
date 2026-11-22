@@ -18,31 +18,31 @@ import { resolveOrderEmailRecipient } from "@/lib/email/order-recipient";
  * the webhook still succeeds.
  */
 export async function sendOrderConfirmation(orderId: string): Promise<void> {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: { items: true, user: true },
-  });
-  if (!order) return;
-
-  const recipient = resolveOrderEmailRecipient(order);
-  if (!recipient) return;
-
-  const emailOrder = {
-    id: order.id,
-    totalCents: order.totalCents,
-    items: order.items.map((i) => ({
-      title: i.title,
-      quantity: i.quantity,
-      lineTotalCents: i.lineTotalCents,
-    })),
-    shipping: {
-      fullName: order.shippingFullName,
-      city: order.shippingCity,
-      country: order.shippingCountry,
-    },
-  };
-
   try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true, user: true },
+    });
+    if (!order) return;
+
+    const recipient = resolveOrderEmailRecipient(order);
+    if (!recipient) return;
+
+    const emailOrder = {
+      id: order.id,
+      totalCents: order.totalCents,
+      items: order.items.map((i) => ({
+        title: i.title,
+        quantity: i.quantity,
+        lineTotalCents: i.lineTotalCents,
+      })),
+      shipping: {
+        fullName: order.shippingFullName,
+        city: order.shippingCity,
+        country: order.shippingCountry,
+      },
+    };
+
     await sendEmail(
       recipient.isGuest
         ? {

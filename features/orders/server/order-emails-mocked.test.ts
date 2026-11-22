@@ -61,6 +61,11 @@ vi.mock("next/cache", () => ({
 }));
 
 import { sendOrderConfirmation } from "@/lib/email/send-order-confirmation";
+import { sendRefundIssuedEmail } from "@/lib/email/send-refund-email";
+import {
+  sendReturnApprovedEmail,
+  sendReturnRejectedEmail,
+} from "@/lib/email/send-return-decision-email";
 import {
   approveReturnAction,
   refundOrderAction,
@@ -131,9 +136,9 @@ function wireTransaction() {
   );
 }
 
-/** Refundable pre-check row + in-refund snapshot for a PAID/UNFULFILLED order. */
-function wireGenericRefund() {
-  mocks.topOrderFindUnique.mockResolvedValue({
+/** Refundable pre-check row for a PAID/UNFULFILLED order. */
+function genericRefundPrecheckRow() {
+  return {
     status: "PAID",
     fulfillmentStatus: "UNFULFILLED",
     returnRequest: null,
@@ -143,7 +148,27 @@ function wireGenericRefund() {
       providerPaymentIntentId: INTENT_ID,
     },
     ...orderRow({}),
-  });
+  };
+}
+
+/** Refundable pre-check row for a PAID/DELIVERED/APPROVED order. */
+function approvedReturnPrecheckRow() {
+  return {
+    status: "PAID",
+    fulfillmentStatus: "DELIVERED",
+    returnRequest: { status: "APPROVED" },
+    payment: {
+      status: "SUCCEEDED",
+      provider: "stripe",
+      providerPaymentIntentId: INTENT_ID,
+    },
+    ...orderRow({}),
+  };
+}
+
+/** Refundable pre-check row + in-refund snapshot for a PAID/UNFULFILLED order. */
+function wireGenericRefund() {
+  mocks.topOrderFindUnique.mockResolvedValue(genericRefundPrecheckRow());
   mocks.txOrderFindUnique.mockResolvedValue({
     status: "PAID",
     fulfillmentStatus: "UNFULFILLED",
@@ -159,17 +184,7 @@ function wireGenericRefund() {
 
 /** Refundable pre-check row + snapshot for a PAID/DELIVERED/APPROVED order. */
 function wireApprovedReturnRefund() {
-  mocks.topOrderFindUnique.mockResolvedValue({
-    status: "PAID",
-    fulfillmentStatus: "DELIVERED",
-    returnRequest: { status: "APPROVED" },
-    payment: {
-      status: "SUCCEEDED",
-      provider: "stripe",
-      providerPaymentIntentId: INTENT_ID,
-    },
-    ...orderRow({}),
-  });
+  mocks.topOrderFindUnique.mockResolvedValue(approvedReturnPrecheckRow());
   mocks.txOrderFindUnique.mockResolvedValue({
     status: "PAID",
     fulfillmentStatus: "DELIVERED",
@@ -368,5 +383,79 @@ describe("refund + return decision sends (mocked actions)", () => {
 
     expect(result).toEqual({ success: true });
     expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("send modules never throw on their own DB read (F1)", () => {
+  it("confirmation resolves when findUnique throws", async () => {
+    mocks.topOrderFindUnique.mockRejectedValueOnce(new Error("db down"));
+
+    await expect(sendOrderConfirmation(ORDER_ID)).resolves.toBeUndefined();
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("refund notice resolves when findUnique throws", async () => {
+    mocks.topOrderFindUnique.mockRejectedValueOnce(new Error("db down"));
+
+    await expect(sendRefundIssuedEmail(ORDER_ID)).resolves.toBeUndefined();
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("decision notices resolve when findUnique throws", async () => {
+    mocks.topOrderFindUnique.mockRejectedValueOnce(new Error("db down"));
+
+    await expect(sendReturnApprovedEmail(ORDER_ID)).resolves.toBeUndefined();
+
+    mocks.topOrderFindUnique.mockRejectedValueOnce(new Error("db down"));
+
+    await expect(sendReturnRejectedEmail(ORDER_ID)).resolves.toBeUndefined();
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("generic refund still succeeds when the notice read fails", async () => {
+    mocks.txReturnFindUnique.mockResolvedValue(null);
+    wireGenericRefund();
+    // Pre-check (call 1) succeeds; the send-module read (call 2) throws.
+    mocks.topOrderFindUnique.mockReset();
+    mocks.topOrderFindUnique
+      .mockResolvedValueOnce(genericRefundPrecheckRow())
+      .mockRejectedValue(new Error("db down"));
+
+    const result = await refundOrderAction(form({ orderId: ORDER_ID }));
+
+    expect(result).toEqual({ success: true });
+    expect(mocks.refundsCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("approve still succeeds when the notice read fails", async () => {
+    mocks.txReturnFindUnique.mockResolvedValue({ orderId: ORDER_ID, status: "PENDING" });
+    mocks.txReturnUpdateMany.mockResolvedValue({ count: 1 });
+    wireApprovedReturnRefund();
+    // Pre-check (call 1) succeeds; the send-module read (call 2) throws.
+    mocks.topOrderFindUnique.mockReset();
+    mocks.topOrderFindUnique
+      .mockResolvedValueOnce(approvedReturnPrecheckRow())
+      .mockRejectedValue(new Error("db down"));
+
+    const result = await approveReturnAction(form({ orderId: ORDER_ID }));
+
+    expect(result).toEqual({ success: true });
+    expect(mocks.refundsCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("reject still succeeds when the notice read fails", async () => {
+    mocks.txReturnFindUnique.mockResolvedValue({ orderId: ORDER_ID, status: "PENDING" });
+    mocks.txReturnUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.txAuditCreate.mockResolvedValue({});
+    mocks.topOrderFindUnique.mockReset();
+    mocks.topOrderFindUnique.mockRejectedValue(new Error("db down"));
+
+    const result = await rejectReturnAction(form({ orderId: ORDER_ID }));
+
+    expect(result).toEqual({ success: true });
+    expect(mocks.txReturnUpdateMany).toHaveBeenCalledWith({
+      where: { orderId: ORDER_ID, status: "PENDING" },
+      data: { status: "REJECTED" },
+    });
   });
 });

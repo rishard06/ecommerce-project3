@@ -16,16 +16,16 @@ import { resolveOrderEmailRecipient } from "@/lib/email/order-recipient";
  * nothing to send to and the refund still succeeds.
  */
 export async function sendRefundIssuedEmail(orderId: string): Promise<void> {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: { items: true, user: true },
-  });
-  if (!order) return;
-
-  const recipient = resolveOrderEmailRecipient(order);
-  if (!recipient) return;
-
   try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true, user: true },
+    });
+    if (!order) return;
+
+    const recipient = resolveOrderEmailRecipient(order);
+    if (!recipient) return;
+
     await sendEmail({
       to: recipient.to,
       subject: refundIssuedSubject(order.id),
