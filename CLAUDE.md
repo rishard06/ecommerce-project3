@@ -64,7 +64,6 @@ ecommerce-project3/
 │   ├── auth-client.ts            # Client-side auth utilities
 │   ├── prisma.ts                 # Prisma client
 │   ├── products.ts               # Product utilities
-│   ├── price-validation.ts       # Server-side price validation
 │   └── utils.ts                  # General utilities
 ├── prisma/                       # Database schema and migrations
 ├── public/                       # Static assets
@@ -127,9 +126,9 @@ ecommerce-project3/
 ## 🔒 Security & Validation
 
 ### Price Validation
-- **Server-side validation** in `lib/price-validation.ts`
+- **Server-side validation** in `features/cart/server/quote-cart.ts`
 - Prevents client-side price manipulation
-- Tests in `lib/__tests__/price-validation.test.ts`
+- Tests in `features/cart/server/quote-cart.test.ts`
 
 ### Security Analysis
 - Security reports in `.gemini_security/`
