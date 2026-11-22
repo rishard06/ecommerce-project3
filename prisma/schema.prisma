@@ -170,6 +170,16 @@ model Order {
 
   idempotencyKey String?
 
+  /**
+   * Guest contact captured at checkout only with explicit opt-in (the
+   * checkout checkbox is unchecked by default). Never set on signed-in
+   * orders; confirmation/refund/decision emails use it only when
+   * `guestEmailOptIn` is true. PII minimal: order summary only, never
+   * payment details.
+   */
+  guestEmail      String?
+  guestEmailOptIn Boolean @default(false)
+
   items         OrderItem[]
   payment       Payment?
   reservations  Reservation[]

@@ -60,15 +60,48 @@ export const createPendingOrderBaseSchema = z.object({
     .trim()
     .max(64, "Coupon code must be 64 characters or fewer")
     .optional(),
+  /**
+   * Guest order-email contact (Ticket #14). The checkout checkbox is
+   * unchecked by default; opt-in requires a valid address (enforced by the
+   * `guestEmailOptInRefinement` applied on every derived input schema).
+   * Signed-in orders always use the account email — these fields are
+   * stripped for them at the write boundary.
+   */
+  guestEmail: z
+    .string()
+    .trim()
+    .max(254, "Email must be 254 characters or fewer")
+    .email("Enter a valid email address")
+    .optional(),
+  guestEmailOptIn: z.boolean().optional(),
 });
 
-export const createPendingOrderInputSchema = createPendingOrderBaseSchema.refine(
-  (v) => Boolean(v.userId) !== Boolean(v.guestToken),
-  {
-    message: "Exactly one of userId or guestToken is required",
-    path: ["userId"],
-  },
-);
+/**
+ * Cross-field rule shared by every checkout input schema: an explicit
+ * opt-in requires a valid address. Kept off the base object schema so
+ * derived schemas can still `.omit()` identity fields before refining.
+ */
+export function checkGuestEmailOptIn(value: {
+  guestEmail?: string;
+  guestEmailOptIn?: boolean;
+}): boolean {
+  return !value.guestEmailOptIn || Boolean(value.guestEmail);
+}
+
+export const guestEmailOptInRefinement: { message: string; path: string[] } = {
+  message: "Enter an email address to receive order updates.",
+  path: ["guestEmail"],
+};
+
+export const createPendingOrderInputSchema = createPendingOrderBaseSchema
+  .refine(
+    (v) => Boolean(v.userId) !== Boolean(v.guestToken),
+    {
+      message: "Exactly one of userId or guestToken is required",
+      path: ["userId"],
+    },
+  )
+  .refine(checkGuestEmailOptIn, guestEmailOptInRefinement);
 
 export type CreatePendingOrderInput = z.infer<
   typeof createPendingOrderInputSchema
@@ -152,6 +185,8 @@ export async function createPendingOrder(
     items,
     shipping,
     couponCode: rawCouponCode,
+    guestEmail,
+    guestEmailOptIn,
   } = createPendingOrderInputSchema.parse(input);
   const couponCode = rawCouponCode?.trim()
     ? normalizeCouponCode(rawCouponCode)
@@ -217,6 +252,10 @@ export async function createPendingOrder(
         totalCents: quote.totalCents,
         discountCents: quote.discountCents,
         couponCode: quote.couponCode,
+        // Guest contact rides along for the write boundary, which persists
+        // it only on guest orders with the flag set.
+        guestEmail: guestEmail ?? null,
+        guestEmailOptIn: guestEmailOptIn ?? false,
         shipping,
         items: quote.items,
       });

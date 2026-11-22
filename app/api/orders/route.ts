@@ -11,6 +11,8 @@ import {
 import {
   createPendingOrder,
   createPendingOrderBaseSchema,
+  checkGuestEmailOptIn,
+  guestEmailOptInRefinement,
   InsufficientStockError,
 } from "@/features/checkout/server/create-pending-order";
 
@@ -18,10 +20,12 @@ import {
  * Legacy JSON checkout entry point. It shares the transactional order service
  * with the server action so every order path creates stock reservations.
  */
-const checkoutInputSchema = createPendingOrderBaseSchema.omit({
-  userId: true,
-  guestToken: true,
-});
+const checkoutInputSchema = createPendingOrderBaseSchema
+  .omit({
+    userId: true,
+    guestToken: true,
+  })
+  .refine(checkGuestEmailOptIn, guestEmailOptInRefinement);
 
 export async function POST(req: Request) {
   const ip = clientIpFromHeaders(req.headers);

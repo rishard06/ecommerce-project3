@@ -114,6 +114,13 @@ export interface CreateOrderRecordInput {
   discountCents?: number;
   /** Normalized (uppercase) coupon code snapshot, if a coupon was applied. */
   couponCode?: string | null;
+  /**
+   * Guest order-email contact from validated checkout input. The repository
+   * persists it only on guest orders with the opt-in flag set — signed-in
+   * orders and flag-less addresses stay null (PII minimal).
+   */
+  guestEmail?: string | null;
+  guestEmailOptIn?: boolean;
   shipping: ShippingSnapshot;
   items: CreateOrderItemInput[];
 }

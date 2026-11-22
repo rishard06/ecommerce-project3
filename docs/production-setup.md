@@ -58,7 +58,7 @@ Next.js only (and overrides `.env`), so keep database URLs and secrets in
 | `STRIPE_SECRET_KEY` | **Required** (server) | Server-side Stripe key used to create Checkout sessions and verify webhooks. Use `sk_test_...` locally, `sk_live_...` only in production. | `sk_test_your-secret-key` |
 | `STRIPE_WEBHOOK_SECRET` | **Required** (server) | Signing secret for the `/api/webhooks/stripe` endpoint. Locally this is the `whsec_...` printed by `stripe listen`; in production it comes from the dashboard endpoint. | `whsec_your-webhook-signing-secret` |
 | `CRON_SECRET` | **Required** (server) | Bearer secret that authenticates the Vercel Cron call to `/api/cron/release-reservations`. | `replace-with-a-random-cron-secret` |
-| `RESEND_API_KEY` | Optional (server) | Resend API key for order-confirmation + auth + shipment/delivery emails. When unset, emails use the dev-log fallback; set in production to send. No refund or return-decision email exists — refunds are a synchronous Stripe API call, not a webhook, and approve/reject send nothing. | `re_your-api-key` |
+| `RESEND_API_KEY` | Optional (server) | Resend API key for order-confirmation + refund + return-decision + auth + shipment/delivery emails. When unset, emails use the dev-log fallback; set in production to send. All money-adjacent sends are best-effort post-commit, so refunds and return decisions never fail on email errors. | `re_your-api-key` |
 | `EMAIL_FROM` | Optional (server) | Sender address for order-confirmation + auth + shipment/delivery emails. When unset, defaults to the app fallback; set in production. | `tended. <orders@example.com>` |
 | `NEXT_PUBLIC_APP_URL` | Optional (public) | Base URL used for Stripe success/cancel redirects. Defaults to `http://localhost:3000` when unset. | `https://store.example.com` |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Optional (public) | Publishable key. Hosted Checkout does not read it today; it is reserved for client-side Stripe.js. | `pk_test_your-publishable-key` |
@@ -422,8 +422,8 @@ Treat dumps as secrets: they contain customer and order data.
   (`/orders/[id]/invoice`, guest via `?token=`) → admin fulfillment →
   admin full refund of an unshipped paid order (payment `REFUNDED`,
   coupon use returned) → cleanup. Assert only emails that exist
-  (confirmation + auth + shipment/delivery); there is no refund or
-  return-decision email and no refund webhook. In production, use a low-value live purchase
+  (confirmation + refund + return-decision + auth + shipment/delivery);
+  there is no refund webhook. In production, use a low-value live purchase
   and refund, or rely on Stripe's test clocks before go-live.
 - [ ] Automated backups enabled and a restore drill recorded (§8).
 - [ ] Observe the pre-webhook state once: the success page must show

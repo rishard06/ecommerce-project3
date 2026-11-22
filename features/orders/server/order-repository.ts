@@ -61,6 +61,13 @@ export async function createOrderRecord(
   tx: Prisma.TransactionClient,
   input: CreateOrderRecordInput,
 ) {
+  // Guest contact lives only on guest orders with explicit opt-in. Anything
+  // else — signed-in orders, or an address without the flag — stays null so
+  // no stray address is ever persisted or emailed.
+  const guestContact =
+    input.guestToken && input.guestEmailOptIn && input.guestEmail
+      ? { guestEmail: input.guestEmail, guestEmailOptIn: true }
+      : { guestEmail: null, guestEmailOptIn: false };
   return tx.order.create({
     data: {
       userId: input.userId ?? null,
@@ -74,6 +81,8 @@ export async function createOrderRecord(
       totalCents: input.totalCents,
       discountCents: input.discountCents ?? 0,
       couponCode: input.couponCode ?? null,
+      guestEmail: guestContact.guestEmail,
+      guestEmailOptIn: guestContact.guestEmailOptIn,
       shippingFullName: input.shipping.fullName,
       shippingLine1: input.shipping.line1,
       shippingLine2: input.shipping.line2 ?? null,

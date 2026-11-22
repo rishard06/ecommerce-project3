@@ -17,6 +17,8 @@ import {
 import {
   createPendingOrder,
   createPendingOrderBaseSchema,
+  checkGuestEmailOptIn,
+  guestEmailOptInRefinement,
   InsufficientStockError,
 } from "./server/create-pending-order";
 import type {
@@ -30,10 +32,12 @@ import type {
  * client: authenticated users come from the session, guests get a fresh
  * server-generated token.
  */
-const checkoutInputSchema = createPendingOrderBaseSchema.omit({
-  userId: true,
-  guestToken: true,
-});
+const checkoutInputSchema = createPendingOrderBaseSchema
+  .omit({
+    userId: true,
+    guestToken: true,
+  })
+  .refine(checkGuestEmailOptIn, guestEmailOptInRefinement);
 
 /**
  * Prices the cart for the review step. Only `{ variantId, quantity }` is
@@ -86,7 +90,7 @@ export async function startCheckoutAction(
     // Authenticated path wins; guests fall through with a fresh token.
     const user = await getCurrentUser();
 
-    const { items, shipping, idempotencyKey, couponCode } =
+    const { items, shipping, idempotencyKey, couponCode, guestEmail, guestEmailOptIn } =
       checkoutInputSchema.parse(input);
 
     const guestToken = user ? undefined : randomUUID();
@@ -98,6 +102,10 @@ export async function startCheckoutAction(
       shipping,
       idempotencyKey,
       couponCode,
+      // Guests only: the write boundary persists this solely on guest orders
+      // with the flag set; signed-in orders always use the account email.
+      guestEmail,
+      guestEmailOptIn,
     });
 
     const { url } = await createCheckoutSession(orderId);

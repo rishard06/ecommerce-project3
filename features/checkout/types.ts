@@ -18,6 +18,13 @@ export interface CreateOrderActionInput {
   idempotencyKey: string;
   /** Optional single coupon code; validated server-side, never trusted. */
   couponCode?: string;
+  /**
+   * Guest order-email contact (Ticket #14). Guests only: an unchecked-by-
+   * default checkbox plus address, validated server-side and persisted only
+   * with explicit opt-in. Signed-in buyers always use their account email.
+   */
+  guestEmail?: string;
+  guestEmailOptIn?: boolean;
 }
 
 export type StartCheckoutActionResult =

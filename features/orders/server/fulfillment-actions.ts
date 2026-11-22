@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/features/identity/server/guards";
 import { sendFulfillmentEmail } from "@/lib/email/send-fulfillment-email";
+import { sendRefundIssuedEmail } from "@/lib/email/send-refund-email";
+import {
+  sendReturnApprovedEmail,
+  sendReturnRejectedEmail,
+} from "@/lib/email/send-return-decision-email";
 import {
   InvalidFulfillmentTransitionError,
   OrderNotFoundError,
@@ -119,8 +124,9 @@ export async function refundOrderAction(
     return { success: false, error: firstError(parsed.error) };
   }
 
+  let refunded = false;
   try {
-    await refundPayment(parsed.data.orderId, user.id);
+    refunded = (await refundPayment(parsed.data.orderId, user.id)).refunded;
   } catch (error) {
     if (
       error instanceof OrderNotRefundableError ||
@@ -130,6 +136,12 @@ export async function refundOrderAction(
       return { success: false, error: error.message };
     }
     throw error;
+  }
+
+  // Post-commit, best-effort: the refund stands even if the email fails, and
+  // an already-cancelled no-op (`refunded: false`) sends nothing.
+  if (refunded) {
+    await sendRefundIssuedEmail(parsed.data.orderId);
   }
 
   revalidatePath("/admin/orders");
@@ -155,8 +167,9 @@ export async function approveReturnAction(
     return { success: false, error: firstError(parsed.error) };
   }
 
+  let approved = false;
   try {
-    await approveReturn(parsed.data.orderId, user.id);
+    approved = (await approveReturn(parsed.data.orderId, user.id)).approved;
   } catch (error) {
     if (
       error instanceof ReturnRequestNotFoundError ||
@@ -166,6 +179,12 @@ export async function approveReturnAction(
       return { success: false, error: error.message };
     }
     throw error;
+  }
+
+  // Post-commit, best-effort: the decision stands even if the email fails.
+  // No-op repeats (`approved: false`) never resend.
+  if (approved) {
+    await sendReturnApprovedEmail(parsed.data.orderId);
   }
 
   revalidatePath("/admin/orders");
@@ -191,13 +210,20 @@ export async function rejectReturnAction(
     return { success: false, error: firstError(parsed.error) };
   }
 
+  let rejected = false;
   try {
-    await rejectReturn(parsed.data.orderId, user.id);
+    rejected = (await rejectReturn(parsed.data.orderId, user.id)).rejected;
   } catch (error) {
     if (error instanceof ReturnRequestNotFoundError) {
       return { success: false, error: error.message };
     }
     throw error;
+  }
+
+  // Post-commit, best-effort: the decision stands even if the email fails.
+  // No-op repeats (`rejected: false`) never resend.
+  if (rejected) {
+    await sendReturnRejectedEmail(parsed.data.orderId);
   }
 
   revalidatePath("/admin/orders");

@@ -33,6 +33,16 @@ interface ReviewStepProps {
   onApplyCoupon: () => void;
   onBack: () => void;
   onSubmit: () => void;
+  /**
+   * Guest order-email opt-in (Ticket #14). Rendered for guests only, with the
+   * checkbox unchecked by default: no address, no email. Signed-in buyers
+   * always use their account email.
+   */
+  isGuest: boolean;
+  guestEmail: string;
+  guestEmailOptIn: boolean;
+  onGuestEmailChange: (value: string) => void;
+  onGuestEmailOptInChange: (value: boolean) => void;
 }
 
 export function ReviewStep({
@@ -51,6 +61,11 @@ export function ReviewStep({
   onApplyCoupon,
   onBack,
   onSubmit,
+  isGuest,
+  guestEmail,
+  guestEmailOptIn,
+  onGuestEmailChange,
+  onGuestEmailOptInChange,
 }: ReviewStepProps) {
   const shipping = toShippingInput(form);
   const totals = quote ? getReviewTotalsDisplay(quote) : null;
@@ -276,6 +291,55 @@ export function ReviewStep({
             These totals are quoted from the catalog for this checkout. Stripe
             charges the order snapshot created when you continue.
           </p>
+        </div>
+      ) : null}
+
+      {isGuest ? (
+        <div className="space-y-3 rounded-2xl border border-white/40 bg-white/30 p-4">
+          <label
+            htmlFor="guest-email-opt-in"
+            className="flex cursor-pointer items-start gap-3 text-sm"
+          >
+            <input
+              id="guest-email-opt-in"
+              type="checkbox"
+              checked={guestEmailOptIn}
+              onChange={(event) =>
+                onGuestEmailOptInChange(event.target.checked)
+              }
+              className="mt-1 size-4 shrink-0 accent-gray-900"
+            />
+            <span>
+              <span className="font-bold text-gray-primary">
+                Email me order updates
+              </span>
+              <br />
+              <span className="text-gray-tertiary">
+                Order confirmation, refund and return emails. No account is
+                created.
+              </span>
+            </span>
+          </label>
+          {guestEmailOptIn ? (
+            <div className="space-y-1.5">
+              <label
+                htmlFor="guest-email"
+                className="block text-sm font-bold text-gray-primary"
+              >
+                Email address
+              </label>
+              <Input
+                id="guest-email"
+                name="guestEmail"
+                type="email"
+                value={guestEmail}
+                onChange={(event) => onGuestEmailChange(event.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                className="h-11 rounded-xl border-transparent bg-white/60 px-4 text-sm focus-visible:bg-white/90"
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
