@@ -98,6 +98,14 @@ describe("auth rate-limit configuration", () => {
       window: 60,
       max: 30,
     });
+    expect(authRateLimit.customRules["/change-password"]).toMatchObject({
+      window: 60,
+      max: 30,
+    });
+    expect(authRateLimit.customRules["/change-email"]).toMatchObject({
+      window: 60,
+      max: 30,
+    });
   });
 });
 

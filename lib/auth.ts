@@ -75,11 +75,12 @@ export async function sendVerificationEmail({
  * Ticket #10 — brute-force protection for the auth surface.
  *
  * Better Auth counts requests per `IP|path` (see its `onRequestRateLimit`):
- * the global budget (100 req / 10 s) covers every auth endpoint, while the
- * credential paths get their own generous per-IP budget (30 req / 60 s).
- * Generous — not Better Auth's strict 3-per-10-seconds default — so a NAT
- * full of legitimate users is not locked out, while 101 rapid bad-password
- * attempts from one IP are cut off with 429 + `X-Retry-After`.
+ * the window/max below (100 req / 10 s) is the default applied independently
+ * to each unmatched path, while the credential and account-security paths get
+ * their own generous per-IP budgets (30 req / 60 s). Generous — not Better
+ * Auth's strict 3-per-10-seconds default — so a NAT full of legitimate users
+ * is not locked out, while 101 rapid bad-password attempts from one IP are
+ * cut off with 429 + `X-Retry-After`.
  *
  * `storage: "database"` persists counters in the `RateLimit` table via the
  * existing Postgres Prisma adapter (see `prisma/schema.prisma`), so limits
@@ -94,6 +95,11 @@ export const authRateLimit = {
   customRules: {
     "/sign-in/*": { window: 60, max: 30 },
     "/sign-up/*": { window: 60, max: 30 },
+    // These inherit Better Auth's strict 3-per-10-seconds upstream default;
+    // a double-submit + typo retry could 429 a legitimate user, so they get
+    // the same generous budget as the credential paths.
+    "/change-password": { window: 60, max: 30 },
+    "/change-email": { window: 60, max: 30 },
   },
 };
 
