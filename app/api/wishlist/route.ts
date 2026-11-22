@@ -27,12 +27,12 @@ export async function GET() {
   try {
     const user = await requireUser();
     // Cards hydrate other-device slugs (title/price/image) in one round trip.
-    // Both reads are scoped to the session user's own rows — one user can
+    // The just-fetched `items` are passed through so hydration reuses them
+    // instead of re-querying — one query fewer, and `items`/`cards` cannot
+    // skew. Both stay scoped to the session user's own rows: one user can
     // never hydrate another's list. The login sync client ignores `cards`.
-    const [items, cards] = await Promise.all([
-      getWishlist(user.id),
-      getWishlistCards(user.id),
-    ]);
+    const items = await getWishlist(user.id);
+    const cards = await getWishlistCards(user.id, items);
     return NextResponse.json({ items, cards });
   } catch (error) {
     if (error instanceof UnauthorizedError) {

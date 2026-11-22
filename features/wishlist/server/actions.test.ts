@@ -291,4 +291,17 @@ describe("getWishlistCards", () => {
 
     await expect(getWishlistCards(USER_A.id)).resolves.toEqual([]);
   });
+
+  it("hydrates caller-provided slugs without re-querying the wishlist", async () => {
+    const category = await testPrisma.category.create({
+      data: { slug: "cards-cat", name: "Cards" },
+    });
+    const seeded = await seedCardProduct(category.id, "dummy-1");
+
+    // No wishlist rows exist: the slugs arrive pre-fetched (GET passes its
+    // just-read `items`), so hydration must not depend on another read.
+    const cards = await getWishlistCards(USER_A.id, ["dummy-1", "dummy-ghost"]);
+
+    expect(cards).toEqual([cardFor("dummy-1", seeded.variantId)]);
+  });
 });

@@ -65,13 +65,18 @@ export interface WishlistCard {
 }
 
 /**
- * Hydrates the user's own wishlist slugs into cards, in wishlist order.
- * Slugs come only from the caller's own rows (`getWishlist(userId)`), so one
- * user can never hydrate another's list; archived/unknown/unsellable slugs
- * are skipped so the favorites page never renders a dead card.
+ * Hydrates wishlist slugs into cards, in wishlist order. Slugs must already
+ * be the caller's own rows — pass the just-fetched `getWishlist(userId)`
+ * result, or omit `ownedSlugs` to re-derive them here (standalone use).
+ * Hydration has no ownership predicate of its own, so never pass
+ * client-supplied slugs. Archived/unknown/unsellable slugs are skipped so the
+ * favorites page never renders a dead card.
  */
-export async function getWishlistCards(userId: string): Promise<WishlistCard[]> {
-  const slugs = await getWishlist(userId);
+export async function getWishlistCards(
+  userId: string,
+  ownedSlugs?: string[],
+): Promise<WishlistCard[]> {
+  const slugs = ownedSlugs ?? (await getWishlist(userId));
   if (slugs.length === 0) return [];
 
   const products = await getActiveProductsBySlugs(slugs);

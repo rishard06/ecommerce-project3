@@ -14,6 +14,12 @@ import { useFavoritesStore } from "@/lib/store/favorites-store";
  * hearts are cleared first and then the new list syncs — otherwise the old
  * user's hearts would linger into the new account. Fresh logins (null id to
  * an id) never clear: anonymous local favorites are pushed, not wiped.
+ *
+ * Accepted tradeoff: clearing also discards local favorites that never
+ * synced (e.g. added offline and still unpushed when the account changes).
+ * Pushing A's unsynced hearts into B's server list would be worse, so
+ * privacy wins over the local cache on this path — the "local cache
+ * survives" guarantee holds for fresh logins, not for account switches.
  * Anonymous visitors never fetch (guests stay localStorage-only).
  */
 export function WishlistSync() {

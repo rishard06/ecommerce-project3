@@ -207,6 +207,81 @@ describe("saveProductAction", () => {
     expect(upsertProductMock).not.toHaveBeenCalled();
     expect(ensureDefaultVariantMock).not.toHaveBeenCalled();
   });
+
+  it("cleans wishlist hearts when the edit-form status select archives a product", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    getCatalogProductMock.mockResolvedValue({
+      id: "p1",
+      slug: "dream-desk",
+      status: "ACTIVE",
+    } as never);
+    upsertProductMock.mockResolvedValue({ productId: "p1" });
+
+    const result = await saveProductAction(
+      form({
+        id: "p1",
+        slug: "dream-desk",
+        title: "Dream Desk",
+        description: "A desk worth dreaming about.",
+        categoryId: "cat-1",
+        status: "ARCHIVED",
+      }),
+    );
+
+    expect(result).toEqual({ success: true, productId: "p1" });
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledTimes(1);
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledWith("dream-desk");
+  });
+
+  it("cleans both slugs when archiving renames the product", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    getCatalogProductMock.mockResolvedValue({
+      id: "p1",
+      slug: "old-desk",
+      status: "ACTIVE",
+    } as never);
+    upsertProductMock.mockResolvedValue({ productId: "p1" });
+
+    const result = await saveProductAction(
+      form({
+        id: "p1",
+        slug: "dream-desk",
+        title: "Dream Desk",
+        description: "A desk worth dreaming about.",
+        categoryId: "cat-1",
+        status: "ARCHIVED",
+      }),
+    );
+
+    expect(result).toEqual({ success: true, productId: "p1" });
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledWith("dream-desk");
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledWith("old-desk");
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves wishlist hearts alone on a non-archived save", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    getCatalogProductMock.mockResolvedValue({
+      id: "p1",
+      slug: "dream-desk",
+      status: "ACTIVE",
+    } as never);
+    upsertProductMock.mockResolvedValue({ productId: "p1" });
+
+    const result = await saveProductAction(
+      form({
+        id: "p1",
+        slug: "dream-desk",
+        title: "Dream Desk",
+        description: "A desk worth dreaming about.",
+        categoryId: "cat-1",
+        status: "ACTIVE",
+      }),
+    );
+
+    expect(result).toEqual({ success: true, productId: "p1" });
+    expect(deleteWishlistEntriesForSlugMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("saveVariantAction", () => {

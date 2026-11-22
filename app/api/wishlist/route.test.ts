@@ -97,7 +97,7 @@ describe("GET /api/wishlist", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ items: ["dummy-9"], cards });
-    expect(getWishlistCardsMock).toHaveBeenCalledWith(USER.id);
+    expect(getWishlistCardsMock).toHaveBeenCalledWith(USER.id, ["dummy-9"]);
   });
 });
 
