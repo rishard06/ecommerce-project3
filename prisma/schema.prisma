@@ -84,6 +84,20 @@ model Verification {
   @@map("verification")
 }
 
+/**
+ * Better Auth rate-limit counters (`rateLimit.storage: "database"` in
+ * `lib/auth.ts`). One row per `IP|path` key; the limiter reads/writes
+ * `count` + `lastRequest` directly through the Prisma adapter.
+ */
+model RateLimit {
+  id          String @id @default(cuid())
+  key         String
+  count       Int
+  lastRequest BigInt
+
+  @@map("rateLimit")
+}
+
 enum OrderStatus {
   PENDING
   PAID

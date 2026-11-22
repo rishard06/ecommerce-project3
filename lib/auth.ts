@@ -71,10 +71,43 @@ export async function sendVerificationEmail({
   });
 }
 
+/**
+ * Ticket #10 — brute-force protection for the auth surface.
+ *
+ * Better Auth counts requests per `IP|path` (see its `onRequestRateLimit`):
+ * the window/max below (100 req / 10 s) is the default applied independently
+ * to each unmatched path, while the credential and account-security paths get
+ * their own generous per-IP budgets (30 req / 60 s). Generous — not Better
+ * Auth's strict 3-per-10-seconds default — so a NAT full of legitimate users
+ * is not locked out, while 101 rapid bad-password attempts from one IP are
+ * cut off with 429 + `X-Retry-After`.
+ *
+ * `storage: "database"` persists counters in the `RateLimit` table via the
+ * existing Postgres Prisma adapter (see `prisma/schema.prisma`), so limits
+ * hold across serverless instances. Enabled explicitly: Better Auth only
+ * enables throttling in production by default, and tests/dev need it too.
+ */
+export const authRateLimit = {
+  enabled: true,
+  window: 10,
+  max: 100,
+  storage: "database" as const,
+  customRules: {
+    "/sign-in/*": { window: 60, max: 30 },
+    "/sign-up/*": { window: 60, max: 30 },
+    // These inherit Better Auth's strict 3-per-10-seconds upstream default;
+    // a double-submit + typo retry could 429 a legitimate user, so they get
+    // the same generous budget as the credential paths.
+    "/change-password": { window: 60, max: 30 },
+    "/change-email": { window: 60, max: 30 },
+  },
+};
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  rateLimit: authRateLimit,
   emailAndPassword: {
     enabled: true,
     // Auto sign-in is Better Auth's default for email/password. It is set
