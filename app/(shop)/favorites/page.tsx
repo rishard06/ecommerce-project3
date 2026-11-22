@@ -9,8 +9,37 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { spring } from "@/lib/motion";
 
+/**
+ * Card-minimal row served by `GET /api/wishlist` for the session user's own
+ * slugs: exactly what `ProductCard` needs (title, price, image plus its
+ * identifiers), nothing more.
+ */
+interface WishlistCard {
+  productSlug: string;
+  variantId: string;
+  title: string;
+  priceCents: number;
+  image: string;
+  description: string;
+}
+
+function isWishlistCard(value: unknown): value is WishlistCard {
+  if (typeof value !== "object" || value === null) return false;
+  const card = value as Record<string, unknown>;
+  return (
+    typeof card.productSlug === "string" &&
+    typeof card.variantId === "string" &&
+    typeof card.title === "string" &&
+    typeof card.priceCents === "number" &&
+    typeof card.image === "string" &&
+    typeof card.description === "string"
+  );
+}
+
 export default function FavoritesPage() {
   const items = useFavoritesStore((state) => state.items);
+  const serverSlugs = useFavoritesStore((state) => state.serverSlugs);
+  const [cards, setCards] = useState<WishlistCard[]>([]);
   const [mounted, setMounted] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
@@ -18,8 +47,58 @@ export default function FavoritesPage() {
     setMounted(true);
   }, []);
 
-  const count = mounted ? items.length : 0;
-  const showItems = mounted && items.length > 0;
+  /**
+   * Hydrates other-device slugs (in `serverSlugs` but not in local `items`)
+   * via product-by-slug lookup so they render full cards. The endpoint only
+   * ever returns the session user's own slugs, and the client renders just
+   * the ones it asked about — one user can never see another's products.
+   * Guests get 401 (no cards); offline keeps the local cache.
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCards(): Promise<void> {
+      const localSlugs = new Set(items.map((item) => item.productSlug));
+      const missing = serverSlugs.filter((slug) => !localSlugs.has(slug));
+      if (missing.length === 0) {
+        setCards([]);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/wishlist");
+        if (!res.ok) return;
+        const body = (await res.json()) as { cards?: unknown };
+        const wanted = new Set(missing);
+        const hydrated = Array.isArray(body.cards)
+          ? body.cards
+              .filter(isWishlistCard)
+              .filter(
+                (card) =>
+                  wanted.has(card.productSlug) &&
+                  !localSlugs.has(card.productSlug),
+              )
+          : [];
+        if (!cancelled) setCards(hydrated);
+      } catch {
+        // Offline or non-JSON: keep the local cache; cards retry next visit.
+      }
+    }
+
+    void loadCards();
+    return () => {
+      cancelled = true;
+    };
+  }, [items, serverSlugs]);
+
+  const display = [...items, ...cards];
+  const count = mounted
+    ? new Set([
+        ...items.map((item) => item.productSlug),
+        ...serverSlugs,
+      ]).size
+    : 0;
+  const showItems = mounted && display.length > 0;
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 md:py-14 lg:px-8">
@@ -45,7 +124,7 @@ export default function FavoritesPage() {
             transition={spring.smooth}
             className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4"
           >
-            {items.map((item) => (
+            {display.map((item) => (
               <ProductCard
                 key={item.productSlug}
                 slug={item.productSlug}

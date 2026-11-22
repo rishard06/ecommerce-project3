@@ -12,9 +12,11 @@ import {
 import {
   archiveProduct,
   ensureDefaultVariant,
+  getCatalogProduct,
   updateVariant,
   upsertProduct,
 } from "@/features/catalog/server/catalog-service";
+import { deleteWishlistEntriesForSlug } from "@/features/wishlist/server/actions";
 
 /**
  * Small serializable result for the admin forms. Validation failures return
@@ -196,6 +198,15 @@ export async function archiveProductAction(
   }
 
   await archiveProduct(parsed.data.productId);
+
+  // Archived products stay readable for order history but can never render
+  // again: remove every user's heart for this product so the favorites page
+  // never points at a dead slug. The slug is the product's own, read back
+  // after the archive — never user input.
+  const product = await getCatalogProduct(parsed.data.productId);
+  if (product) {
+    await deleteWishlistEntriesForSlug(product.slug);
+  }
 
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${parsed.data.productId}`);

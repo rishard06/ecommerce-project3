@@ -19,6 +19,10 @@ vi.mock("@/features/catalog/server/catalog-service", () => ({
   archiveProduct: vi.fn(),
 }));
 
+vi.mock("@/features/wishlist/server/actions", () => ({
+  deleteWishlistEntriesForSlug: vi.fn(),
+}));
+
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
@@ -33,9 +37,11 @@ import {
 import {
   archiveProduct,
   ensureDefaultVariant,
+  getCatalogProduct,
   updateVariant,
   upsertProduct,
 } from "@/features/catalog/server/catalog-service";
+import { deleteWishlistEntriesForSlug } from "@/features/wishlist/server/actions";
 import {
   archiveProductAction,
   saveProductAction,
@@ -48,6 +54,8 @@ const upsertProductMock = vi.mocked(upsertProduct);
 const ensureDefaultVariantMock = vi.mocked(ensureDefaultVariant);
 const updateVariantMock = vi.mocked(updateVariant);
 const archiveProductMock = vi.mocked(archiveProduct);
+const getCatalogProductMock = vi.mocked(getCatalogProduct);
+const deleteWishlistEntriesForSlugMock = vi.mocked(deleteWishlistEntriesForSlug);
 const revalidatePathMock = vi.mocked(revalidatePath);
 const revalidateTagMock = vi.mocked(revalidateTag);
 
@@ -316,5 +324,17 @@ describe("archiveProductAction", () => {
 
     expect(result.success).toBe(false);
     expect(archiveProductMock).not.toHaveBeenCalled();
+  });
+
+  it("removes orphaned wishlist hearts for the archived product's slug", async () => {
+    requireAdminMock.mockResolvedValue(ADMIN);
+    archiveProductMock.mockResolvedValue(undefined);
+    getCatalogProductMock.mockResolvedValue({ id: "p1", slug: "dream-desk" } as never);
+
+    const result = await archiveProductAction(form({ productId: "p1" }));
+
+    expect(result).toEqual({ success: true });
+    expect(archiveProductMock).toHaveBeenCalledWith("p1");
+    expect(deleteWishlistEntriesForSlugMock).toHaveBeenCalledWith("dream-desk");
   });
 });

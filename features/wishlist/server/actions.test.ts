@@ -41,7 +41,8 @@ const testPrisma = new PrismaClient({
 
 const TEST_DATABASE_LOCK_KEY = 728674001;
 
-const { getWishlist, setWishlisted } = await import("./actions");
+const { deleteWishlistEntriesForSlug, getWishlist, getWishlistCards, setWishlisted } =
+  await import("./actions");
 
 const USER_A = {
   id: "wishlist-user-a",
@@ -167,5 +168,127 @@ describe("setWishlisted", () => {
       setWishlisted(USER_A.id, "x".repeat(129), true),
     ).rejects.toThrow();
     expect(await testPrisma.wishlistItem.count()).toBe(0);
+  });
+});
+
+describe("deleteWishlistEntriesForSlug", () => {
+  it("removes every user's rows for the slug and keeps other slugs", async () => {
+    await setWishlisted(USER_A.id, "dummy-1", true);
+    await setWishlisted(USER_A.id, "dummy-2", true);
+    await setWishlisted(USER_B.id, "dummy-1", true);
+
+    await deleteWishlistEntriesForSlug("dummy-1");
+
+    await expect(getWishlist(USER_A.id)).resolves.toEqual(["dummy-2"]);
+    await expect(getWishlist(USER_B.id)).resolves.toEqual([]);
+  });
+
+  it("is a no-op for a slug nobody wishlisted", async () => {
+    await setWishlisted(USER_A.id, "dummy-1", true);
+
+    await expect(
+      deleteWishlistEntriesForSlug("dummy-9"),
+    ).resolves.toBeUndefined();
+    await expect(getWishlist(USER_A.id)).resolves.toEqual(["dummy-1"]);
+  });
+});
+
+describe("getWishlistCards", () => {
+  async function seedCardProduct(
+    categoryId: string,
+    slug: string,
+    status: "ACTIVE" | "ARCHIVED" = "ACTIVE",
+  ) {
+    // One round trip per product: the default variant and image ride along
+    // in the same nested create.
+    const product = await testPrisma.product.create({
+      data: {
+        slug,
+        title: `Title ${slug}`,
+        description: `Desc ${slug}`,
+        categoryId,
+        status,
+        variants: {
+          create: {
+            sku: `sku-${slug}`,
+            name: "Default",
+            priceCents: 1999,
+            onHand: 5,
+            isDefault: true,
+          },
+        },
+        images: {
+          create: {
+            url: `https://cdn.example.com/${slug}.webp`,
+            position: 0,
+          },
+        },
+      },
+      include: { variants: true },
+    });
+    return { variantId: product.variants[0]?.id ?? "" };
+  }
+
+  function cardFor(slug: string, variantId: string) {
+    return {
+      productSlug: slug,
+      title: `Title ${slug}`,
+      priceCents: 1999,
+      image: `https://cdn.example.com/${slug}.webp`,
+      variantId,
+      description: `Desc ${slug}`,
+    };
+  }
+
+  it("hydrates the user's own slugs with card fields in wishlist order", { timeout: 30_000 }, async () => {
+    const category = await testPrisma.category.create({
+      data: { slug: "cards-cat", name: "Cards" },
+    });
+    const first = await seedCardProduct(category.id, "dummy-1");
+    const second = await seedCardProduct(category.id, "dummy-2");
+    await setWishlisted(USER_A.id, "dummy-2", true);
+    await setWishlisted(USER_A.id, "dummy-1", true);
+    await setWishlisted(USER_B.id, "dummy-1", true);
+
+    await expect(getWishlistCards(USER_A.id)).resolves.toEqual([
+      cardFor("dummy-2", second.variantId),
+      cardFor("dummy-1", first.variantId),
+    ]);
+  });
+
+  it("skips archived, unknown, and variant-less slugs — and never another user's list", { timeout: 30_000 }, async () => {
+    const category = await testPrisma.category.create({
+      data: { slug: "cards-cat", name: "Cards" },
+    });
+    await seedCardProduct(category.id, "dummy-1");
+    await seedCardProduct(category.id, "dummy-archived", "ARCHIVED");
+    // A product with no variant at all: unsellable, never hydrated.
+    await testPrisma.product.create({
+      data: {
+        slug: "dummy-unsellable",
+        title: "Title dummy-unsellable",
+        description: "Desc dummy-unsellable",
+        categoryId: category.id,
+        status: "ACTIVE",
+      },
+    });
+    await setWishlisted(USER_A.id, "dummy-1", true);
+    await setWishlisted(USER_A.id, "dummy-archived", true);
+    await setWishlisted(USER_A.id, "dummy-ghost", true);
+    await setWishlisted(USER_A.id, "dummy-unsellable", true);
+    await setWishlisted(USER_B.id, "dummy-archived", true);
+
+    const cards = await getWishlistCards(USER_A.id);
+
+    expect(cards.map((card) => card.productSlug)).toEqual(["dummy-1"]);
+  });
+
+  it("returns an empty list for a user with no wishlist rows", async () => {
+    const category = await testPrisma.category.create({
+      data: { slug: "cards-cat", name: "Cards" },
+    });
+    await seedCardProduct(category.id, "dummy-1");
+
+    await expect(getWishlistCards(USER_A.id)).resolves.toEqual([]);
   });
 });
