@@ -22,7 +22,7 @@ vi.mock("@/features/payments/server/stripe-client", async () => {
   return { getStripe: () => stripe };
 });
 
-const { POST, runtime } = await import("./route");
+const { POST } = await import("./route");
 const { getStripe } = await import("@/features/payments/server/stripe-client");
 
 const stripe = getStripe();
@@ -83,8 +83,8 @@ afterEach(() => {
 });
 
 describe("POST /api/webhooks/stripe", () => {
-  it("runs on the Node.js runtime", () => {
-    expect(runtime).toBe("nodejs");
+  it("exposes a POST handler (request-signed, always dynamic)", () => {
+    expect(POST).toBeTypeOf("function");
   });
 
   it("accepts a correctly signed event and processes it once", async () => {

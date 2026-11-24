@@ -1,6 +1,11 @@
 import { ProfileForm } from "@/features/account/components/ProfileForm";
 import { requireAccountSession } from "@/features/account/require-session";
 
+// @next-codemod-ignore Cache Components adoption: this segment temporarily allows blocking.
+// Remove this opt-out after verifying the segment passes validation without it.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export default async function AccountProfilePage() {
   const session = await requireAccountSession("/account/profile");
 

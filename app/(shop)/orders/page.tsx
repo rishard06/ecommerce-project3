@@ -11,6 +11,11 @@ import { OrderStatusPill } from "@/features/orders/components/OrderStatusBadges"
 import { formatCents } from "@/lib/money";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// @next-codemod-ignore Cache Components adoption: this segment temporarily allows blocking.
+// Remove this opt-out after verifying the segment passes validation without it.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const metadata = {
   title: "Your orders | tended.",
   description: "Review your order history and current order status.",

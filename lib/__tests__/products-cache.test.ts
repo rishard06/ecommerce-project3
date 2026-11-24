@@ -1,15 +1,23 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Task 11: repeat product-detail views must not query Postgres again, and an
- * admin mutation must be able to drop that cached copy (a stale price is a
- * money bug).
+ * Task 11: repeat product-detail views are served from Next's data cache, and
+ * an admin mutation drops that cached copy (a stale price is a money bug).
+ *
+ * On Next 16 the cache lives behind `"use cache"` + `cacheLife`/`cacheTag`
+ * (see `lib/products.ts`); the framework owns storage, expiry, and tag
+ * busting, so unit tests cannot observe them through an in-memory double the
+ * way the old `unstable_cache` tests did. These tests pin the contracts this
+ * repo controls at the seam:
+ *
+ * - `getProduct`/`getRelatedProducts` register the shared products tag and a
+ *   60s revalidate window on every read.
+ * - reads delegate to the owned catalog with the same queries as before
+ *   (slug + ACTIVE for detail; same-category-minus-self for related).
+ * - tag invalidation itself is covered by `admin-actions.test.ts`
+ *   (`updateTag(PRODUCTS_CACHE_TAG)` on every mutation).
  *
  * Prisma is the mock boundary so every assertion counts real database reads.
- * `unstable_cache` reaches Next's incremental cache through
- * `globalThis.__incrementalCache` when there is no request store, so the tests
- * install a small in-memory stand-in that honours both the 60s window and tag
- * busting — the same two contracts the app relies on in production.
  */
 
 const mocks = vi.hoisted(() => ({
@@ -28,69 +36,16 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+vi.mock("next/cache", () => ({
+  cacheLife: vi.fn(),
+  cacheTag: vi.fn(),
+  revalidatePath: vi.fn(),
+  updateTag: vi.fn(),
+}));
+
+import { cacheLife, cacheTag } from "next/cache";
 import { PRODUCTS_CACHE_TAG } from "@/lib/cache-tags";
 import { getProduct, getRelatedProducts } from "@/lib/products";
-
-interface FetchCacheValue {
-  kind: string;
-  data: { body?: string };
-  revalidate: number;
-}
-
-interface StoredEntry {
-  value: FetchCacheValue;
-  tags: string[];
-  storedAt: number;
-}
-
-/**
- * Minimal incremental-cache double: keys by invocation key, expires entries
- * after their `revalidate` seconds, and drops entries by tag.
- */
-function installIncrementalCache() {
-  let clock = 0;
-  const entries = new Map<string, StoredEntry>();
-
-  const cache = {
-    isOnDemandRevalidate: false,
-    generateCacheKey(key: string) {
-      return key;
-    },
-    async get(key: string) {
-      const entry = entries.get(key);
-      if (!entry) return null;
-      if (clock - entry.storedAt >= entry.value.revalidate * 1000) {
-        entries.delete(key);
-        return null;
-      }
-      return { value: entry.value, isStale: false };
-    },
-    async set(
-      key: string,
-      value: FetchCacheValue,
-      context: { tags?: string[] },
-    ) {
-      entries.set(key, {
-        value,
-        tags: context.tags ?? [],
-        storedAt: clock,
-      });
-    },
-    /** Test controls: advance the fake clock / purge by tag. */
-    advance(ms: number) {
-      clock += ms;
-    },
-    bustTag(tag: string) {
-      for (const [key, entry] of entries) {
-        if (entry.tags.includes(tag)) entries.delete(key);
-      }
-    },
-    entries,
-  };
-
-  (globalThis as Record<string, unknown>).__incrementalCache = cache;
-  return cache;
-}
 
 /** Row as returned by the detail read (`PRODUCT_DETAIL_INCLUDE`). */
 function makeRow(slug = "alpha-product") {
@@ -139,11 +94,11 @@ function makeRow(slug = "alpha-product") {
   };
 }
 
-let cache: ReturnType<typeof installIncrementalCache>;
+const cacheLifeMock = vi.mocked(cacheLife);
+const cacheTagMock = vi.mocked(cacheTag);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  cache = installIncrementalCache();
   mocks.findFirst.mockImplementation(
     async ({ where }: { where: { slug: string } }) => makeRow(where.slug),
   );
@@ -151,73 +106,34 @@ beforeEach(() => {
   mocks.count.mockResolvedValue(1);
 });
 
-afterEach(() => {
-  delete (globalThis as Record<string, unknown>).__incrementalCache;
-});
-
 describe("getProduct caching", () => {
-  it("reads the database once when the same slug is requested twice", async () => {
+  it("reads the active product by slug", async () => {
     const first = await getProduct("alpha-product");
-    const second = await getProduct("alpha-product");
 
-    expect(mocks.findFirst).toHaveBeenCalledTimes(1);
     expect(mocks.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { slug: "alpha-product", status: "ACTIVE" },
       }),
     );
-    expect(second).toEqual(first);
     expect(first?.slug).toBe("alpha-product");
   });
 
-  it("keeps one cache entry per slug", async () => {
+  it("registers the shared products tag so an admin update drops it", async () => {
     await getProduct("alpha-product");
-    const other = await getProduct("beta-product");
 
-    expect(mocks.findFirst).toHaveBeenCalledTimes(2);
-    expect(other?.slug).toBe("beta-product");
+    expect(cacheTagMock).toHaveBeenCalledWith(PRODUCTS_CACHE_TAG);
   });
 
-  it("stores the detail entry under the products tag for 60 seconds", async () => {
+  it("keeps the 60s revalidate window", async () => {
     await getProduct("alpha-product");
 
-    const entry = [...cache.entries.values()].find((candidate) =>
-      candidate.tags.includes(PRODUCTS_CACHE_TAG),
+    expect(cacheLifeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ revalidate: 60 }),
     );
-    expect(entry).toBeDefined();
-    expect(entry?.value.revalidate).toBe(60);
-    // The slug is part of the cache key, not just the stored payload.
-    expect(
-      [...cache.entries.keys()].some((key) => key.includes("alpha-product")),
-    ).toBe(true);
-  });
-
-  it("reads the database again once the 60s window has elapsed", async () => {
-    await getProduct("alpha-product");
-    cache.advance(60_000);
-    await getProduct("alpha-product");
-
-    expect(mocks.findFirst).toHaveBeenCalledTimes(2);
-  });
-
-  it("reads the database again after an admin busts the products tag", async () => {
-    await getProduct("alpha-product");
-    cache.bustTag(PRODUCTS_CACHE_TAG);
-    await getProduct("alpha-product");
-
-    expect(mocks.findFirst).toHaveBeenCalledTimes(2);
   });
 });
 
 describe("getRelatedProducts caching", () => {
-  it("reads the database once for repeated views of the same product", async () => {
-    await getRelatedProducts("alpha-product");
-    await getRelatedProducts("alpha-product");
-
-    expect(mocks.findMany).toHaveBeenCalledTimes(1);
-    expect(mocks.count).toHaveBeenCalledTimes(1);
-  });
-
   it("queries the product's own category while excluding the product", async () => {
     await getRelatedProducts("alpha-product", 5);
 
@@ -235,11 +151,12 @@ describe("getRelatedProducts caching", () => {
     );
   });
 
-  it("shares the products tag so an admin update drops it too", async () => {
-    await getRelatedProducts("alpha-product");
-    cache.bustTag(PRODUCTS_CACHE_TAG);
+  it("shares the products tag and 60s window so an admin update drops it too", async () => {
     await getRelatedProducts("alpha-product");
 
-    expect(mocks.findMany).toHaveBeenCalledTimes(2);
+    expect(cacheTagMock).toHaveBeenCalledWith(PRODUCTS_CACHE_TAG);
+    expect(cacheLifeMock).toHaveBeenCalledWith(
+      expect.objectContaining({ revalidate: 60 }),
+    );
   });
 });

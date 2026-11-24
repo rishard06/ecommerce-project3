@@ -19,6 +19,12 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+// `connection()` marks the sitemap request-time under Cache Components; it
+// needs a request scope, which unit tests don't have.
+vi.mock("next/server", () => ({
+  connection: vi.fn().mockResolvedValue(undefined),
+}));
+
 import sitemap from "./sitemap";
 
 const UPDATED_AT = new Date("2026-02-03T04:05:06.000Z");

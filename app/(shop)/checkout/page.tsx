@@ -6,6 +6,11 @@ import { CheckoutSummary } from "@/features/checkout/components/CheckoutSummary"
 import { getCurrentUser } from "@/features/identity/server/guards";
 import type { CheckoutStep } from "@/features/checkout/types";
 
+// @next-codemod-ignore Cache Components adoption: this segment temporarily allows blocking.
+// Remove this opt-out after verifying the segment passes validation without it.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 const STEP_NUMBERS: Record<CheckoutStep, number> = {
   shipping: 1,
   review: 2,

@@ -7,4 +7,9 @@
  * (`/orders/[id]/invoice`) and preserves the guest `?token=`, so it works from
  * both the `/orders/[id]` and `/account/orders/[id]` entry points.
  */
+// @next-codemod-ignore Cache Components adoption: this segment temporarily allows blocking.
+// Remove this opt-out after verifying the segment passes validation without it.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export { default, metadata } from "../../../orders/[id]/page";

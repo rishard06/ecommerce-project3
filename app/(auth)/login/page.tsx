@@ -4,6 +4,11 @@ import LoginForm from "@/features/auth/components/LoginForm";
 import MeshGradientBackground from "@/components/layout/MeshGradientBackground";
 import Link from "next/link";
 
+// @next-codemod-ignore Cache Components adoption: this segment temporarily allows blocking.
+// Remove this opt-out after verifying the segment passes validation without it.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Sign in",
   description: "Sign in to your tended. account to continue shopping.",

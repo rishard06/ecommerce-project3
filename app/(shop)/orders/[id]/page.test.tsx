@@ -57,6 +57,11 @@ vi.mock("next/cache", () => ({
 
 import OrderDetailPage from "./page";
 
+// @next-codemod-ignore Cache Components adoption: this segment temporarily allows blocking.
+// Remove this opt-out after verifying the segment passes validation without it.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 const ORDER = {
   id: "order-1",
   createdAt: new Date("2026-02-01T10:00:00.000Z"),
