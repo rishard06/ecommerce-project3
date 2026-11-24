@@ -5,6 +5,8 @@
 - Validate with Zod. `npm test` / `npm run typecheck`. Vitest globals + `vitest.setup.ts`; per-file jsdom pragma.
 - DB: `npx prisma generate | migrate dev | studio`. Never commit `.env`.
 - Git: `main` protected — never force-push/amend, never `git add .`.
+- Workflow (GitHub Flow): branch `type/short-name` (`feat/`, `fix/`, `chore/`, `test/`, `docs/`) from fresh `main`; Conventional Commits; PR per unit of work, merge, then delete the branch locally and on origin. Never let merged branches accumulate.
+- Worktrees are local scratch only (isolated builds), never pushed, never part of review.
 
 ## Auth (Better-Auth, GitHub OAuth + credentials)
 
