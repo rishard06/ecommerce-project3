@@ -11,25 +11,27 @@ import { requireAccountSession } from "@/features/account/require-session";
 import { formatCents } from "@/lib/money";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// @next-codemod-ignore Cache Components adoption: this segment temporarily allows blocking.
+// Remove this opt-out after verifying the segment passes validation without it.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
   year: "numeric",
 });
 
-export default async function AccountPage() {
-  // Memoized per request: AccountLayout already resolved this, so this await
-  // does not refetch the session or the user row.
-  const session = await requireAccountSession();
-
+export default function AccountPage() {
   return (
     <div className="space-y-6">
       {/*
-       * The header/nav shell (layout + static cards below) paints immediately;
-       * only the database-driven sections stream in behind this boundary.
+       * The shortcut cards below are static: they paint immediately with the
+       * shell while the session-gated dashboard streams in behind its own
+       * boundary instead of holding the whole page hostage.
        */}
       <Suspense fallback={<DashboardSkeleton />}>
-        <DashboardContent userId={session.user.id} />
+        <DashboardContent />
       </Suspense>
 
       <section className="grid gap-4 sm:grid-cols-2">
@@ -84,7 +86,12 @@ function DashboardSkeleton() {
   );
 }
 
-async function DashboardContent({ userId }: { userId: string }) {
+async function DashboardContent() {
+  // Session and dashboard queries resolve inside the boundary: the memoized
+  // per-request session costs no extra lookup, and the static cards above
+  // never wait for either.
+  const session = await requireAccountSession();
+  const userId = session.user.id;
   let orders: Awaited<ReturnType<typeof listOrdersForUser>> = [];
   let addresses: Awaited<ReturnType<typeof listAddresses>> = [];
   let dbReady = true;
