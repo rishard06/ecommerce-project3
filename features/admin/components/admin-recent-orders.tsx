@@ -87,7 +87,10 @@ export function AdminRecentOrders({
                   <td className="py-3 pr-4">
                     <div className="flex min-w-0 items-center gap-2">
                       <Avatar className="size-8">
-                        <AvatarFallback className="bg-primary-600/10 text-[0.65rem] font-semibold text-primary-600">
+                        <AvatarFallback
+                          aria-hidden="true"
+                          className="bg-primary-600/10 text-[0.65rem] font-semibold text-primary-600"
+                        >
                           {initials(order.customerName)}
                         </AvatarFallback>
                       </Avatar>

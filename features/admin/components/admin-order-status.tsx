@@ -78,7 +78,7 @@ export function AdminOrderStatusCard({
                 {total.toLocaleString("en-US")}
               </span>
               <span className="text-[0.65rem] uppercase tracking-wide text-gray-tertiary">
-                orders
+                {total === 1 ? "order" : "orders"}
               </span>
             </div>
           </div>

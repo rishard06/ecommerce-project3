@@ -27,7 +27,10 @@ export function AdminNav({ user }: { user: AdminNavUser }) {
       <div className="mb-4 flex items-center gap-3 border-b border-gray-primary/10 pb-4">
         <Avatar className="size-10">
           {user.image ? <AvatarImage src={user.image} alt="" /> : null}
-          <AvatarFallback className="bg-action text-sm font-bold text-action-foreground">
+          <AvatarFallback
+            aria-hidden="true"
+            className="bg-action text-sm font-bold text-action-foreground"
+          >
             {initials || "A"}
           </AvatarFallback>
         </Avatar>

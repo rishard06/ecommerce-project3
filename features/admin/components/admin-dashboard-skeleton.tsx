@@ -7,15 +7,15 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export function AdminDashboardSkeleton() {
   return (
-    <div aria-busy="true" aria-live="polite">
-      <div className="mb-8 space-y-2 md:mb-10">
+    <main aria-busy="true" aria-live="polite">
+      <header className="mb-8 space-y-2 md:mb-10">
         <Skeleton className="h-3 w-16 rounded-full" />
         <Skeleton className="h-9 w-48 rounded-lg md:h-10" />
         <Skeleton className="h-4 w-64 max-w-full rounded-full" />
-      </div>
+      </header>
 
       <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
-        <div className="lg:col-span-3">
+        <aside className="lg:col-span-3">
           <div className="glass-component p-4 sm:p-5">
             <div className="mb-4 flex items-center gap-3 border-b border-gray-primary/10 pb-4">
               <Skeleton className="size-10 shrink-0 rounded-full" />
@@ -24,16 +24,19 @@ export function AdminDashboardSkeleton() {
                 <Skeleton className="h-3 w-36 max-w-full rounded-full" />
               </div>
             </div>
-            <div className="flex gap-1 overflow-hidden lg:flex-col">
+            <nav
+              aria-label="Admin"
+              className="flex gap-1 overflow-hidden lg:flex-col"
+            >
               {[0, 1, 2, 3].map((i) => (
                 <Skeleton
                   key={i}
                   className="h-10 w-24 shrink-0 rounded-xl lg:w-full"
                 />
               ))}
-            </div>
+            </nav>
           </div>
-        </div>
+        </aside>
 
         <div className="min-w-0 space-y-4 lg:col-span-9">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -104,6 +107,6 @@ export function AdminDashboardSkeleton() {
       </div>
 
       <span className="sr-only">Loading admin dashboard…</span>
-    </div>
+    </main>
   );
 }
