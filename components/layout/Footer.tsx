@@ -109,7 +109,7 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
           {/* Brand */}
           <div>
             <div className="mb-3 text-2xl font-semibold tracking-tight text-gray-primary">
-              <span className="text-accent-600">v</span>enn.
+              <span className="text-accent-600">t</span>ended.
             </div>
             <p className="mb-4 text-sm leading-relaxed text-gray-tertiary">
               Considered everyday objects, chosen for how they wear in — not how
