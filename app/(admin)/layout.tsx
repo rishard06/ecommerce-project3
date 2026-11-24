@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import AnnouncementBar from "@/components/layout/AnnouncementBar";
+import NavBar from "@/components/layout/NavBar";
 import { getCurrentUser } from "@/features/identity/server/guards";
 
 // @next-codemod-ignore Cache Components adoption: this segment temporarily allows blocking.
@@ -16,6 +18,10 @@ export const metadata: Metadata = {
  * Route-group guard for every admin page:
  * - anonymous visitors go to the login page;
  * - authenticated customers get a not-found page instead of a 500.
+ *
+ * The storefront chrome deliberately wraps every admin route so the dashboard
+ * reads as part of the same store. The wrapper omits `bg-background` so the
+ * body's sage gradient shows through, matching `/account`.
  */
 export default async function AdminLayout({
   children,
@@ -33,8 +39,12 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="bg-background min-h-dvh text-foreground">
-      <div className="mx-auto w-full max-w-5xl px-4 py-8 md:px-6">{children}</div>
+    <div className="min-h-dvh text-foreground">
+      <AnnouncementBar />
+      <NavBar />
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 md:py-12 lg:px-8">
+        {children}
+      </div>
     </div>
   );
 }
