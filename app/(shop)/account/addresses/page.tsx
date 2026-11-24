@@ -5,6 +5,11 @@ import { listAddresses } from "@/features/account/address-actions";
 import { requireAccountSession } from "@/features/account/require-session";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// @next-codemod-ignore Cache Components adoption: this segment temporarily allows blocking.
+// Remove this opt-out after verifying the segment passes validation without it.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export default async function AccountAddressesPage() {
   // Memoized per request: AccountLayout already resolved this.
   await requireAccountSession("/account/addresses");

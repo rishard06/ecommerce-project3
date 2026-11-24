@@ -3,9 +3,6 @@ import { NextResponse } from "next/server";
 import { getServerEnv } from "@/lib/env";
 import { releaseExpiredReservations } from "@/features/inventory/server/release-expired-reservations";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 const BEARER_PREFIX = "Bearer ";
 
 function hasValidBearerToken(

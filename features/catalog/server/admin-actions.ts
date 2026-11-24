@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/features/identity/server/guards";
 import { PRODUCTS_CACHE_TAG } from "@/lib/cache-tags";
@@ -76,7 +76,7 @@ function firstError(error: z.ZodError): string {
  * path clears the route cache for the storefront detail page.
  */
 function revalidateStorefrontProduct(slug?: string): void {
-  revalidateTag(PRODUCTS_CACHE_TAG);
+  updateTag(PRODUCTS_CACHE_TAG);
 
   if (slug) {
     revalidatePath(`/products/${slug}`);

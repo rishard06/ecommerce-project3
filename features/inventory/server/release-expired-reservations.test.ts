@@ -607,9 +607,7 @@ describe("releaseExpiredReservations concurrency", () => {
 });
 
 describe("GET /api/cron/release-reservations", () => {
-  it("runs on the node runtime without static caching", () => {
-    expect(cronRoute.runtime).toBe("nodejs");
-    expect(cronRoute.dynamic).toBe("force-dynamic");
+  it("exposes a GET handler (bearer-gated, always dynamic)", () => {
     expect(cronRoute.GET).toBeTypeOf("function");
   });
 

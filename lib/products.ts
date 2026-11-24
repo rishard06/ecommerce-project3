@@ -6,7 +6,7 @@
  * DummyJSON remains seed input only. All money is integer cents (USD).
  */
 
-import { unstable_cache } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { PRODUCTS_CACHE_TAG } from "@/lib/cache-tags";
 import {
@@ -84,21 +84,11 @@ export async function getProducts(
  * 60 seconds, and every entry carries the shared products tag so an admin edit
  * can drop it immediately instead of serving a stale price.
  */
-const getCachedProduct = unstable_cache(
-  async (slug: string) => getActiveProduct(slug),
-  ["storefront-product-detail"],
-  {
-    revalidate: PRODUCT_DETAIL_REVALIDATE_SECONDS,
-    tags: [PRODUCTS_CACHE_TAG],
-  },
-);
-
-/**
- * A single active product by slug, or null when it is missing, not ACTIVE,
- * or has no variant. Transparently cached — callers see the same shape.
- */
 export async function getProduct(slug: string): Promise<StorefrontProduct | null> {
-  return getCachedProduct(slug);
+  "use cache";
+  cacheLife({ stale: 60, revalidate: PRODUCT_DETAIL_REVALIDATE_SECONDS, expire: 300 });
+  cacheTag(PRODUCTS_CACHE_TAG);
+  return getActiveProduct(slug);
 }
 
 /**
@@ -106,23 +96,17 @@ export async function getProduct(slug: string): Promise<StorefrontProduct | null
  * resolved in one query from the slug alone so the read can start in parallel
  * with `getProduct` instead of waiting for the detail to resolve. Cached under
  * the same tag/window as the detail read.
+ *
+ * Same return shape as `getProducts`; transparently cached.
  */
-const getCachedRelatedProducts = unstable_cache(
-  async (slug: string, limit: number) =>
-    getProducts(undefined, 0, limit, { relatedTo: slug }),
-  ["storefront-product-related"],
-  {
-    revalidate: PRODUCT_DETAIL_REVALIDATE_SECONDS,
-    tags: [PRODUCTS_CACHE_TAG],
-  },
-);
-
-/** Same return shape as `getProducts`; transparently cached. */
 export async function getRelatedProducts(
   slug: string,
   limit = 5,
 ): Promise<ProductResponse> {
-  return getCachedRelatedProducts(slug, limit);
+  "use cache";
+  cacheLife({ stale: 60, revalidate: PRODUCT_DETAIL_REVALIDATE_SECONDS, expire: 300 });
+  cacheTag(PRODUCTS_CACHE_TAG);
+  return getProducts(undefined, 0, limit, { relatedTo: slug });
 }
 
 /**

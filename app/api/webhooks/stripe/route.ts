@@ -4,8 +4,6 @@ import { getServerEnv } from "@/lib/env";
 import { getStripe } from "@/features/payments/server/stripe-client";
 import { processStripeEvent } from "@/features/payments/server/process-stripe-event";
 
-export const runtime = "nodejs";
-
 /**
  * Stripe webhook endpoint.
  *

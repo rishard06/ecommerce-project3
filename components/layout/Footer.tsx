@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import Link from "next/link";
 import {
   Facebook,
@@ -70,6 +70,18 @@ interface FooterProps {
 }
 
 const defaultSubscribe = async () => {};
+
+/**
+ * Copyright year, isolated behind its own boundary. Reading the clock during
+ * prerender is request-time work under Cache Components: without this
+ * boundary the whole static shell postpones and the production build fails
+ * ("client rendering was requested outside a Suspense boundary"). The static
+ * shell (everything else in the footer) still commits instantly; the year
+ * streams in with the dynamic hole.
+ */
+function CopyrightYear() {
+  return <>{new Date().getFullYear()}</>;
+}
 
 export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) {
   const [email, setEmail] = useState("");
@@ -215,7 +227,11 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
 
         <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-gray-primary/10 pt-6 md:flex-row">
           <p className="text-center text-sm text-gray-tertiary md:text-left">
-            © {new Date().getFullYear()} tended. All rights reserved.
+            ©{" "}
+            <Suspense fallback={null}>
+              <CopyrightYear />
+            </Suspense>{" "}
+            tended. All rights reserved.
           </p>
           <div className="flex flex-wrap justify-center gap-4 md:gap-5">
             {footerLinks.map((link) => (

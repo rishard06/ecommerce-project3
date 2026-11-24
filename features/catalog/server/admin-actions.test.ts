@@ -25,10 +25,10 @@ vi.mock("@/features/wishlist/server/actions", () => ({
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
-  revalidateTag: vi.fn(),
+  updateTag: vi.fn(),
 }));
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import {
   ForbiddenError,
   UnauthorizedError,
@@ -57,7 +57,7 @@ const archiveProductMock = vi.mocked(archiveProduct);
 const getCatalogProductMock = vi.mocked(getCatalogProduct);
 const deleteWishlistEntriesForSlugMock = vi.mocked(deleteWishlistEntriesForSlug);
 const revalidatePathMock = vi.mocked(revalidatePath);
-const revalidateTagMock = vi.mocked(revalidateTag);
+const updateTagMock = vi.mocked(updateTag);
 
 const ADMIN = { id: "admin-1", email: "admin@example.com", role: "ADMIN" } as const;
 
@@ -163,7 +163,7 @@ describe("saveProductAction", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/products/p1");
     // Storefront detail/related reads are cached for 60s; an edit must drop
     // the copy immediately (the slug is known from the submitted form).
-    expect(revalidateTagMock).toHaveBeenCalledWith(PRODUCTS_CACHE_TAG);
+    expect(updateTagMock).toHaveBeenCalledWith(PRODUCTS_CACHE_TAG);
     expect(revalidatePathMock).toHaveBeenCalledWith("/products/dream-desk");
   });
 
@@ -331,7 +331,7 @@ describe("saveVariantAction", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/products/p1");
     // A price/stock edit knows only the product id, so it busts the shared
     // storefront tag and the dynamic detail route instead of one slug.
-    expect(revalidateTagMock).toHaveBeenCalledWith(PRODUCTS_CACHE_TAG);
+    expect(updateTagMock).toHaveBeenCalledWith(PRODUCTS_CACHE_TAG);
     expect(revalidatePathMock).toHaveBeenCalledWith("/products/[id]", "page");
   });
 
@@ -388,7 +388,7 @@ describe("archiveProductAction", () => {
     expect(result).toEqual({ success: true });
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/products");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/products/p1");
-    expect(revalidateTagMock).toHaveBeenCalledWith(PRODUCTS_CACHE_TAG);
+    expect(updateTagMock).toHaveBeenCalledWith(PRODUCTS_CACHE_TAG);
     expect(revalidatePathMock).toHaveBeenCalledWith("/products/[id]", "page");
   });
 
