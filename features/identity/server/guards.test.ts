@@ -12,6 +12,10 @@ vi.mock("next/headers", () => ({
   headers: vi.fn(async () => new Headers()),
 }));
 
+vi.mock("next/server", () => ({
+  connection: vi.fn(async () => {}),
+}));
+
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: {

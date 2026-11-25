@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { headers } from "next/headers";
+import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
@@ -42,6 +43,12 @@ export class ForbiddenError extends Error {
  * via `getCurrentUser`) to share the memoized result.
  */
 export const getSession = cache(async () => {
+  // Request-bound by design: the session comes from request headers and
+  // Better Auth's expiry checks read the current time. Under Cache
+  // Components this must be declared with `connection()` — otherwise the
+  // prerender hits blocking-prerender-current-time. Every guard funnels
+  // through here, so one declaration covers all authenticated routes.
+  await connection();
   return auth.api.getSession({
     headers: await headers(),
   });
