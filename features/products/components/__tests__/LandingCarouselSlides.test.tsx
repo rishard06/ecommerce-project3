@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { StorefrontProductSummary } from "@/features/catalog/server/catalog-view";
@@ -98,6 +98,18 @@ describe("LandingCarouselSlides", () => {
 
     expect(first.getAttribute("aria-current")).toBe("true");
     expect(second.getAttribute("aria-current")).toBeNull();
+  });
+
+  it("lets the user pause and resume the slideshow", () => {
+    renderSlides([summary(1), summary(2)]);
+
+    const pause = screen.getByRole("button", { name: "Pause slideshow" });
+    expect(pause.getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(pause);
+
+    const play = screen.getByRole("button", { name: "Play slideshow" });
+    expect(play.getAttribute("aria-pressed")).toBe("true");
   });
 
   it("renders the placeholder instead of an image when the url is empty", () => {

@@ -16,10 +16,7 @@ export default async function LandingCarousel() {
   if (slides.length === 0) return null;
 
   return (
-    <section
-      aria-labelledby="landing-carousel-heading"
-      className="w-full px-4 pb-6 pt-2 sm:px-6 md:pb-10 md:pt-6"
-    >
+    <section className="w-full px-4 pb-6 pt-2 sm:px-6 md:pb-10 md:pt-6">
       <div className="mx-auto w-full max-w-7xl">
         <h2 id="landing-carousel-heading" className="sr-only">
           Product highlights

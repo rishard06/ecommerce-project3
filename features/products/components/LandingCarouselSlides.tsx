@@ -3,7 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ImageOff } from "lucide-react";
+import { ArrowRight, ImageOff, Pause, Play } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 
 import { cn } from "@/lib/utils";
@@ -28,6 +28,7 @@ export default function LandingCarouselSlides({
   const [api, setApi] = React.useState<CarouselApi>();
   const [current, setCurrent] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
+  const [userPaused, setUserPaused] = React.useState(false);
   const prefersReducedMotion = useReducedMotion();
 
   React.useEffect(() => {
@@ -45,7 +46,7 @@ export default function LandingCarouselSlides({
   }, [api]);
 
   React.useEffect(() => {
-    if (!api || paused || prefersReducedMotion) return;
+    if (!api || paused || userPaused || prefersReducedMotion) return;
 
     // Re-armed whenever the active slide changes so a manual drag or dot click
     // gets a full interval before autoplay moves on again.
@@ -55,11 +56,11 @@ export default function LandingCarouselSlides({
     }, AUTOPLAY_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
-  }, [api, current, paused, prefersReducedMotion]);
+  }, [api, current, paused, userPaused, prefersReducedMotion]);
 
   return (
     <Carousel
-      aria-label="Product highlights"
+      aria-labelledby="landing-carousel-heading"
       className="w-full"
       opts={{ loop: true, align: "start", duration: 28 }}
       setApi={setApi}
@@ -138,26 +139,47 @@ export default function LandingCarouselSlides({
       <CarouselPrevious className="left-2 border-border bg-background/80 text-gray-secondary backdrop-blur-sm hover:bg-secondary sm:left-3" />
       <CarouselNext className="right-2 border-border bg-background/80 text-gray-secondary backdrop-blur-sm hover:bg-secondary sm:right-3" />
 
-      <div
-        role="group"
-        aria-label="Carousel pagination"
-        className="mt-6 flex items-center justify-center gap-2"
-      >
-        {slides.map((slide, index) => (
-          <button
-            key={slide.slug}
-            type="button"
-            aria-label={`Show slide ${index + 1}: ${slide.title}`}
-            aria-current={index === current ? "true" : undefined}
-            onClick={() => api?.scrollTo(index)}
-            className={cn(
-              "h-2.5 rounded-full transition-[width,background-color] duration-200 ease-out-quart focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-              index === current
-                ? "w-6 bg-action"
-                : "w-2.5 bg-gray-quaternary/60 hover:bg-gray-tertiary",
-            )}
-          />
-        ))}
+      <div className="mt-6 flex items-center justify-center gap-4">
+        <div
+          role="group"
+          aria-label="Carousel pagination"
+          className="flex items-center justify-center gap-2"
+        >
+          {slides.map((slide, index) => (
+            <button
+              key={slide.slug}
+              type="button"
+              aria-label={`Show slide ${index + 1}: ${slide.title}`}
+              aria-current={index === current ? "true" : undefined}
+              onClick={() => api?.scrollTo(index)}
+              className="group/dot inline-flex size-6 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "block h-2.5 rounded-full transition-[width,background-color] duration-200 ease-out-quart",
+                  index === current
+                    ? "w-6 bg-action"
+                    : "w-2.5 bg-gray-quaternary/60 group-hover/dot:bg-gray-tertiary",
+                )}
+              />
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          aria-label={userPaused ? "Play slideshow" : "Pause slideshow"}
+          aria-pressed={userPaused}
+          onClick={() => setUserPaused((value) => !value)}
+          className="inline-flex size-6 items-center justify-center rounded-full text-gray-secondary transition-colors duration-200 ease-out-quart hover:text-gray-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          {userPaused ? (
+            <Play className="size-4" aria-hidden="true" />
+          ) : (
+            <Pause className="size-4" aria-hidden="true" />
+          )}
+        </button>
       </div>
     </Carousel>
   );
