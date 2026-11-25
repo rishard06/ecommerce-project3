@@ -366,6 +366,8 @@ Two skill packs are installed and several pairs do the same job with different r
 
 **Sequencing rule:** `/setup-matt-pocock-skills` has not been run in this repo. Until it has, `to-spec` and `to-tickets` fall back to local markdown under `.scratch/<feature>/issues/` — that is supported, not an error.
 
+**Workflow tiers:** heavy / light / lighter routing lives in `AGENTS.md` — route by risk before choosing the execution skill.
+
 ---
 
 **Last Updated**: October 2026

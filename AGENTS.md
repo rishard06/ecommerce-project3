@@ -31,3 +31,11 @@
 - Plan: `to-spec` → `to-tickets` | Review: `code-review` | Docs: `writing-for-agents`
 - `tdd` needs pre-agreed seams from `to-spec`; subagent never invents one.
 - Full background + table stays in `CLAUDE.md` §Skill Precedence — read it when running a paired workflow.
+
+## Workflow tiers (route by risk, not size; checklists in `docs/workflow-tiers.md`)
+
+- Heavy: payments/checkout/auth/migrations, unknown scope, or 3+ files across features.
+- Light: single ticket, known files, non-critical path.
+- Lighter: one file or same-shape edits, tokens/copy/styles/config, no logic change.
+- Read `docs/workflow-tiers.md` for the chosen tier before acting.
+- All tiers: `main` protected, Conventional Commits, never `git add .`, full suite green or env-gate disclosed, worktree removed after merge.
