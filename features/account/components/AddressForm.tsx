@@ -19,7 +19,7 @@ const EMPTY_ADDRESS: Required<AddressInput> = {
 };
 
 const FIELD_CLASS =
-  "h-12 rounded-xl border-transparent bg-white/60 px-4 focus-visible:ring-2 focus-visible:ring-accent-500/40";
+  "h-12 rounded-xl border border-input bg-background px-4 text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40";
 
 export function AddressForm() {
   const router = useRouter();

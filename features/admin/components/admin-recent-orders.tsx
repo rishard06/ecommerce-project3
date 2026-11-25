@@ -60,7 +60,7 @@ export function AdminRecentOrders({
           </Link>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="custom-scrollbar overflow-x-auto">
           <table className="w-full min-w-[620px] text-left text-sm">
             <thead>
               <tr className="border-b text-xs text-gray-tertiary">

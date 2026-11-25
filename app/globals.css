@@ -4,6 +4,10 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Native controls (select popups, date pickers, scrollbars) follow the
+     theme instead of always painting light chrome. */
+  color-scheme: light;
+
   /* ---- Canvas ---------------------------------------------------------- */
   --background: #f5faf8;
   --foreground: #101a17;
@@ -81,6 +85,8 @@
 
 /* Explicit dark palette so the dark: variants used across the app resolve. */
 .dark {
+  color-scheme: dark;
+
   --background: #0c1311;
   --foreground: #eef4f1;
 
@@ -209,6 +215,17 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /*
+   * Native option lists are drawn by the OS, so they ignore the translucent
+   * field backgrounds. Paint them on the popover surface: without this, dark
+   * mode can render the list with default light chrome (or white-on-white).
+   * `color-scheme` above switches the OS-drawn list chrome per theme.
+   */
+  option {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
+
   h1,
   h2,
   h3,
@@ -294,7 +311,7 @@
 
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: rgba(23, 53, 42, 0.18) transparent;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent;
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -307,12 +324,12 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(23, 53, 42, 0.18);
+    background: color-mix(in oklab, var(--foreground) 22%, transparent);
     border-radius: 999px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(23, 53, 42, 0.28);
+    background: color-mix(in oklab, var(--foreground) 32%, transparent);
   }
 
   .no-scrollbar {

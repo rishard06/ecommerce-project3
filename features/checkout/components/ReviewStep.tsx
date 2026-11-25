@@ -246,7 +246,7 @@ export function ReviewStep({
                   aria-describedby={
                     couponError ? "checkout-coupon-error" : undefined
                   }
-                  className="h-11 rounded-xl border-transparent bg-white/60 px-4 text-sm focus-visible:bg-white/90"
+                  className="h-11 rounded-xl border border-input bg-background px-4 text-sm text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                 />
                 <Button
                   type="submit"
@@ -336,7 +336,7 @@ export function ReviewStep({
                 onChange={(event) => onGuestEmailChange(event.target.value)}
                 placeholder="you@example.com"
                 autoComplete="email"
-                className="h-11 rounded-xl border-transparent bg-white/60 px-4 text-sm focus-visible:bg-white/90"
+                className="h-11 rounded-xl border border-input bg-background px-4 text-sm text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
               />
             </div>
           ) : null}

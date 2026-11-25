@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { AdminActivity } from "@/features/admin/components/admin-activity";
 import { AdminFulfillmentCard } from "@/features/admin/components/admin-fulfillment-queue";
-import { AdminNav } from "@/features/admin/components/AdminNav";
 import { AdminOverviewChart } from "@/features/admin/components/AdminOverviewChart";
 import { AdminRecentOrders } from "@/features/admin/components/admin-recent-orders";
 import { AdminOrderStatusCard } from "@/features/admin/components/admin-order-status";
@@ -13,7 +12,10 @@ import { getSession, requireAdmin } from "@/features/identity/server/guards";
 export const metadata: Metadata = { title: "Dashboard · Admin" };
 
 /**
- * Admin dashboard: greeting + sidebar + the store's headline metrics.
+ * Admin dashboard: greeting + the store's headline metrics.
+ *
+ * The admin nav sidebar lives in `app/(admin)/layout.tsx` so it persists
+ * across every admin route; this page only owns its content column.
  *
  * The route group layout already guards this page; `requireAdmin()` runs again
  * first so a rejected guard can never trigger the database read below.
@@ -42,37 +44,26 @@ export default async function AdminDashboardPage() {
         </p>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
-        <aside className="lg:col-span-3">
-          <AdminNav
-            user={{
-              name: session?.user?.name ?? "Admin",
-              email: session?.user?.email ?? "",
-              image: session?.user?.image ?? null,
-            }}
-          />
-        </aside>
+      <div className="space-y-4">
+        <AdminStatCards stats={data.stats} />
 
         {/*
-         * `min-w-0` on the column and `minmax(0, …)` on the rows keep the
-         * 620px-wide recent-orders table scrolling inside its card instead of
-         * pushing a page-level horizontal scrollbar.
+         * `minmax(0, …)` on the rows below keeps the 620px-wide
+         * recent-orders table scrolling inside its card instead of pushing a
+         * page-level horizontal scrollbar. The outer column's `min-w-0`
+         * guard lives in the admin layout.
          */}
-        <div className="min-w-0 space-y-4 lg:col-span-9">
-          <AdminStatCards stats={data.stats} />
-
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-            <AdminOverviewChart data={data.monthly} />
-            <div className="grid gap-4">
-              <AdminOrderStatusCard statuses={data.statuses} />
-              <AdminFulfillmentCard fulfillment={data.fulfillment} />
-            </div>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <AdminOverviewChart data={data.monthly} />
+          <div className="grid gap-4">
+            <AdminOrderStatusCard statuses={data.statuses} />
+            <AdminFulfillmentCard fulfillment={data.fulfillment} />
           </div>
+        </div>
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-            <AdminRecentOrders orders={data.recentOrders} />
-            <AdminActivity entries={data.activity} />
-          </div>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <AdminRecentOrders orders={data.recentOrders} />
+          <AdminActivity entries={data.activity} />
         </div>
       </div>
     </main>

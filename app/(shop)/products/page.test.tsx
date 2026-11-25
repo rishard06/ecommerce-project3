@@ -11,15 +11,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getCategories: vi.fn(),
   getProducts: vi.fn(),
+  getFeatureProducts: vi.fn(),
 }));
 
 vi.mock("@/lib/products", () => ({
   getCategories: mocks.getCategories,
   getProducts: mocks.getProducts,
+  getFeatureProducts: mocks.getFeatureProducts,
 }));
 
 vi.mock("@/features/products/components/ProductCard", () => ({
-  default: ({ slug }: { slug: string }) => <a href={`/products/${slug}`}>{slug}</a>,
+  default: ({ slug, isPopular }: { slug: string; isPopular?: boolean }) => (
+    <a href={`/products/${slug}`}>{isPopular ? `${slug} (popular)` : slug}</a>
+  ),
 }));
 
 vi.mock("@/features/products/components/CategorySidebar", () => ({
@@ -36,6 +40,7 @@ export const instant = false;
 
 const TOTAL = 42;
 const PAGE = ["desk-21", "desk-22"];
+const FEATURED = ["featured-1", "featured-2", "featured-3", "featured-4"];
 
 function productSummary(slug: string) {
   return {
@@ -71,6 +76,9 @@ beforeEach(() => {
     skip: 20,
     take: 20,
   });
+  mocks.getFeatureProducts.mockResolvedValue(
+    FEATURED.map((slug) => ({ ...productSummary(slug), isPopular: true })),
+  );
 });
 
 afterEach(() => {
@@ -171,5 +179,68 @@ describe("existing skip URLs", () => {
 
     expect(hrefFor(/^next$/i)).toBe("/products?skip=20");
     expect(screen.getByText(/page 1/i)).toBeDefined();
+  });
+});
+
+describe("featured row", () => {
+  const rowHeading = () => screen.queryByRole("heading", { name: /you may also like/i });
+
+  it("shows top-rated picks above the grid on the unfiltered view", async () => {
+    await renderPage();
+
+    expect(rowHeading()).not.toBeNull();
+    expect(mocks.getFeatureProducts).toHaveBeenCalledWith(4);
+    // The card keeps the Popular badge flag and links to the detail page.
+    expect(
+      screen.getByRole("link", { name: "featured-1 (popular)" }).getAttribute("href"),
+    ).toBe("/products/featured-1");
+    // The full grid still renders below the row.
+    expect(screen.getByRole("link", { name: "desk-21" })).toBeDefined();
+  });
+
+  it("hides the row for a search query and skips the featured query", async () => {
+    await renderPage({ q: "desk" });
+
+    expect(rowHeading()).toBeNull();
+    expect(mocks.getFeatureProducts).not.toHaveBeenCalled();
+  });
+
+  it("hides the row for a category filter", async () => {
+    await renderPage({ category: "office" });
+
+    expect(rowHeading()).toBeNull();
+    expect(mocks.getFeatureProducts).not.toHaveBeenCalled();
+  });
+
+  it("hides the row for a sort", async () => {
+    await renderPage({ sort: "price-asc" });
+
+    expect(rowHeading()).toBeNull();
+    expect(mocks.getFeatureProducts).not.toHaveBeenCalled();
+  });
+
+  it("hides the row when a cursor paging hop is active", async () => {
+    vi.stubEnv("PRODUCTS_CURSOR_PAGINATION", "1");
+
+    await renderPage({ skip: "20", cursor: encodeCursor("desk-20") });
+
+    expect(rowHeading()).toBeNull();
+    expect(mocks.getFeatureProducts).not.toHaveBeenCalled();
+  });
+
+  it("stays visible when only paging (skip) changes", async () => {
+    // Paging does not filter results, so page 2 is still the browse view.
+    await renderPage({ skip: "20" });
+
+    expect(rowHeading()).not.toBeNull();
+    expect(mocks.getFeatureProducts).toHaveBeenCalledWith(4);
+  });
+
+  it("renders nothing when the catalog has no rated products", async () => {
+    mocks.getFeatureProducts.mockResolvedValue([]);
+
+    await renderPage();
+
+    expect(rowHeading()).toBeNull();
   });
 });

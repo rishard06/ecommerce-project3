@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import ProductCard from "@/features/products/components/ProductCard";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getCategories, getProducts } from "@/lib/products";
+import { getCategories, getFeatureProducts, getProducts } from "@/lib/products";
 import {
   decodeCursor,
   encodeCursor,
@@ -11,6 +11,11 @@ import {
   supportsCursorPaging,
 } from "@/features/products/search";
 import { CategorySidebar } from "@/features/products/components/CategorySidebar";
+import FeaturedProductsRow from "@/features/products/components/FeaturedProductsRow";
+import {
+  FEATURED_ROW_LIMIT,
+  shouldShowFeaturedRow,
+} from "@/features/products/components/featured-row";
 
 // @next-codemod-ignore Cache Components adoption: this segment temporarily allows blocking.
 // Remove this opt-out after verifying the segment passes validation without it.
@@ -46,6 +51,15 @@ export default async function ProductsPage({
       ? params.cursor
       : undefined;
 
+  // The featured rail belongs to the plain browse view; any search, filter,
+  // sort, or cursor leaves the page as pure results.
+  const showFeatured = shouldShowFeaturedRow({
+    category: currentCategory,
+    q,
+    sort,
+    cursor,
+  });
+
   const buildHref = (nextSkip: number, nextCursor?: string) => {
     const query = new URLSearchParams();
     if (currentCategory) query.set("category", currentCategory);
@@ -59,9 +73,13 @@ export default async function ProductsPage({
   };
 
   try {
-    const [categories, productData] = await Promise.all([
+    const [categories, productData, featured] = await Promise.all([
       getCategories(),
       getProducts(currentCategory, skip, limit, { q, sort, cursor }),
+      // Only the unfiltered view pays for the featured query.
+      showFeatured
+        ? getFeatureProducts(FEATURED_ROW_LIMIT)
+        : Promise.resolve([]),
     ]);
 
     const { products, total } = productData;
@@ -95,6 +113,8 @@ export default async function ProductsPage({
               {total}
             </p>
           </div>
+
+          {showFeatured && <FeaturedProductsRow products={featured} />}
 
           {products.length > 0 ? (
             <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">

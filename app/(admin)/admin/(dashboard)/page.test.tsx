@@ -42,14 +42,13 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("admin dashboard page", () => {
-  it("renders the account shell, four nav links and real data", async () => {
+  it("renders the greeting and real data without duplicating the layout nav", async () => {
     render(await AdminDashboardPage());
 
     expect(screen.getByText("Hello, Ada")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /dashboard/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /orders/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /products/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /coupons/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Admin" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("$1,234.00")).toBeInTheDocument();
     expect(screen.getByText("Not tracked yet")).toBeInTheDocument();
     expect(screen.getByText("Emma Wilson")).toBeInTheDocument();

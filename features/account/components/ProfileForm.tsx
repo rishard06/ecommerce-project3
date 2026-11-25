@@ -56,7 +56,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
           name="name"
           value={name}
           onChange={(event) => setName(event.target.value)}
-          className="h-12 rounded-xl border-transparent bg-white/60 px-4 focus-visible:ring-2 focus-visible:ring-accent-500/40"
+          className="h-12 rounded-xl border border-input bg-background px-4 text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
           placeholder="Your name"
           minLength={2}
           required
@@ -72,7 +72,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
           name="email"
           type="email"
           value={user.email}
-          className="h-12 rounded-xl border-transparent bg-white/60 px-4 text-gray-tertiary"
+          className="h-12 rounded-xl border border-input bg-background px-4 text-muted-foreground"
           readOnly
           disabled
         />
@@ -89,7 +89,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
           type="url"
           value={image}
           onChange={(event) => setImage(event.target.value)}
-          className="h-12 rounded-xl border-transparent bg-white/60 px-4 focus-visible:ring-2 focus-visible:ring-accent-500/40"
+          className="h-12 rounded-xl border border-input bg-background px-4 text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
           placeholder="https://example.com/avatar.jpg"
         />
         {image ? (

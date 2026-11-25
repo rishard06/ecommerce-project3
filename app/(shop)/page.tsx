@@ -1,4 +1,5 @@
 import Header from "@/components/layout/Header";
+import LandingCarousel from "@/features/products/components/LandingCarousel";
 import Category from "@/features/products/components/Category";
 import FeatureProducts from "@/features/products/components/FeatureProducts";
 import Features from "@/components/marketing/Features";
@@ -15,6 +16,9 @@ export default async function Home() {
   return (
     <>
       <Header />
+      <Reveal>
+        <LandingCarousel />
+      </Reveal>
       <Reveal>
         <Category />
       </Reveal>

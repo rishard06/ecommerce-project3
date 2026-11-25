@@ -42,7 +42,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 const fieldClasses =
-  "w-full rounded-lg border border-input bg-transparent px-3 py-1.5 text-sm outline-none transition-[border-color,box-shadow] duration-150 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+  "w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
 /** Form actions discard the result object; it exists for programmatic callers. */
 async function submitProduct(formData: FormData): Promise<void> {
@@ -203,7 +203,7 @@ export default async function AdminProductsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className="custom-scrollbar overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="text-muted-foreground border-b">
