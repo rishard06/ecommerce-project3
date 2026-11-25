@@ -10,6 +10,7 @@ import {
 import { getCurrentUser } from "@/features/identity/server/guards";
 import { getOrderForViewer } from "@/features/orders/server/customer-order-service";
 import { ClearCartOnSuccess } from "@/features/checkout/components/ClearCartOnSuccess";
+import { RefreshOnPendingPayment } from "@/features/checkout/components/RefreshOnPendingPayment";
 import {
   FulfillmentStatusPill,
   OrderStatusPill,
@@ -109,6 +110,7 @@ export default async function CheckoutSuccessPage({
             .filter((variantId): variantId is string => variantId !== null)}
         />
       ) : null}
+      {awaitingConfirmation ? <RefreshOnPendingPayment /> : null}
       <div className="glass-component p-6 sm:p-8 md:p-10">
         <div className="flex flex-col items-center text-center">
           <div
