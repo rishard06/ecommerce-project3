@@ -110,8 +110,11 @@ export async function getRelatedProducts(
 }
 
 /**
- * Highest-rated active products for the storefront feature section.
+ * Highest-rated active products for the storefront feature section (4) and
+ * the landing carousel (8). `limit` defaults to the feature-section size.
  */
-export async function getFeatureProducts(): Promise<StorefrontProductSummary[]> {
-  return queryFeatureProducts(4);
+export async function getFeatureProducts(
+  limit = 4,
+): Promise<StorefrontProductSummary[]> {
+  return queryFeatureProducts(limit);
 }
