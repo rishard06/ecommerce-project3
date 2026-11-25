@@ -7,7 +7,7 @@ import type { AddressRow } from "@/features/account/types";
 import type { ShippingFormState } from "../preamble";
 
 const INPUT_CLASS =
-  "h-12 rounded-xl border-transparent bg-white/60 px-4 focus-visible:ring-2 focus-visible:ring-accent-500/40";
+  "h-12 rounded-xl border border-input bg-background px-4 text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40";
 const LABEL_CLASS = "block text-sm font-bold text-gray-secondary";
 
 interface ShippingStepProps {
@@ -56,7 +56,7 @@ export function ShippingStep({
             id="savedAddress"
             value={selectedAddressId}
             onChange={(event) => onSelectSavedAddress(event.target.value)}
-            className="h-12 w-full rounded-xl border-transparent bg-white/60 px-4 text-gray-primary focus-visible:ring-2 focus-visible:ring-accent-500/40"
+            className="h-12 w-full rounded-xl border border-input bg-background px-4 text-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <option value="">Enter a new address</option>
             {savedAddresses.map((address) => (

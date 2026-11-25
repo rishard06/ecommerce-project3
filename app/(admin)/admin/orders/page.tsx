@@ -58,7 +58,7 @@ export default async function AdminOrdersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className="custom-scrollbar overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="text-muted-foreground border-b">
