@@ -29,6 +29,13 @@
   --line: rgba(255, 255, 255, 0.09);
   --line-strong: rgba(255, 255, 255, 0.16);
 
+  /* ---- Mesh backdrop --------------------------------------------------- */
+  /* Decorative stops for the WebGL shader. Plain values here (not
+     `light-dark()`) because the shader reads resolved RGB at runtime. */
+  --mesh-deep: #12402f;
+  --mesh-mid: #2f6b52;
+  --mesh-lime: #ccf381;
+
   /* ---- Typography ------------------------------------------------------ */
   /* The C mockup's "muted" is text, so it maps to --muted-foreground / --ink-2.
      --muted stays the shadcn surface token consumed by bg-muted. */
@@ -112,6 +119,10 @@
   --line: rgba(255, 255, 255, 0.09);
   --line-strong: rgba(255, 255, 255, 0.16);
 
+  --mesh-deep: #12402f;
+  --mesh-mid: #2f6b52;
+  --mesh-lime: #ccf381;
+
   --ink-2: #c2d1c9;
   --font-color-primary: #f1f7f3;
   --font-color-secondary: #c2d1c9;
@@ -165,6 +176,10 @@
     --panel-2: #eef4f1;
     --line: rgba(23, 53, 42, 0.12);
     --line-strong: rgba(23, 53, 42, 0.18);
+
+    --mesh-deep: #d7e8df;
+    --mesh-mid: #8fcdb3;
+    --mesh-lime: #b7dc6a;
 
     --ink-2: #34433d;
     --font-color-primary: #17231f;
@@ -473,5 +488,132 @@
 
   .press:active {
     transform: scale(0.975);
+  }
+
+  /*
+   * Direction C layout shell.
+   *
+   * `.shell` is the single centered measure: 1240px with a flat 24px gutter
+   * each side below that. `.hero` fills small-viewport height (`dvh`, not
+   * `vh`) so mobile browser chrome never clips the fold. Overflow is clipped
+   * at the source instead of masked with `hidden`.
+   */
+  .shell {
+    width: min(1240px, calc(100% - 48px));
+    margin-inline: auto;
+  }
+
+  /* Grid/flex children shrink instead of forcing horizontal overflow. */
+  .shell > *,
+  .bento > * {
+    min-inline-size: 0;
+  }
+
+  .hero {
+    min-height: 100dvh;
+    display: grid;
+    place-items: safe center;
+    overflow: clip;
+  }
+
+  /*
+   * Display face for the hero headline. 8.1 / 3.5 = 2.31x, inside the 2.5x
+   * legibility bound. `em` carries the lime emphasis; `.display-outline`
+   * keeps the second line as a stroked word, matching the mockup.
+   */
+  .display {
+    font-family: var(--font-display), Georgia, serif;
+    font-size: clamp(3.5rem, 8.4vw, 8.1rem);
+    line-height: 0.88;
+    letter-spacing: -0.05em;
+    text-wrap: balance;
+  }
+
+  .display em {
+    font-style: italic;
+    color: var(--accent-text);
+  }
+
+  .display-outline {
+    color: transparent;
+    -webkit-text-stroke: 1.5px color-mix(in oklab, var(--foreground) 55%, transparent);
+  }
+
+  /*
+   * Explicit desktop tracks (4 columns, 196px rows, 13px gap) collapse to
+   * 2 tracks at 980px and 1 at 540px. Tiles own their spans; the grid never
+   * uses `grid-auto-flow: dense`, so DOM and tab order stay identical.
+   */
+  .bento {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 196px;
+    gap: 13px;
+  }
+
+  /* Card internals respond to the tile width, not the viewport. */
+  .bento-card {
+    container-type: inline-size;
+  }
+
+  .bento-card__title {
+    font-size: 1.125rem;
+    line-height: 1.15;
+  }
+
+  @container (min-width: 22rem) {
+    .bento-card__title {
+      font-size: 1.25rem;
+    }
+  }
+
+  /* Fixed-ratio media slots reserve space before the asset loads. */
+  .media-slot {
+    aspect-ratio: 4 / 3;
+    overflow: clip;
+  }
+
+  /* Footer wordmark: empty fill, hairline outline, lime full stop. */
+  .wordmark {
+    font-family: var(--font-display), Georgia, serif;
+    font-size: clamp(4.5rem, 15vw, 13rem);
+    line-height: 0.78;
+    letter-spacing: -0.05em;
+    color: transparent;
+    -webkit-text-stroke: 1px color-mix(in oklab, var(--foreground) 16%, transparent);
+    user-select: none;
+  }
+
+  .wordmark > span {
+    -webkit-text-stroke-color: color-mix(in oklab, var(--accent-text) 70%, transparent);
+  }
+
+  /* Static lime/forest wash under the WebGL mesh (also its reduced-motion
+     and no-WebGL fallback). Token driven, so light mode stays sage. */
+  .mesh-glow {
+    background:
+      radial-gradient(
+        44% 38% at 78% 10%,
+        color-mix(in oklab, var(--mesh-lime) 18%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        38% 42% at 6% 88%,
+        color-mix(in oklab, var(--mesh-mid) 34%, transparent),
+        transparent 72%
+      );
+  }
+
+  @media (max-width: 980px) {
+    .bento {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 540px) {
+    .bento {
+      grid-template-columns: 1fr;
+      grid-auto-rows: auto;
+    }
   }
 }

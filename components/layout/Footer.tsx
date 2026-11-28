@@ -103,15 +103,15 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
   };
 
   return (
-    <footer className="mt-16 px-4 pb-10 sm:px-6 print:hidden">
-      <div className="mx-auto w-full max-w-7xl rounded-[2rem] border border-white/50 bg-card p-6 backdrop-blur-xl sm:p-8">
+    <footer className="mt-16 pb-10 print:hidden">
+      <div className="shell border-t border-line pt-10">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
           {/* Brand */}
           <div>
-            <div className="mb-3 text-2xl font-semibold tracking-tight text-gray-primary">
-              <span className="text-accent-600">t</span>ended.
+            <div className="mb-3 font-display text-2xl font-semibold tracking-tight text-foreground">
+              tended<span className="text-accent-text">.</span>
             </div>
-            <p className="mb-4 text-sm leading-relaxed text-gray-tertiary">
+            <p className="mb-4 max-w-[34ch] text-sm leading-relaxed text-ink-2">
               Considered everyday objects, chosen for how they wear in — not how
               they look on day one.
             </p>
@@ -122,7 +122,7 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex size-9 items-center justify-center rounded-full bg-surface-dark text-gray-secondary transition-colors hover:bg-accent-500/25 hover:text-gray-primary"
+                  className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 transition-colors hover:border-line-strong hover:text-accent-text"
                   aria-label={link["aria-label"]}
                 >
                   <link.icon size={16} aria-hidden="true" />
@@ -133,13 +133,13 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
 
           {/* Quick links */}
           <nav aria-label="Footer">
-            <h2 className="mb-3 text-sm font-semibold text-gray-primary">Quick links</h2>
-            <ul className="space-y-2">
+            <h2 className="mb-3 text-sm font-semibold text-foreground">Quick links</h2>
+            <ul className="flex flex-col gap-1">
               {quickLinks.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-sm text-gray-tertiary transition-colors hover:text-primary"
+                    className="inline-flex min-h-11 cursor-pointer items-center text-sm text-ink-2 transition-colors hover:text-accent-text"
                   >
                     {link.label}
                   </Link>
@@ -150,10 +150,10 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
 
           {/* Contact */}
           <div>
-            <h2 className="mb-3 text-sm font-semibold text-gray-primary">Contact us</h2>
-            <ul className="space-y-2.5">
+            <h2 className="mb-3 text-sm font-semibold text-foreground">Contact us</h2>
+            <ul className="flex flex-col gap-2.5">
               {contactInfo.map((item) => (
-                <li key={item.text} className="flex items-start gap-2 text-sm text-gray-tertiary">
+                <li key={item.text} className="flex items-start gap-2 text-sm text-ink-2">
                   <item.icon
                     size={16}
                     className="mt-0.5 shrink-0 text-accent-text"
@@ -167,8 +167,8 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
 
           {/* Newsletter */}
           <div>
-            <h2 className="mb-3 text-sm font-semibold text-gray-primary">Newsletter</h2>
-            <p className="mb-3 text-sm leading-relaxed text-gray-tertiary">
+            <h2 className="mb-3 text-sm font-semibold text-foreground">Newsletter</h2>
+            <p className="mb-3 text-sm leading-relaxed text-ink-2">
               Occasional notes on new arrivals and restocks. No noise.
             </p>
             {status === "success" ? (
@@ -176,11 +176,11 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
                 role="status"
                 className="flex items-center gap-2 text-sm font-medium text-accent-text"
               >
-                <Check size={16} aria-hidden="true" />
+                <Check size={16} data-icon="inline-start" aria-hidden="true" />
                 You&apos;re on the list. Thank you.
               </p>
             ) : (
-              <form onSubmit={handleSubscribe} className="space-y-2">
+              <form onSubmit={handleSubscribe} className="flex flex-col gap-2">
                 <div className="flex gap-2">
                   <label htmlFor="newsletter-email" className="sr-only">
                     Email address
@@ -189,7 +189,7 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
                     id="newsletter-email"
                     type="email"
                     placeholder="Your email"
-                    className="h-10 rounded-full border-transparent bg-white/60 text-sm placeholder:text-gray-quaternary focus-visible:bg-white/90"
+                    className="h-11 rounded-full border-line-strong bg-panel-2 text-sm text-foreground placeholder:text-muted-foreground"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isSubmitting}
@@ -199,7 +199,7 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
                   <Button
                     type="submit"
                     size="icon"
-                    className="size-10 shrink-0 rounded-full bg-action text-action-foreground hover:bg-action-hover"
+                    className="size-11 shrink-0 rounded-full bg-action text-action-foreground hover:bg-action-hover"
                     aria-label="Subscribe to newsletter"
                     aria-busy={isSubmitting}
                     disabled={isSubmitting}
@@ -211,7 +211,11 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
                         aria-hidden="true"
                       />
                     ) : (
-                      <ArrowRight size={16} aria-hidden="true" />
+                      <ArrowRight
+                        size={16}
+                        data-icon="inline-end"
+                        aria-hidden="true"
+                      />
                     )}
                   </Button>
                 </div>
@@ -225,25 +229,30 @@ export default function Footer({ onSubscribe = defaultSubscribe }: FooterProps) 
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-gray-primary/10 pt-6 md:flex-row">
-          <p className="text-center text-sm text-gray-tertiary md:text-left">
+        <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-line pt-4 md:flex-row">
+          <p className="text-center text-sm text-ink-2 md:text-left">
             ©{" "}
             <Suspense fallback={null}>
               <CopyrightYear />
             </Suspense>{" "}
             tended. All rights reserved.
           </p>
-          <div className="flex flex-wrap justify-center gap-4 md:gap-5">
+          <div className="flex flex-wrap justify-center gap-x-4 md:gap-x-5">
             {footerLinks.map((link) => (
               <Link
                 key={link.label}
                 href={link.href}
-                className="text-sm text-gray-tertiary transition-colors hover:text-primary"
+                className="inline-flex min-h-11 cursor-pointer items-center text-sm text-ink-2 transition-colors hover:text-accent-text"
               >
                 {link.label}
               </Link>
             ))}
           </div>
+        </div>
+
+        {/* Decorative outline wordmark, matching the mockup footer. */}
+        <div className="wordmark mt-8" aria-hidden="true">
+          tended<span>.</span>
         </div>
       </div>
     </footer>

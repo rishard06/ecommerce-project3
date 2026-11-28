@@ -4,9 +4,11 @@ import Hero from "@/components/marketing/Hero";
 
 export default function Header() {
   return (
-    <header className="relative flex flex-col items-center justify-center overflow-hidden">
+    <header className="hero relative bg-background text-foreground">
       <MeshGradientBackground />
-      <Hero />
+      <div className="shell">
+        <Hero />
+      </div>
     </header>
   );
 }
