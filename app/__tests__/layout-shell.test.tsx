@@ -198,7 +198,21 @@ describe("display type", () => {
 
     const wordmark = block(CSS, ".wordmark");
     expect(wordmark).toMatch(/font-family:\s*var\(--font-display\)/);
-    expect(wordmark).toMatch(/font-size:\s*clamp\(\s*4\.5rem\s*,\s*15vw\s*,\s*13rem\s*\)/);
+    expect(wordmark).toMatch(
+      /font-size:\s*clamp\(\s*4\.5rem\s*,\s*15vw\s*,\s*11\.25rem\s*\)/,
+    );
+
+    const clamp = wordmark.match(
+      /font-size:\s*clamp\(\s*([\d.]+)rem\s*,\s*[^,]+,\s*([\d.]+)rem\s*\)/,
+    );
+    expect(clamp).not.toBeNull();
+
+    const min = Number.parseFloat((clamp as RegExpMatchArray)[1]);
+    const max = Number.parseFloat((clamp as RegExpMatchArray)[2]);
+    expect(min).toBe(4.5);
+    expect(max).toBe(11.25);
+    expect(max / min).toBeLessThanOrEqual(2.5);
+
     expect(wordmark).toMatch(/-webkit-text-stroke:\s*1px/);
     expect(wordmark).toMatch(/user-select:\s*none/);
   });

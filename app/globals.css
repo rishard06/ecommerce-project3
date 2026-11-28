@@ -576,7 +576,7 @@
   /* Footer wordmark: empty fill, hairline outline, lime full stop. */
   .wordmark {
     font-family: var(--font-display), Georgia, serif;
-    font-size: clamp(4.5rem, 15vw, 13rem);
+    font-size: clamp(4.5rem, 15vw, 11.25rem);
     line-height: 0.78;
     letter-spacing: -0.05em;
     color: transparent;
