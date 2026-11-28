@@ -3,52 +3,63 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 /**
- * Editorial craft band: a full-bleed asymmetric split (image left,
- * story right) that breaks the card-grid rhythm of the sections around it.
- * No card chrome — no rounded frame, border, or shadow — just an
- * edge-to-edge wash with editorial proportions. Static by design; the
- * page wraps it in a `Reveal` like every other section.
+ * Direction C craft band: the mockup's split panel (art left, story right)
+ * closing the homepage. The art slot reserves its box with `aspect-ratio`, so
+ * a late image decode cannot shift the copy; the ring is decorative only.
  */
 export default function CraftBand() {
   return (
-    <section aria-labelledby="craft-heading" className="w-full bg-muted">
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-10 px-4 py-20 sm:px-6 md:grid-cols-12 md:gap-12 md:py-28">
-        <div className="md:col-span-7">
+    <section aria-labelledby="craft-heading" className="shell mt-16">
+      <div className="grid overflow-clip border-y border-line bg-[linear-gradient(120deg,var(--panel),var(--panel-2))] min-[981px]:grid-cols-[0.9fr_1.1fr]">
+        <div className="relative aspect-[4/3] overflow-clip border-b border-line min-[981px]:aspect-auto min-[981px]:min-h-[380px] min-[981px]:border-r min-[981px]:border-b-0">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(70%_70%_at_40%_50%,var(--action),transparent_70%)] opacity-20"
+          />
           <Image
             src="/landing/craft.webp"
             alt="Leafy green plant in a dark bowl planter resting on a tall black metal stand"
-            width={1024}
-            height={1024}
-            sizes="(min-width: 768px) 58vw, 100vw"
-            className="h-auto w-full object-cover"
+            fill
+            sizes="(min-width: 981px) 45vw, 100vw"
+            className="object-cover"
           />
         </div>
-        <div className="md:col-span-5">
-          <p className="mb-3 text-xs font-semibold tracking-[0.2em] text-gray-tertiary uppercase">
+
+        <div className="flex flex-col justify-center px-6 py-9 min-[981px]:px-12 min-[981px]:py-[52px]">
+          <p className="text-[10.5px] font-semibold tracking-[0.22em] text-gray-tertiary uppercase">
             Our craft
           </p>
           <h2
             id="craft-heading"
-            className="mb-4 font-display text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl"
+            className="mt-3 mb-4 font-display text-[clamp(2rem,3.6vw,3rem)] leading-[1.03] font-semibold tracking-[-0.035em] text-gray-primary"
           >
-            Made to be kept, not replaced
+            Made to be kept,
+            <br />
+            <em className="italic text-accent-text">not replaced.</em>
           </h2>
-          <p className="mb-3 leading-relaxed text-gray-secondary">
+          <p className="mb-2.5 max-w-[42ch] text-sm leading-relaxed text-gray-secondary">
             We pick materials that age well and joints that hold — the
             unglamorous decisions that decide whether something lasts a year
             or a decade.
           </p>
-          <p className="mb-6 leading-relaxed text-gray-secondary">
-            If it can&apos;t be repaired, we don&apos;t sell it. That&apos;s
-            the whole philosophy.
+          <p className="max-w-[42ch] text-sm leading-relaxed text-gray-secondary">
+            If it can&apos;t be repaired, we don&apos;t sell it. That&apos;s the
+            whole philosophy.
           </p>
-          <Link
-            href="/products"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-primary underline underline-offset-4 transition-colors hover:text-accent-text"
-          >
-            Browse the collection
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
+
+          <div className="mt-5 flex flex-wrap items-center gap-5">
+            <Link
+              href="/products"
+              className="group inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-action bg-action px-5 text-[13px] font-bold text-action-foreground transition-[background-color,transform] duration-200 ease-out-quart hover:bg-action-hover active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Browse the collection
+              <ArrowRight
+                data-icon="inline-end"
+                className="size-4 transition-transform duration-200 ease-out-quart group-hover:translate-x-0.5 motion-reduce:transition-none"
+                aria-hidden="true"
+              />
+            </Link>
+          </div>
         </div>
       </div>
     </section>

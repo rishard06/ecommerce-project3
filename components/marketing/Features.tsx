@@ -1,13 +1,16 @@
 import React from "react";
-import Link from "next/link";
-import { Star, ShoppingBag, Headphones, CheckCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ArrowUpRight,
+  CheckCircle,
+  Headphones,
+  ShoppingBag,
+  Star,
+} from "lucide-react";
 
 interface Feature {
   title: string;
   description: string;
   icon: React.ReactNode;
-  href?: string;
 }
 
 const features: Feature[] = [
@@ -22,7 +25,6 @@ const features: Feature[] = [
     description:
       "Orders leave the same day and arrive while the excitement is still fresh.",
     icon: <ShoppingBag className="size-7" aria-hidden="true" />,
-    href: "/shipping",
   },
   {
     title: "24/7 support",
@@ -35,51 +37,45 @@ const features: Feature[] = [
     description:
       "Change your mind within a month — no forms, no interrogation.",
     icon: <CheckCircle className="size-7" aria-hidden="true" />,
-    href: "/returns",
   },
 ];
 
+/**
+ * Catalog bento tile t4: the promise row.
+ *
+ * The homepage shows the lead promise (quality) at bento scale; the full
+ * feature set stays available to the section for future surfaces.
+ */
+const promise = features[0];
+
 export default function Features() {
   return (
-    <section className="w-full px-4 py-20 sm:px-6 md:py-28">
-      <div className="mx-auto w-full max-w-7xl">
-        <div className="mb-10 text-center md:mb-14">
-          <h2 className="mb-3 font-display text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl">
-            Why shop with us
-          </h2>
-          <p className="mx-auto max-w-2xl text-gray-secondary">
-            The boring parts — quality, delivery, support — done properly.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
-          {features.map((feature) => (
-            <Card key={feature.title} className="glass-component h-full">
-              <CardHeader className="pt-6">
-                <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-500/30 text-accent-text">
-                  {feature.icon}
-                </div>
-                <CardTitle className="text-lg font-semibold tracking-tight text-gray-primary">
-                  {feature.href ? (
-                    <Link
-                      href={feature.href}
-                      className="underline-offset-4 transition-colors hover:text-accent-text hover:underline"
-                    >
-                      {feature.title}
-                    </Link>
-                  ) : (
-                    feature.title
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pb-6">
-                <p className="text-sm leading-relaxed text-gray-tertiary">
-                  {feature.description}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+    <article
+      data-tile="t4"
+      className="bento-card col-span-2 flex items-center gap-5 overflow-clip rounded-[1.25rem] border border-line bg-panel-2 p-5 max-[540px]:col-span-1 max-[540px]:flex-col max-[540px]:items-start"
+    >
+      <span className="flex size-[52px] shrink-0 items-center justify-center rounded-2xl bg-action/15 text-accent-text">
+        {promise.icon}
+      </span>
+
+      <div className="min-w-0">
+        <p className="text-[10.5px] font-semibold tracking-[0.22em] text-gray-tertiary uppercase">
+          {promise.title}
+        </p>
+        <h3 className="bento-card__title mt-1 font-display text-[22px] font-semibold tracking-[-0.02em] text-gray-primary">
+          Why shop with us
+        </h3>
+        <p className="mt-1 max-w-[34ch] text-xs leading-relaxed text-gray-tertiary">
+          {promise.description}
+        </p>
       </div>
-    </section>
+
+      <span
+        aria-hidden="true"
+        className="ml-auto grid size-8 shrink-0 place-items-center rounded-full border border-line-strong text-gray-secondary max-[540px]:ml-0"
+      >
+        <ArrowUpRight className="size-3.5" />
+      </span>
+    </article>
   );
 }

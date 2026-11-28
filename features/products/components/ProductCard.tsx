@@ -22,6 +22,7 @@ export default function ProductCard({
   image,
   description,
   isPopular,
+  featured = false,
 }: {
   slug: string;
   variantId: string;
@@ -30,6 +31,8 @@ export default function ProductCard({
   image: string;
   description: string;
   isPopular?: boolean;
+  /** Renders the catalog bento's 2x2 bestseller tile (t1). */
+  featured?: boolean;
 }) {
   const addItem = useCartStore((state) => state.addItem);
   const { toggleFavorite, isFavorite } = useFavoritesStore();
@@ -88,8 +91,11 @@ export default function ProductCard({
 
   return (
     <motion.article
+      data-tile={featured ? "t1" : undefined}
       className={cn(
-        "glass-component group relative flex h-full flex-col overflow-hidden hover:shadow-lift",
+        featured
+          ? "bento-card group relative flex h-full flex-col col-span-2 row-span-2 overflow-clip rounded-[1.25rem] border border-line bg-[linear-gradient(150deg,var(--panel-2),var(--panel))] p-5 max-[540px]:col-span-1 max-[540px]:row-span-1 max-[540px]:min-h-[420px]"
+          : "glass-component group relative flex h-full flex-col overflow-hidden hover:shadow-lift",
         !prefersReducedMotion &&
           "transition-shadow duration-300 ease-out-quart",
       )}
@@ -100,11 +106,22 @@ export default function ProductCard({
       whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
       transition={prefersReducedMotion ? undefined : spring.smooth}
     >
+      {featured && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-10 -right-14 size-[340px] rounded-full bg-action/20 blur-2xl"
+        />
+      )}
+
       {/* A single overlay link keeps the whole card clickable without nesting
           interactive elements inside an anchor. */}
       <Link
         href={productHref}
-        className="absolute inset-0 z-0 rounded-[1.5rem]"
+        className={cn(
+          "absolute inset-0 z-0 rounded-[1.5rem]",
+          featured &&
+            "cursor-pointer rounded-[1.25rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        )}
         aria-label={`View ${title}`}
       />
 
@@ -114,7 +131,11 @@ export default function ProductCard({
           onClick={handleFavorite}
           aria-label={favorited ? `Remove ${title} from favorites` : `Save ${title} to favorites`}
           aria-pressed={favorited}
-          className="absolute right-3 top-3 z-20 flex size-10 items-center justify-center rounded-full border border-border bg-surface-light text-gray-secondary shadow-soft backdrop-blur-md transition-colors hover:bg-secondary"
+          className={cn(
+            "absolute right-3 top-3 z-20 flex size-10 items-center justify-center rounded-full border border-border bg-surface-light text-gray-secondary shadow-soft backdrop-blur-md transition-colors hover:bg-secondary",
+            featured &&
+              "right-4 top-4 size-11 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          )}
         >
           <motion.span
             animate={prefersReducedMotion ? undefined : { scale: favorited ? 1.12 : 1 }}
@@ -130,7 +151,12 @@ export default function ProductCard({
         </button>
 
         {isPopular && (
-          <span className="absolute left-3 top-3 z-20 rounded-full bg-action/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-action-foreground shadow-soft">
+          <span
+            className={cn(
+              "absolute left-3 top-3 z-20 rounded-full bg-action/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-action-foreground shadow-soft",
+              featured && "left-4 top-4",
+            )}
+          >
             Popular
           </span>
         )}
@@ -141,14 +167,26 @@ export default function ProductCard({
           aria-hidden="true"
           tabIndex={-1}
         >
-          <div className="relative h-56 w-full overflow-hidden">
+          <div
+            data-product-art={featured ? "true" : undefined}
+            className={
+              featured
+                ? "relative aspect-[3/1] max-h-[220px] w-full overflow-clip"
+                : "relative h-56 w-full overflow-hidden"
+            }
+          >
             <Image
               src={image}
               alt={title}
               fill
-              sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
+              sizes={
+                featured
+                  ? "(min-width: 981px) 50vw, 100vw"
+                  : "(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
+              }
               className={cn(
-                "object-contain p-6",
+                "object-contain",
+                featured ? "p-4" : "p-6",
                 !prefersReducedMotion &&
                   "transition-transform duration-500 ease-out-quart group-hover:scale-[1.03]",
               )}
@@ -157,16 +195,39 @@ export default function ProductCard({
         </Link>
       </div>
 
-      <div className="pointer-events-none relative z-10 flex flex-1 flex-col p-5 pt-3">
-        <h3 className="mb-1.5 line-clamp-1 text-lg font-semibold tracking-tight text-gray-primary">
+      <div
+        className={
+          featured
+            ? "pointer-events-none relative z-10 flex flex-1 flex-col p-0 pt-3"
+            : "pointer-events-none relative z-10 flex flex-1 flex-col p-5 pt-3"
+        }
+      >
+        <h3
+          className={
+            featured
+              ? "mb-1.5 line-clamp-1 font-display text-2xl font-semibold tracking-[-0.02em] text-gray-primary"
+              : "mb-1.5 line-clamp-1 text-lg font-semibold tracking-tight text-gray-primary"
+          }
+        >
           {title}
         </h3>
         <p className="line-clamp-2 flex-1 text-sm leading-relaxed text-gray-tertiary">
           {description}
         </p>
 
-        <div className="mt-5 flex items-center justify-between gap-3">
-          <span className="text-xl font-semibold tabular-nums tracking-tight text-gray-secondary">
+        <div
+          className={cn(
+            "mt-5 flex items-center justify-between gap-3",
+            featured && "mt-2",
+          )}
+        >
+          <span
+            className={
+              featured
+                ? "font-display text-2xl tabular-nums tracking-tight text-accent-text"
+                : "text-xl font-semibold tabular-nums tracking-tight text-gray-secondary"
+            }
+          >
             {formatCents(priceCents)}
           </span>
           <Button

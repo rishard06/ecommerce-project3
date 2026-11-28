@@ -1,39 +1,46 @@
 import Link from "next/link";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingBagIcon, Watch, Volleyball, Smartphone, ChevronRightIcon } from "lucide-react";
+import {
+  ArrowUpRight,
+  ShoppingBagIcon,
+  Smartphone,
+  Volleyball,
+  Watch,
+  type LucideIcon,
+} from "lucide-react";
 import { getProducts } from "@/lib/products";
 
 interface Category {
   name: string;
+  /** Compact tile label; the full name stays in the link's accessible name. */
+  shortName: string;
   slug: string;
-  icon: React.ReactNode;
-  color: string;
+  icon: LucideIcon;
 }
 
 const categories: Category[] = [
   {
     name: "Mobile Accessories",
+    shortName: "Mobile",
     slug: "mobile-accessories",
-    icon: <ShoppingBagIcon className="size-7" aria-hidden="true" />,
-    color: "text-primary-700",
+    icon: ShoppingBagIcon,
   },
   {
     name: "Watches",
+    shortName: "Watches",
     slug: "mens-watches",
-    icon: <Watch className="size-7" aria-hidden="true" />,
-    color: "text-primary-600",
+    icon: Watch,
   },
   {
     name: "Sports",
+    shortName: "Sports",
     slug: "sports-accessories",
-    icon: <Volleyball className="size-7" aria-hidden="true" />,
-    color: "text-accent-text",
+    icon: Volleyball,
   },
   {
     name: "Smartphones",
+    shortName: "Phones",
     slug: "smartphones",
-    icon: <Smartphone className="size-7" aria-hidden="true" />,
-    color: "text-primary-800",
+    icon: Smartphone,
   },
 ];
 
@@ -54,61 +61,76 @@ function formatCount(count: number): string {
   return `${count.toLocaleString("en-US")} ${count === 1 ? "product" : "products"}`;
 }
 
+/**
+ * Catalog bento tile t2: live catalog rooms.
+ *
+ * Every room is a real link with a 44px hit area. The compact number is
+ * decorative; the full "12 products" phrase sits in an sr-only span so the
+ * link still reads naturally without turning the tile into a paragraph.
+ */
 export default async function Category() {
   const counts = await Promise.all(
-    categories.map((category) => getCategoryCount(category.slug))
+    categories.map((category) => getCategoryCount(category.slug)),
   );
+
   return (
-    <section className="w-full px-4 py-20 sm:px-6 md:py-28">
-      <div className="mx-auto w-full max-w-7xl">
-        <div className="mb-10 text-center md:mb-14">
-          <h2 className="mb-3 font-display text-3xl font-semibold tracking-tight text-gray-primary md:text-4xl">
+    <article
+      data-tile="t2"
+      className="bento-card col-span-1 flex flex-col justify-between gap-2.5 overflow-clip rounded-[1.25rem] border border-line bg-panel p-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="bento-card__title font-display font-semibold tracking-[-0.02em] text-gray-primary">
             Shop by category
-          </h2>
-          <p className="mx-auto max-w-2xl text-gray-secondary">
+          </h3>
+          <p className="mt-1 text-[11px] leading-snug text-gray-tertiary">
             A small, considered collection — nothing to scroll past.
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
-          {categories.map((category, index) => {
-            const count = counts[index];
-            return (
-              <Link
-                key={category.name}
-                href={`/products?category=${category.slug}&skip=0`}
-                className="rounded-[1.5rem] focus-visible:outline-none"
-                aria-label={`Shop ${category.name}`}
-              >
-                <Card className="glass-component h-full text-center transition-[transform,box-shadow] duration-300 ease-out-quart hover:-translate-y-1 hover:shadow-lift">
-                  <CardHeader className="pt-6">
-                    <div
-                      className={`mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-white/60 ${category.color}`}
-                    >
-                      {category.icon}
-                    </div>
-                    <CardTitle className="text-lg font-semibold tracking-tight text-gray-primary">
-                      {category.name}
-                    </CardTitle>
-                  </CardHeader>
-                  {count !== null ? (
-                    <CardContent>
-                      <p className="text-sm text-gray-tertiary">
-                        {formatCount(count)}
-                      </p>
-                    </CardContent>
-                  ) : null}
-                  <CardFooter className="justify-center pb-6">
-                    <span className="flex items-center gap-1 text-sm font-semibold text-accent-text">
-                      Shop now
-                      <ChevronRightIcon className="size-4" aria-hidden="true" />
-                    </span>
-                  </CardFooter>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+        <span
+          aria-hidden="true"
+          className="grid size-8 shrink-0 place-items-center rounded-full border border-line-strong text-gray-secondary"
+        >
+          <ArrowUpRight className="size-3.5" />
+        </span>
       </div>
-    </section>
+
+      <ul className="grid grid-cols-2 gap-x-4">
+        {categories.map((category, index) => {
+          const count = counts[index];
+          const Icon = category.icon;
+
+          return (
+            <li key={category.name}>
+              <Link
+                href={`/products?category=${category.slug}&skip=0`}
+                aria-label={
+                  count !== null
+                    ? `Shop ${category.name}, ${formatCount(count)}`
+                    : `Shop ${category.name}`
+                }
+                className="flex min-h-11 cursor-pointer items-center justify-between gap-1.5 border-t border-line py-1 text-xs text-gray-secondary transition-colors hover:text-accent-text focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{category.shortName}</span>
+                </span>
+                {count !== null ? (
+                  <span className="flex flex-col items-end">
+                    <span
+                      aria-hidden="true"
+                      className="text-[11px] tabular-nums text-gray-tertiary"
+                    >
+                      {count}
+                    </span>
+                    <span className="sr-only">{formatCount(count)}</span>
+                  </span>
+                ) : null}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </article>
   );
 }
