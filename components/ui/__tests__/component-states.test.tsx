@@ -65,6 +65,38 @@ function stripComments(source: string): string {
     .replace(/^\s*\/\/.*$/gm, "");
 }
 
+/**
+ * True when the forced-colors at-rule sits outside every `@layer` block.
+ *
+ * Cascade order, not selector order, decides the outcome here: a layered
+ * `outline: 2px solid Highlight` loses to Tailwind's utility-layer
+ * `outline-none` on Button. The block must be unlayered (like the
+ * reduced-motion pulse rule) to win regardless of utility order.
+ */
+function forcedColorsIsUnlayered(source: string): boolean {
+  const code = stripComments(source);
+  const stack: boolean[] = [];
+  let start = 0;
+
+  for (let i = 0; i < code.length; i += 1) {
+    if (code[i] === "{") {
+      const prelude = code.slice(start, i).trim();
+      if (prelude.startsWith("@media") && /forced-colors/.test(prelude)) {
+        return !stack.some(Boolean);
+      }
+      stack.push(prelude.startsWith("@layer"));
+      start = i + 1;
+    } else if (code[i] === "}") {
+      stack.pop();
+      start = i + 1;
+    } else if (code[i] === ";") {
+      start = i + 1;
+    }
+  }
+
+  throw new Error("@media (forced-colors: active) not found");
+}
+
 afterEach(cleanup);
 
 describe("lime CTA", () => {
@@ -165,6 +197,12 @@ describe("forced-colors fallbacks", () => {
     expect(forced).toMatch(
       /\[data-slot="button"\]:focus-visible[\s\S]*?outline:\s*2px solid Highlight/,
     );
+  });
+
+  it("keeps the forced-colors block unlayered so utility outlines cannot win", () => {
+    // `outline-none` lives in Tailwind's utility layer. Only an unlayered
+    // rule beats it, so this asserts cascade position, not just the text.
+    expect(forcedColorsIsUnlayered(CSS)).toBe(true);
   });
 });
 

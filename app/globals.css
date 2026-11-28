@@ -704,50 +704,6 @@
       );
   }
 
-  /*
-   * Forced colours replace the palette with system keywords and drop
-   * box-shadows/fills, so a border is the only reliable shape cue. Every
-   * surface already owns a real border; these rules keep its colour visible
-   * and give the outline wordmark a fill (text-stroke is not guaranteed).
-   */
-  @media (forced-colors: active) {
-    [data-tile],
-    .glass-component,
-    .glass-control {
-      border: 1px solid CanvasText;
-    }
-
-    [data-slot="button"],
-    [data-slot="badge"] {
-      border: 1px solid ButtonText;
-    }
-
-    [data-slot="button"]:hover,
-    [data-slot="button"]:focus-visible {
-      border-color: ButtonText;
-      outline: 2px solid Highlight;
-      outline-offset: 2px;
-    }
-
-    .wordmark,
-    .display-outline {
-      color: CanvasText;
-      -webkit-text-stroke-color: CanvasText;
-    }
-
-    .wordmark > span {
-      -webkit-text-stroke-color: CanvasText;
-    }
-
-    /* Decorative mesh, grain, and gradients are noise in forced colours. */
-    .mesh,
-    .mesh-glow,
-    [data-mesh-glow],
-    [data-grain] {
-      display: none;
-    }
-  }
-
   @media (max-width: 980px) {
     .bento {
       grid-template-columns: repeat(2, 1fr);
@@ -759,6 +715,54 @@
       grid-template-columns: 1fr;
       grid-auto-rows: auto;
     }
+  }
+}
+
+/*
+ * Forced colours replace the palette with system keywords and drop
+ * box-shadows/fills, so a border is the only reliable shape cue. Every
+ * surface already owns a real border; these rules keep its colour visible
+ * and give the outline wordmark a fill (text-stroke is not guaranteed).
+ *
+ * Unlayered on purpose: Button's `outline-none` is a utility-layer rule, so
+ * a layered Highlight outline would lose the cascade and keyboard focus would
+ * disappear in forced-colors mode.
+ */
+@media (forced-colors: active) {
+  [data-tile],
+  .glass-component,
+  .glass-control {
+    border: 1px solid CanvasText;
+  }
+
+  [data-slot="button"],
+  [data-slot="badge"] {
+    border: 1px solid ButtonText;
+  }
+
+  [data-slot="button"]:hover,
+  [data-slot="button"]:focus-visible {
+    border-color: ButtonText;
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .wordmark,
+  .display-outline {
+    color: CanvasText;
+    -webkit-text-stroke-color: CanvasText;
+  }
+
+  .wordmark > span {
+    -webkit-text-stroke-color: CanvasText;
+  }
+
+  /* Decorative mesh, grain, and gradients are noise in forced colours. */
+  .mesh,
+  .mesh-glow,
+  [data-mesh-glow],
+  [data-grain] {
+    display: none;
   }
 }
 
