@@ -44,6 +44,28 @@ function declarations(block: string): Tokens {
   );
 }
 
+/** Extract an at-rule block, e.g. `prefers-color-scheme: light`. */
+function mediaBlock(source: string, query: string): string {
+  const match = source.match(
+    new RegExp(`@media\\s*\\(\\s*${query}\\s*\\)\\s*\\{`),
+  );
+  if (!match || match.index === undefined) {
+    throw new Error(`@media (${query}) not found`);
+  }
+
+  const open = source.indexOf("{", match.index);
+  let depth = 0;
+  for (let i = open; i < source.length; i += 1) {
+    if (source[i] === "{") depth += 1;
+    if (source[i] === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(open + 1, i);
+    }
+  }
+
+  throw new Error(`@media (${query}) is unterminated`);
+}
+
 function allDeclarations(block: string): Tokens {
   const tokens: Tokens = {};
   for (const line of block.split(";")) {
@@ -59,13 +81,24 @@ function allDeclarations(block: string): Tokens {
 
 const rootTokens = declarations(cssBlock(CSS, ":root"));
 const darkOverrides = declarations(cssBlock(CSS, ".dark"));
+/*
+ * `:root` is dark-first, so light is the OS-light fallback block layered on
+ * top of it (exactly how the browser resolves the sheet when no `.dark`
+ * class pins the canvas).
+ */
+const lightOverrides = declarations(
+  cssBlock(
+    mediaBlock(CSS, "prefers-color-scheme:\\s*light"),
+    ":root:not(.dark)",
+  ),
+);
 
-/** Resolve `var(--x)` chains for one theme, walking :root then .dark. */
+/** Resolve `var(--x)` chains for one theme, walking :root then theme overrides. */
 function themeTokens(theme: "light" | "dark"): Tokens {
   const lookup = (name: string): string | undefined =>
     theme === "dark"
       ? (darkOverrides[name] ?? rootTokens[name])
-      : rootTokens[name];
+      : (lightOverrides[name] ?? rootTokens[name]);
 
   const resolved: Tokens = {};
   for (const name of Object.keys({ ...rootTokens, ...darkOverrides })) {
@@ -201,41 +234,33 @@ describe("body copy contrast", () => {
 });
 
 describe("glass-component readability", () => {
-  const lightGlass = allDeclarations(cssBlock(CSS, ".glass-component"))["background"];
-  const darkGlass = allDeclarations(cssBlock(CSS, ".dark .glass-component"))[
-    "background"
-  ];
+  const glassBackground = allDeclarations(
+    cssBlock(CSS, ".glass-component"),
+  )["background"];
 
-  it("keeps light glass copy at WCAG AA", () => {
-    const light = themeTokens("light");
-    for (const token of [
-      "--font-color-secondary",
-      "--font-color-tertiary",
-      "--font-color-quaternary",
-    ] as const) {
-      expect(
-        contrastOn(light[token], lightGlass, light["--background"]),
-      ).toBeGreaterThanOrEqual(4.5);
-    }
+  it("draws glass from the panel token instead of hardcoded white", () => {
+    expect(glassBackground).toContain("var(--panel)");
+    expect(glassBackground).not.toMatch(/#[0-9a-f]{3,8}|rgba?\(\s*255/i);
   });
 
-  it("keeps dark glass copy at WCAG AA (composited over the dark canvas)", () => {
+  for (const [theme, tokens] of THEMES) {
+    it(`keeps ${theme} glass copy at WCAG AA on the panel surface`, () => {
+      for (const token of [
+        "--font-color-secondary",
+        "--font-color-tertiary",
+        "--font-color-quaternary",
+      ] as const) {
+        expect(
+          contrast(tokens[token], tokens["--panel"]),
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+  }
+
+  it("keeps dark glass headings at AAA on the panel", () => {
     const dark = themeTokens("dark");
-    for (const token of [
-      "--font-color-secondary",
-      "--font-color-tertiary",
-      "--font-color-quaternary",
-    ] as const) {
-      expect(
-        contrastOn(dark[token], darkGlass, dark["--background"]),
-      ).toBeGreaterThanOrEqual(4.5);
-    }
     expect(
-      contrastOn(
-        dark["--foreground"],
-        darkGlass,
-        dark["--background"],
-      ),
+      contrast(dark["--foreground"], dark["--panel"]),
     ).toBeGreaterThanOrEqual(7);
   });
 });
@@ -250,26 +275,22 @@ describe("single action colour", () => {
     expect(rgbaToHex(parseColor(dark["--action"]))).toBe(lime);
   });
 
-  it("labels the action fill with ink that does not flip in dark mode", () => {
-    const light = themeTokens("light");
-    const dark = themeTokens("dark");
+  it("labels the action fill with dark ink that never becomes the theme foreground", () => {
+    for (const [, tokens] of THEMES) {
+      expect(
+        contrast(tokens["--action-foreground"], tokens["--action"]),
+      ).toBeGreaterThanOrEqual(4.5);
 
-    expect(
-      contrast(light["--action-foreground"], light["--action"]),
-    ).toBeGreaterThanOrEqual(4.5);
-    expect(
-      contrast(dark["--action-foreground"], dark["--action"]),
-    ).toBeGreaterThanOrEqual(4.5);
-
-    // The label is the same ink in both themes; only a fixed ink can stay
-    // readable on a fill that never changes.
-    expect(rgbaToHex(parseColor(dark["--action-foreground"]))).toBe(
-      rgbaToHex(parseColor(light["--action-foreground"])),
-    );
-    // ... and it must not be the theme-flipping body colour (the old bug).
-    expect(rgbaToHex(parseColor(dark["--action-foreground"]))).not.toBe(
-      rgbaToHex(parseColor(dark["--font-color-primary"])),
-    );
+      // Both themes use a near-black ink; only the exact value differs
+      // (#101a17 light, #0c1311 dark). It must never be the theme-flipping
+      // body colour (the old 1.1:1 bug in dark mode).
+      expect(luminance(parseColor(tokens["--action-foreground"]))).toBeLessThan(
+        0.05,
+      );
+      expect(rgbaToHex(parseColor(tokens["--action-foreground"]))).not.toBe(
+        rgbaToHex(parseColor(tokens["--font-color-primary"])),
+      );
+    }
   });
 
   it("reserves blue for the focus ring instead of CTAs", () => {
@@ -428,8 +449,11 @@ describe("accent text token", () => {
     expect(rgbaToHex(parseColor(light["--accent-text"]))).not.toBe(
       rgbaToHex(parseColor(light["--accent-700"])),
     );
+    // Dark-first keeps the C mockup lime, which is accent-500 (14.96:1 on
+    // the canvas), not the darker accent-700 step used for light copy.
+    expect(rgbaToHex(parseColor(dark["--accent-text"]))).toBe("#ccf381");
     expect(rgbaToHex(parseColor(dark["--accent-text"]))).toBe(
-      rgbaToHex(parseColor(dark["--accent-700"])),
+      rgbaToHex(parseColor(dark["--accent-500"])),
     );
   });
 

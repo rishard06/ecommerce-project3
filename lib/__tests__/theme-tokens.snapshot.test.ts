@@ -53,15 +53,43 @@ function declarations(block: string): Tokens {
   return tokens;
 }
 
+/** Extract an at-rule block, e.g. `prefers-color-scheme: light`. */
+function mediaBlock(source: string, query: string): string {
+  const match = source.match(
+    new RegExp(`@media\\s*\\(\\s*${query}\\s*\\)\\s*\\{`),
+  );
+  if (!match || match.index === undefined) {
+    throw new Error(`@media (${query}) not found`);
+  }
+
+  const open = source.indexOf("{", match.index);
+  let depth = 0;
+  for (let i = open; i < source.length; i += 1) {
+    if (source[i] === "{") depth += 1;
+    if (source[i] === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(open + 1, i);
+    }
+  }
+  throw new Error(`@media (${query}) is unterminated`);
+}
+
 const rootTokens = declarations(cssBlock(CSS, ":root"));
 const darkOverrides = declarations(cssBlock(CSS, ".dark"));
+/* Dark-first `:root` + the OS-light fallback, matching browser resolution. */
+const lightOverrides = declarations(
+  cssBlock(
+    mediaBlock(CSS, "prefers-color-scheme:\\s*light"),
+    ":root:not(.dark)",
+  ),
+);
 
-/** Resolve `var(--x)` chains for one theme, walking :root then .dark. */
+/** Resolve `var(--x)` chains for one theme, walking :root then theme overrides. */
 function themeTokens(theme: "light" | "dark"): Tokens {
   const lookup = (name: string): string | undefined =>
     theme === "dark"
       ? (darkOverrides[name] ?? rootTokens[name])
-      : rootTokens[name];
+      : (lightOverrides[name] ?? rootTokens[name]);
 
   const resolved: Tokens = {};
   for (const name of Object.keys({ ...rootTokens, ...darkOverrides }).sort()) {
