@@ -63,7 +63,49 @@ function initialsFor(name: string): string {
     .toUpperCase();
 }
 
-export default function Testimonies() {
+export default function Testimonies({ tile = false }: { tile?: boolean }) {
+  if (tile) {
+    const [featured] = testimonials;
+
+    return (
+      <article
+        data-tile="t5"
+        className="bento-card col-span-2 flex flex-col justify-between gap-3 overflow-clip rounded-[1.25rem] border border-line bg-panel p-5 max-[540px]:col-span-1"
+      >
+        <h3 className="sr-only font-display">What customers say</h3>
+
+        <div
+          role="img"
+          aria-label="Rated 5 out of 5"
+          className="flex items-center gap-0.5 text-accent-text"
+        >
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Star
+              key={index}
+              className="size-[13px]"
+              fill="currentColor"
+              aria-hidden="true"
+            />
+          ))}
+        </div>
+
+        <blockquote className="font-display text-[17px] leading-snug tracking-[-0.01em] text-gray-primary">
+          “{featured.quote}”
+        </blockquote>
+
+        <p className="text-[11px] text-gray-tertiary">
+          {featured.name} · {featured.role} ·{" "}
+          <Link
+            href={`/products/${featured.productSlug}`}
+            className="cursor-pointer rounded-sm text-accent-text underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            {featured.productName}
+          </Link>
+        </p>
+      </article>
+    );
+  }
+
   return (
     <section className="w-full px-4 py-20 sm:px-6 md:py-28">
       <div className="mx-auto w-full max-w-7xl">
@@ -106,7 +148,7 @@ export default function Testimonies() {
                   {Array.from({ length: 5 }).map((_, index) => (
                     <Star
                       key={index}
-                      className="size-3.5 text-yellow-500"
+                      className="size-3.5 text-accent-text"
                       fill="currentColor"
                       aria-hidden="true"
                     />
