@@ -274,7 +274,9 @@ describe("catalog bento", () => {
     expect(mobile.className).toContain("cursor-pointer");
     expect(mobile.className).toContain("focus-visible:ring");
 
-    // The visible count is compact; the accessible text stays "12 products".
+    // Full catalog names stay visible; only the count is compact.
+    expect(within(t2!).getByText("Mobile Accessories")).toBeTruthy();
+    expect(within(t2!).getByText("Smartphones")).toBeTruthy();
     expect(within(t2!).getAllByText("12 products")).toHaveLength(4);
   });
 
@@ -284,6 +286,12 @@ describe("catalog bento", () => {
 
     expect(t3).not.toBeNull();
     expect(t3!.textContent).toContain(String(fixtures.total));
+    expect(
+      within(t3!).getByRole("heading", { name: /catalog size/i }),
+    ).toBeTruthy();
+    // The tile adds no visible copy; only the real number and the sr-only label.
+    expect(t3!.textContent).not.toContain("The catalog");
+    expect(t3!.textContent).not.toContain("products in the catalog");
     expect(t3!.textContent).not.toContain("materials rejected");
     expect(t3!.textContent).not.toContain("ten-year test");
   });

@@ -87,18 +87,12 @@ export default async function FeatureProducts() {
 
         <article
           data-tile="t3"
-          className="bento-card col-span-1 flex flex-col justify-between gap-4 overflow-clip rounded-[1.25rem] border border-line bg-action p-5 text-action-foreground"
+          className="bento-card col-span-1 flex flex-col justify-center overflow-clip rounded-[1.25rem] border border-line bg-action p-5 text-action-foreground"
         >
           <h3 className="sr-only">Catalog size</h3>
-          <p className="text-[10.5px] font-semibold tracking-[0.22em] uppercase opacity-70">
-            The catalog
-          </p>
           <div className="font-display text-[66px] leading-[0.9] tracking-[-0.05em] tabular-nums">
             {totalLabel}
           </div>
-          <p className="max-w-[20ch] text-[11.5px] font-medium opacity-80">
-            products in the catalog.
-          </p>
         </article>
 
         <Features />

@@ -11,8 +11,6 @@ import { getProducts } from "@/lib/products";
 
 interface Category {
   name: string;
-  /** Compact tile label; the full name stays in the link's accessible name. */
-  shortName: string;
   slug: string;
   icon: LucideIcon;
 }
@@ -20,25 +18,21 @@ interface Category {
 const categories: Category[] = [
   {
     name: "Mobile Accessories",
-    shortName: "Mobile",
     slug: "mobile-accessories",
     icon: ShoppingBagIcon,
   },
   {
     name: "Watches",
-    shortName: "Watches",
     slug: "mens-watches",
     icon: Watch,
   },
   {
     name: "Sports",
-    shortName: "Sports",
     slug: "sports-accessories",
     icon: Volleyball,
   },
   {
     name: "Smartphones",
-    shortName: "Phones",
     slug: "smartphones",
     icon: Smartphone,
   },
@@ -113,7 +107,9 @@ export default async function Category() {
               >
                 <span className="flex min-w-0 items-center gap-1.5">
                   <Icon className="size-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{category.shortName}</span>
+                  <span className="min-w-0 text-[11px] leading-tight">
+                    {category.name}
+                  </span>
                 </span>
                 {count !== null ? (
                   <span className="flex flex-col items-end">
