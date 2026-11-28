@@ -95,9 +95,9 @@ export default function ProductCard({
       className={cn(
         featured
           ? "bento-card group relative flex h-full flex-col col-span-2 row-span-2 overflow-clip rounded-[1.25rem] border border-line bg-[linear-gradient(150deg,var(--panel-2),var(--panel))] p-5 max-[540px]:col-span-1 max-[540px]:row-span-1 max-[540px]:min-h-[420px]"
-          : "glass-component group relative flex h-full flex-col overflow-hidden hover:shadow-lift",
+          : "glass-component group relative flex h-full flex-col overflow-clip hover:shadow-lift",
         !prefersReducedMotion &&
-          "transition-shadow duration-300 ease-out-quart",
+          "transition-shadow duration-[180ms] ease-out-quart",
       )}
       // Transform-only tactile feedback: the card lifts 2px on hover and
       // compresses 2% while pressed. The CSS hover lift is gone so motion owns
@@ -132,9 +132,8 @@ export default function ProductCard({
           aria-label={favorited ? `Remove ${title} from favorites` : `Save ${title} to favorites`}
           aria-pressed={favorited}
           className={cn(
-            "absolute right-3 top-3 z-20 flex size-10 items-center justify-center rounded-full border border-border bg-surface-light text-gray-secondary shadow-soft backdrop-blur-md transition-colors hover:bg-secondary",
-            featured &&
-              "right-4 top-4 size-11 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "absolute right-3 top-3 z-20 flex size-11 cursor-pointer items-center justify-center rounded-full border border-border bg-surface-light text-gray-secondary shadow-soft backdrop-blur-md transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            featured && "right-4 top-4",
           )}
         >
           <motion.span
@@ -188,7 +187,7 @@ export default function ProductCard({
                 "object-contain",
                 featured ? "p-4" : "p-6",
                 !prefersReducedMotion &&
-                  "transition-transform duration-500 ease-out-quart group-hover:scale-[1.03]",
+                  "transition-transform duration-[180ms] ease-out-quart group-hover:scale-[1.03]",
               )}
             />
           </div>

@@ -105,6 +105,8 @@
   --elevation-lift: 0 2px 4px rgba(0, 0, 0, 0.35), 0 18px 32px -16px rgba(0, 0, 0, 0.65);
   --elevation-hover: 0 10px 40px rgba(0, 0, 0, 0.55);
   --elevation-glass: 0 8px 32px rgba(0, 0, 0, 0.45);
+  /* C mockup `.btn:hover`: a lime bloom, never a hard drop shadow. */
+  --elevation-glow: 0 0 34px -6px color-mix(in oklab, var(--action) 45%, transparent);
 }
 
 /* Explicit dark palette for a manual `.dark` toggle (and nested dark scopes). */
@@ -326,6 +328,7 @@
   --shadow-lift: var(--elevation-lift);
   --shadow-hover: var(--elevation-hover);
   --shadow-glass: var(--elevation-glass);
+  --shadow-glow: var(--elevation-glow);
 
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-spring: cubic-bezier(0.22, 1.2, 0.36, 1);
@@ -339,6 +342,9 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    /* Reserve the vertical scrollbar so route changes and overlays cannot
+       shift the centered measure sideways. */
+    scrollbar-gutter: stable;
     /* Kill any stray horizontal scrollbar from decorative overflow
        (rotated deck, blurred gradients). `clip` — not `hidden` — so the
        sticky navbar keeps working. */
@@ -455,6 +461,10 @@
 
   .custom-scrollbar {
     scrollbar-width: thin;
+    /* Nested panes must not chain their scroll into the page, and the pane
+       must not jump wider when the thumb appears. */
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
     scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent;
   }
 
@@ -479,6 +489,7 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+    overscroll-behavior: contain;
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -693,6 +704,50 @@
       );
   }
 
+  /*
+   * Forced colours replace the palette with system keywords and drop
+   * box-shadows/fills, so a border is the only reliable shape cue. Every
+   * surface already owns a real border; these rules keep its colour visible
+   * and give the outline wordmark a fill (text-stroke is not guaranteed).
+   */
+  @media (forced-colors: active) {
+    [data-tile],
+    .glass-component,
+    .glass-control {
+      border: 1px solid CanvasText;
+    }
+
+    [data-slot="button"],
+    [data-slot="badge"] {
+      border: 1px solid ButtonText;
+    }
+
+    [data-slot="button"]:hover,
+    [data-slot="button"]:focus-visible {
+      border-color: ButtonText;
+      outline: 2px solid Highlight;
+      outline-offset: 2px;
+    }
+
+    .wordmark,
+    .display-outline {
+      color: CanvasText;
+      -webkit-text-stroke-color: CanvasText;
+    }
+
+    .wordmark > span {
+      -webkit-text-stroke-color: CanvasText;
+    }
+
+    /* Decorative mesh, grain, and gradients are noise in forced colours. */
+    .mesh,
+    .mesh-glow,
+    [data-mesh-glow],
+    [data-grain] {
+      display: none;
+    }
+  }
+
   @media (max-width: 980px) {
     .bento {
       grid-template-columns: repeat(2, 1fr);
@@ -704,5 +759,16 @@
       grid-template-columns: 1fr;
       grid-auto-rows: auto;
     }
+  }
+}
+
+/*
+ * Decorative pulses (skeletons) stop under reduced motion; the surface stays
+ * visible. Functional spinners keep turning so loading state remains legible.
+ * Unlayered on purpose: a layered rule would lose to Tailwind's utility.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none;
   }
 }
