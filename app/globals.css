@@ -397,19 +397,25 @@
     color: var(--foreground);
   }
 
-  /* Apple: respect the user's motion preference at the platform level. */
+  /*
+   * Motion is opt-in, not killed globally. The sheet is static by default and
+   * the ambient loops (ticker, mesh drift) plus press feedback are declared
+   * only inside `prefers-reduced-motion: no-preference`. Color and
+   * background transitions stay on in both branches, so state feedback
+   * survives a reduced-motion preference.
+   *
+   * The freeze below is deliberately narrow: it lands moving content on its
+   * readable final frame without hiding it or snapping every transition in
+   * the app.
+   */
   @media (prefers-reduced-motion: reduce) {
     html {
       scroll-behavior: auto;
     }
 
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
+    .ticker-track {
+      transform: none;
+      opacity: 1;
     }
   }
 }
@@ -479,15 +485,98 @@
     display: none;
   }
 
-  /* Press feedback that feels like a control, not a bounce. */
-  .press {
-    transition:
-      transform 160ms cubic-bezier(0.25, 1, 0.5, 1),
-      box-shadow 200ms cubic-bezier(0.25, 1, 0.5, 1);
-  }
-
+  /*
+   * Press feedback that feels like a control, not a bounce. The transition is
+   * opt-in (see `no-preference` below); without it the scale snaps, which is
+   * the right reduced-motion behaviour.
+   */
   .press:active {
     transform: scale(0.975);
+  }
+
+  /*
+   * Direction C ticker band (mockup `.ticker` / `.track`): hairline rules,
+   * 13px block padding, 36px rhythm with a lime `///` marker. The track holds
+   * two identical copies and travels exactly -50%, so copy two lands where
+   * copy one began. Static by default; the loop is declared only in the
+   * `no-preference` block below.
+   */
+  .ticker {
+    position: relative;
+    overflow: clip;
+    padding-block: 13px;
+    border-block: 1px solid var(--line);
+    background: color-mix(in oklab, var(--background) 40%, transparent);
+  }
+
+  .ticker-track {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    font-family: var(--font-display), Georgia, serif;
+    font-size: clamp(1.05rem, 1.8vw, 1.4rem);
+    color: color-mix(in oklab, var(--foreground) 42%, transparent);
+  }
+
+  .ticker-track[data-paused="true"] {
+    animation-play-state: paused;
+  }
+
+  .ticker-mark {
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent-text);
+  }
+
+  /*
+   * The only place ambient motion exists. Transform/opacity are the sole
+   * animated properties, so every loop stays on the compositor.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    .press {
+      transition: transform 160ms cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    @keyframes ticker-slide {
+      to {
+        transform: translateX(-50%);
+      }
+    }
+
+    .ticker-track {
+      animation: ticker-slide 55s linear infinite;
+    }
+
+    /*
+     * Decorative hero blobs (mockup `.mesh > .blob`). The section owns their
+     * position, size, and blur; this layer adds a slow drift so the backdrop
+     * breathes without touching paint.
+     */
+    @keyframes mesh-drift {
+      0% {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      100% {
+        transform: translate3d(1.5%, -2%, 0) scale(1.03);
+      }
+    }
+
+    .mesh > * {
+      animation: mesh-drift 26s ease-in-out infinite alternate;
+    }
+
+    .mesh > :nth-child(2) {
+      animation-duration: 32s;
+      animation-delay: -9s;
+    }
+
+    .mesh > :nth-child(3) {
+      animation-duration: 38s;
+      animation-delay: -18s;
+    }
   }
 
   /*
